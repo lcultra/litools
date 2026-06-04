@@ -48,7 +48,7 @@ export function CommandPalette(props: CommandPaletteProps) {
         })
         .catch((searchError) => {
           if (requestId === searchRequestId) {
-            setError(String(searchError));
+            setError(`搜索失败：${String(searchError)}`);
             setResults([]);
           }
         })
@@ -74,7 +74,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       setMessage(response.message);
       props.onCommandEffect(response.effect);
     } catch (executeError) {
-      setError(String(executeError));
+      setError(`执行失败：${String(executeError)}`);
     }
   }
 
@@ -106,35 +106,35 @@ export function CommandPalette(props: CommandPaletteProps) {
   }
 
   return (
-    <section class="w-[min(720px,calc(100vw-32px))] overflow-hidden rounded-[20px] border border-current/10 bg-current/5 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur">
+    <section class="w-[min(720px,calc(100vw-32px))] overflow-hidden rounded-[20px] border border-border bg-surface shadow-[var(--shadow-panel)] backdrop-blur">
       <form onSubmit={handleSubmit}>
         <input
           ref={inputElement}
           autofocus
-          class="w-full border-0 border-b border-current/10 bg-transparent px-6 py-[22px] text-xl text-inherit outline-none placeholder:text-current/40"
+          class="w-full border-0 border-b border-border bg-transparent px-6 py-[22px] text-xl text-inherit outline-none placeholder:text-muted"
           onInput={(event) => setQuery(event.currentTarget.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Search apps, commands, files, plugins..."
+          placeholder="搜索应用、命令、文件、插件..."
           value={query()}
         />
       </form>
       <div class="grid p-2">
-        <Show when={!loading()} fallback={<p class="m-0 px-4 py-3 text-sm text-current/60">Searching...</p>}>
-          <Show when={!error()} fallback={<p class="m-0 px-4 py-3 text-sm text-red-500">{error()}</p>}>
-            <Show when={results().length > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-current/60">No results found.</p>}>
+        <Show when={!loading()} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">正在搜索...</p>}>
+          <Show when={!error()} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{error()}</p>}>
+            <Show when={results().length > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
               <For each={results()}>
                 {(result, index) => (
                   <button
-                    class="grid cursor-pointer gap-1 rounded-xl border-0 px-4 py-3 text-left text-inherit transition-colors hover:bg-current/10"
-                    classList={{ 'bg-current/10': selectedIndex() === index(), 'bg-transparent': selectedIndex() !== index() }}
+                    class="grid cursor-pointer gap-1 rounded-xl border-0 px-4 py-3 text-left text-inherit transition-colors hover:bg-surface-muted"
+                    classList={{ 'bg-surface-muted': selectedIndex() === index(), 'bg-transparent': selectedIndex() !== index() }}
                     onClick={() => void runResult(result)}
                     onMouseEnter={() => setSelectedIndex(index())}
                     type="button"
                   >
                     <span class="font-semibold">{result.title}</span>
-                    <div class="flex items-center justify-between gap-4 text-sm text-current/60">
+                    <div class="flex items-center justify-between gap-4 text-sm text-muted">
                       <span>{result.subtitle}</span>
-                      <span>{result.provider} · {result.actions[0]?.label ?? 'Execute'}</span>
+                      <span>{providerLabel(result.provider)} · {result.actions[0]?.label ?? '执行'}</span>
                     </div>
                   </button>
                 )}
@@ -144,8 +144,16 @@ export function CommandPalette(props: CommandPaletteProps) {
         </Show>
       </div>
       <Show when={message()}>
-        <p class="m-0 px-6 pb-[18px] text-sm text-current/60">{message()}</p>
+        <p class="m-0 px-6 pb-[18px] text-sm text-muted">{message()}</p>
       </Show>
     </section>
   );
+}
+
+function providerLabel(provider: string) {
+  if (provider === 'commands') {
+    return '命令';
+  }
+
+  return provider;
 }

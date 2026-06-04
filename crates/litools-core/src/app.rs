@@ -192,12 +192,12 @@ fn builtin_effect_for_result(result_id: &str) -> LitoolsResult<BuiltinCommandEff
 
 fn message_for_effect(effect: &BuiltinCommandEffect) -> &'static str {
     match effect {
-        BuiltinCommandEffect::None => "No action executed",
-        BuiltinCommandEffect::OpenSettings => "Opening settings",
-        BuiltinCommandEffect::ReloadIndex => "Reloading index",
-        BuiltinCommandEffect::OpenLogs => "Opening logs",
-        BuiltinCommandEffect::QuitApp => "Quitting app",
-        BuiltinCommandEffect::ToggleTheme => "Toggling theme",
+        BuiltinCommandEffect::None => "未执行任何操作",
+        BuiltinCommandEffect::OpenSettings => "正在打开设置",
+        BuiltinCommandEffect::ReloadIndex => "正在重载索引",
+        BuiltinCommandEffect::OpenLogs => "正在打开诊断",
+        BuiltinCommandEffect::QuitApp => "正在退出应用",
+        BuiltinCommandEffect::ToggleTheme => "正在切换主题",
     }
 }
 

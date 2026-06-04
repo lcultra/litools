@@ -58,34 +58,34 @@ export function SettingsPage(props: SettingsPageProps) {
       setSaveState('saved');
     } catch (saveError) {
       setSaveState('error');
-      setError(String(saveError));
+      setError(`保存失败：${String(saveError)}`);
     }
   }
 
   return (
-    <section class="rounded-[20px] border border-current/10 bg-current/5 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+    <section class="rounded-[20px] border border-border bg-surface p-6 shadow-[var(--shadow-panel)]">
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h1 class="m-0 text-2xl font-semibold">Settings</h1>
-          <p class="m-0 mt-2 text-sm text-current/60">Configure the Phase 1 command palette runtime.</p>
+          <h1 class="m-0 text-2xl font-semibold">设置</h1>
+          <p class="m-0 mt-2 text-sm text-muted">配置命令面板运行参数。</p>
         </div>
         <button
-          class="rounded-lg bg-current px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:text-[#111318]"
+          class="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-fg disabled:opacity-50"
           disabled={!currentDraft() || saveState() === 'saving'}
           onClick={() => void saveSettings()}
           type="button"
         >
-          {saveState() === 'saving' ? 'Saving...' : 'Save'}
+          {saveState() === 'saving' ? '正在保存...' : '保存'}
         </button>
       </div>
 
-      <Show when={currentDraft()} fallback={<p class="mt-6 text-sm text-current/60">Loading settings...</p>}>
+      <Show when={currentDraft()} fallback={<p class="mt-6 text-sm text-muted">正在加载设置...</p>}>
         {(settings) => (
           <div class="mt-6 grid gap-4 text-sm">
-            <label class="grid gap-2 rounded-xl bg-current/5 px-4 py-3">
-              <span class="text-current/60">Theme</span>
+            <label class="grid gap-2 rounded-xl bg-surface-muted px-4 py-3">
+              <span class="text-muted">主题</span>
               <select
-                class="rounded-lg border border-current/10 bg-transparent px-3 py-2 outline-none"
+                class="rounded-lg border border-border bg-surface px-3 py-2 text-fg outline-none"
                 onChange={(event) =>
                   updateDraft((draft) => ({
                     ...draft,
@@ -94,16 +94,16 @@ export function SettingsPage(props: SettingsPageProps) {
                 }
                 value={settings().theme}
               >
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
+                <option value="system">跟随系统</option>
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
               </select>
             </label>
 
-            <label class="grid gap-2 rounded-xl bg-current/5 px-4 py-3">
-              <span class="text-current/60">Global hotkey</span>
+            <label class="grid gap-2 rounded-xl bg-surface-muted px-4 py-3">
+              <span class="text-muted">全局快捷键</span>
               <input
-                class="rounded-lg border border-current/10 bg-transparent px-3 py-2 outline-none"
+                class="rounded-lg border border-border bg-surface px-3 py-2 text-fg outline-none"
                 onInput={(event) =>
                   updateDraft((draft) => ({
                     ...draft,
@@ -115,13 +115,13 @@ export function SettingsPage(props: SettingsPageProps) {
                 }
                 value={settings().palette.global_hotkey}
               />
-              <span class="text-xs text-current/50">Supported now: CommandOrControl+Space, Meta+Space, Cmd+Space, Control+Space.</span>
+              <span class="text-xs text-muted">当前支持：CommandOrControl+Space、Meta+Space、Cmd+Space、Control+Space。</span>
             </label>
 
-            <label class="grid gap-2 rounded-xl bg-current/5 px-4 py-3">
-              <span class="text-current/60">Result limit</span>
+            <label class="grid gap-2 rounded-xl bg-surface-muted px-4 py-3">
+              <span class="text-muted">结果数量上限</span>
               <input
-                class="rounded-lg border border-current/10 bg-transparent px-3 py-2 outline-none"
+                class="rounded-lg border border-border bg-surface px-3 py-2 text-fg outline-none"
                 min="1"
                 max="50"
                 onInput={(event) =>
@@ -138,11 +138,11 @@ export function SettingsPage(props: SettingsPageProps) {
               />
             </label>
 
-            <SettingRow label="Enabled providers" value={settings().search.enabled_providers.join(', ')} />
+            <SettingRow label="已启用的数据源" value={settings().search.enabled_providers.map(providerLabel).join('，')} />
 
             <ToggleRow
               checked={settings().window.hide_on_blur}
-              label="Hide on blur"
+              label="失焦时隐藏"
               onChange={(checked) =>
                 updateDraft((draft) => ({
                   ...draft,
@@ -152,7 +152,7 @@ export function SettingsPage(props: SettingsPageProps) {
             />
             <ToggleRow
               checked={settings().window.close_to_tray}
-              label="Close to tray"
+              label="关闭到托盘"
               onChange={(checked) =>
                 updateDraft((draft) => ({
                   ...draft,
@@ -162,7 +162,7 @@ export function SettingsPage(props: SettingsPageProps) {
             />
             <ToggleRow
               checked={settings().window.center_on_show}
-              label="Center on show"
+              label="显示时居中"
               onChange={(checked) =>
                 updateDraft((draft) => ({
                   ...draft,
@@ -175,19 +175,27 @@ export function SettingsPage(props: SettingsPageProps) {
       </Show>
 
       <Show when={saveState() === 'saved'}>
-        <p class="m-0 mt-4 text-sm text-emerald-500">Settings saved.</p>
+        <p class="m-0 mt-4 text-sm text-success">设置已保存</p>
       </Show>
       <Show when={error()}>
-        {(message) => <p class="m-0 mt-4 text-sm text-red-500">{message()}</p>}
+        {(message) => <p class="m-0 mt-4 text-sm text-danger">{message()}</p>}
       </Show>
     </section>
   );
 }
 
+function providerLabel(provider: string) {
+  if (provider === 'commands') {
+    return '命令';
+  }
+
+  return provider;
+}
+
 function SettingRow(props: { label: string; value: string }) {
   return (
-    <div class="flex items-center justify-between gap-4 rounded-xl bg-current/5 px-4 py-3">
-      <span class="text-current/60">{props.label}</span>
+    <div class="flex items-center justify-between gap-4 rounded-xl bg-surface-muted px-4 py-3">
+      <span class="text-muted">{props.label}</span>
       <span class="font-medium">{props.value}</span>
     </div>
   );
@@ -195,8 +203,8 @@ function SettingRow(props: { label: string; value: string }) {
 
 function ToggleRow(props: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
   return (
-    <label class="flex items-center justify-between gap-4 rounded-xl bg-current/5 px-4 py-3">
-      <span class="text-current/60">{props.label}</span>
+    <label class="flex items-center justify-between gap-4 rounded-xl bg-surface-muted px-4 py-3">
+      <span class="text-muted">{props.label}</span>
       <input checked={props.checked} onChange={(event) => props.onChange(event.currentTarget.checked)} type="checkbox" />
     </label>
   );

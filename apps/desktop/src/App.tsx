@@ -65,24 +65,18 @@ export function App() {
   }
 
   return (
-    <main
-      class="min-h-screen px-4 pt-[12vh] transition-colors"
-      classList={{
-        'bg-[#111318] text-[#f7f7f8]': isDarkTheme(),
-        'bg-[#f4f5f7] text-[#16181d]': !isDarkTheme(),
-      }}
-    >
+    <main class="min-h-screen bg-app px-4 pt-[12vh] text-fg transition-colors">
       <div class="mx-auto grid w-[min(720px,calc(100vw-32px))] gap-4">
-        <nav class="flex items-center justify-between text-sm text-current/60">
-          <button class="rounded-lg px-3 py-2 hover:bg-current/10" onClick={() => setActiveView('palette')} type="button">
+        <nav class="flex items-center justify-between text-sm text-muted">
+          <button class="rounded-lg px-3 py-2 hover:bg-surface-muted" onClick={() => setActiveView('palette')} type="button">
             litools
           </button>
           <div class="flex gap-2">
-            <button class="rounded-lg px-3 py-2 hover:bg-current/10" onClick={() => setActiveView('settings')} type="button">
-              Settings
+            <button class="rounded-lg px-3 py-2 hover:bg-surface-muted" onClick={() => setActiveView('settings')} type="button">
+              设置
             </button>
-            <button class="rounded-lg px-3 py-2 hover:bg-current/10" onClick={() => setActiveView('diagnostics')} type="button">
-              Diagnostics
+            <button class="rounded-lg px-3 py-2 hover:bg-surface-muted" onClick={() => setActiveView('diagnostics')} type="button">
+              诊断
             </button>
           </div>
         </nav>
