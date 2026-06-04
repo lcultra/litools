@@ -9,6 +9,14 @@ export function executeResult(resultId: string, actionId: string): Promise<Comma
   return invoke<CommandExecution>('execute_result', { resultId, actionId });
 }
 
+export function hideMainWindow(): Promise<void> {
+  return invoke<void>('hide_main_window');
+}
+
+export function showMainWindow(): Promise<void> {
+  return invoke<void>('show_main_window');
+}
+
 export function getSettings(): Promise<AppSettings> {
   return invoke<AppSettings>('get_settings');
 }

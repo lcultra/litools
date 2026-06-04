@@ -3,7 +3,7 @@ use litools_search::SearchResult;
 use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 
-use crate::state::AppState;
+use crate::{state::AppState, window};
 
 #[tauri::command]
 pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
@@ -34,6 +34,24 @@ pub fn execute_result(
     }
 
     Ok(execution)
+}
+
+#[tauri::command]
+pub fn hide_main_window(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = window::main_window(&app_handle) {
+        window::hide_main_window(&window);
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = window::main_window(&app_handle) {
+        window::show_main_window(&window);
+    }
+
+    Ok(())
 }
 
 #[tauri::command]

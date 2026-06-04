@@ -1,5 +1,6 @@
-import { For, Show, createEffect, createSignal } from 'solid-js';
-import { executeResult, search } from '../../bridge/commands';
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { executeResult, hideMainWindow, search } from '../../bridge/commands';
+import { onFocusSearch } from '../../bridge/events';
 import type { BuiltinCommandEffect, SearchResult } from '../../bridge/types';
 
 type CommandPaletteProps = {
@@ -7,10 +8,23 @@ type CommandPaletteProps = {
 };
 
 export function CommandPalette(props: CommandPaletteProps) {
+  let inputElement: HTMLInputElement | undefined;
   const [query, setQuery] = createSignal('');
   const [results, setResults] = createSignal<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [message, setMessage] = createSignal<string | null>(null);
+
+  onMount(() => {
+    inputElement?.focus();
+    const unsubscribe = onFocusSearch(() => {
+      inputElement?.focus();
+      inputElement?.select();
+    });
+
+    onCleanup(() => {
+      void unsubscribe.then((dispose) => dispose());
+    });
+  });
 
   createEffect(() => {
     const currentQuery = query();
@@ -54,8 +68,10 @@ export function CommandPalette(props: CommandPaletteProps) {
     }
 
     if (event.key === 'Escape') {
+      event.preventDefault();
       setQuery('');
       setMessage(null);
+      void hideMainWindow();
     }
   }
 
@@ -63,6 +79,7 @@ export function CommandPalette(props: CommandPaletteProps) {
     <section class="w-[min(720px,calc(100vw-32px))] overflow-hidden rounded-[20px] border border-white/10 bg-[#1b1e26]/95 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
       <form onSubmit={handleSubmit}>
         <input
+          ref={inputElement}
           autofocus
           class="w-full border-0 border-b border-white/10 bg-transparent px-6 py-[22px] text-xl text-inherit outline-none"
           onInput={(event) => setQuery(event.currentTarget.value)}
