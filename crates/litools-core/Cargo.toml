@@ -1,0 +1,20 @@
+[package]
+name = "litools-core"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+litools-index.workspace = true
+litools-plugin.workspace = true
+litools-search.workspace = true
+litools-settings.workspace = true
+litools-system.workspace = true
+litools-telemetry.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true

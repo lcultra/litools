@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "litools settings",
+  "type": "object",
+  "properties": {
+    "theme": { "enum": ["system", "light", "dark"] },
+    "palette": {
+      "type": "object",
+      "properties": {
+        "global_hotkey": { "type": "string" },
+        "result_limit": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "search": {
+      "type": "object",
+      "properties": {
+        "enabled_providers": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

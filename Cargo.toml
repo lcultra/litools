@@ -1,0 +1,39 @@
+[workspace]
+members = [
+  "crates/litools-core",
+  "crates/litools-index",
+  "crates/litools-plugin",
+  "crates/litools-search",
+  "crates/litools-settings",
+  "crates/litools-system",
+  "crates/litools-telemetry",
+  "apps/desktop/src-tauri",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+version = "0.1.0"
+license = "MIT"
+authors = ["litools contributors"]
+
+[workspace.dependencies]
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+once_cell = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+
+litools-core = { path = "crates/litools-core" }
+litools-index = { path = "crates/litools-index" }
+litools-plugin = { path = "crates/litools-plugin" }
+litools-search = { path = "crates/litools-search" }
+litools-settings = { path = "crates/litools-settings" }
+litools-system = { path = "crates/litools-system" }
+litools-telemetry = { path = "crates/litools-telemetry" }

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "litools plugin manifest",
+  "type": "object",
+  "required": ["id", "name", "version", "entry"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "entry": { "type": "string" },
+    "icon": { "type": "string" },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "mode"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "subtitle": { "type": "string" },
+          "keywords": { "type": "array", "items": { "type": "string" } },
+          "mode": { "enum": ["instant", "view", "searchProvider"] }
+        }
+      }
+    },
+    "permissions": { "type": "array", "items": { "type": "string" } }
+  }
+}
