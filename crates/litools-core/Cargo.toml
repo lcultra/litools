@@ -13,6 +13,7 @@ litools-search.workspace = true
 litools-settings.workspace = true
 litools-system.workspace = true
 litools-telemetry.workspace = true
+chrono.workspace = true
 rusqlite.workspace = true
 serde.workspace = true
 thiserror.workspace = true

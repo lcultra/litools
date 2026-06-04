@@ -1,6 +1,7 @@
+use litools_core::{BuiltinCommandEffect, CommandExecution};
 use litools_search::SearchResult;
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 use crate::state::AppState;
 
@@ -11,10 +12,28 @@ pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchRes
 }
 
 #[tauri::command]
-pub fn execute_result(result_id: String, action_id: String) -> Result<String, String> {
-    Ok(format!(
-        "queued action `{action_id}` for result `{result_id}`"
-    ))
+pub fn execute_result(
+    result_id: String,
+    action_id: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<CommandExecution, String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let execution = app
+        .execute_result(result_id, action_id)
+        .map_err(|error| error.to_string())?;
+
+    match execution.effect {
+        BuiltinCommandEffect::QuitApp => app_handle.exit(0),
+        BuiltinCommandEffect::OpenSettings => {
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }
+        _ => {}
+    }
+
+    Ok(execution)
 }
 
 #[tauri::command]
@@ -49,16 +68,38 @@ pub fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, St
 }
 
 #[derive(Serialize)]
+pub struct UsageEventResponse {
+    target_type: String,
+    target_id: String,
+    query: Option<String>,
+    selected_at: String,
+}
+
+#[derive(Serialize)]
 pub struct DiagnosticsResponse {
     app_version: String,
     plugin_count: usize,
+    recent_usage: Vec<UsageEventResponse>,
 }
 
 #[tauri::command]
 pub fn get_diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsResponse, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
+    let recent_usage = app
+        .recent_usage_events(10)
+        .map_err(|error| error.to_string())?
+        .into_iter()
+        .map(|event| UsageEventResponse {
+            target_type: event.target_type,
+            target_id: event.target_id,
+            query: event.query,
+            selected_at: event.selected_at,
+        })
+        .collect();
+
     Ok(DiagnosticsResponse {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         plugin_count: app.context().plugins.installed_plugins().len(),
+        recent_usage,
     })
 }

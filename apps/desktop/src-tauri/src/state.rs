@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::{path::Path, sync::Mutex};
 
 use litools_core::{LitoolsApp, LitoolsResult};
 
@@ -7,9 +7,9 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn bootstrap() -> LitoolsResult<Self> {
+    pub fn bootstrap(data_dir: impl AsRef<Path>) -> LitoolsResult<Self> {
         Ok(Self {
-            app: Mutex::new(LitoolsApp::bootstrap_in_memory()?),
+            app: Mutex::new(LitoolsApp::bootstrap(data_dir)?),
         })
     }
 

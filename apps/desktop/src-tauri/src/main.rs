@@ -2,12 +2,15 @@ mod commands;
 mod state;
 
 use state::AppState;
+use tauri::Manager;
 
 fn main() {
-    let app_state = AppState::bootstrap().expect("failed to bootstrap litools");
-
     tauri::Builder::default()
-        .manage(app_state)
+        .setup(|app| {
+            let data_dir = app.path().app_data_dir()?;
+            app.manage(AppState::bootstrap(data_dir)?);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::search,
             commands::execute_result,
