@@ -17,6 +17,10 @@ export function showMainWindow(): Promise<void> {
     return invoke<void>('show_main_window');
 }
 
+export function startDragging(): Promise<void> {
+    return invoke<void>('start_dragging');
+}
+
 export function getSettings(): Promise<AppSettings> {
     return invoke<AppSettings>('get_settings');
 }

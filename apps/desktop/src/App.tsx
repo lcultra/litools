@@ -1,15 +1,15 @@
-import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { getSettings } from './bridge/commands';
 import { onNavigate } from './bridge/events';
 import type { AppSettings, BuiltinCommandEffect } from './bridge/types';
 import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
 import { CommandPalette } from './features/palette/CommandPalette';
+import { PluginManagerPage } from './features/plugins/PluginManagerPage';
 import { SettingsPage } from './features/settings/SettingsPage';
-
-type ActiveView = 'palette' | 'settings' | 'diagnostics';
+import { type AppViewId, secondaryViewNavItems } from './views/registry';
 
 export function App() {
-    const [activeView, setActiveView] = createSignal<ActiveView>('palette');
+    const [activeView, setActiveView] = createSignal<AppViewId>('palette');
     const [settings, setSettings] = createSignal<AppSettings | null>(null);
     const [systemDark, setSystemDark] = createSignal(false);
 
@@ -65,25 +65,34 @@ export function App() {
     }
 
     return (
-        <main class="min-h-screen bg-app px-4 pt-[12vh] text-fg transition-colors">
-            <div class="mx-auto grid w-[min(720px,calc(100vw-32px))] gap-4">
-                <nav class="flex items-center justify-between text-sm text-muted">
-                    <button class="rounded-lg px-3 py-2 hover:bg-surface-muted" onClick={() => setActiveView('palette')} type="button">
-                        litools
-                    </button>
-                    <div class="flex gap-2">
-                        <button class="rounded-lg px-3 py-2 hover:bg-surface-muted" onClick={() => setActiveView('settings')} type="button">
-                            设置
+        <main class="h-screen overflow-hidden text-fg transition-colors">
+            <div class="grid h-full w-full">
+                <Show when={activeView() !== 'palette'}>
+                    <nav class="flex items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-muted shadow-[var(--shadow-panel)]">
+                        <button class="rounded-lg px-3 py-2 font-semibold text-fg hover:bg-surface-muted" onClick={() => setActiveView('palette')} type="button">
+                            litools
                         </button>
-                        <button class="rounded-lg px-3 py-2 hover:bg-surface-muted" onClick={() => setActiveView('diagnostics')} type="button">
-                            诊断
-                        </button>
-                    </div>
-                </nav>
+                        <div class="flex gap-1">
+                            <For each={secondaryViewNavItems}>
+                                {(item) => (
+                                    <button
+                                        class="rounded-lg px-3 py-2 outline-none transition-colors hover:bg-surface-muted/60 focus-visible:bg-surface-muted/60"
+                                        classList={{ 'bg-surface-muted text-fg': activeView() === item.id }}
+                                        onClick={() => setActiveView(item.id)}
+                                        type="button"
+                                    >
+                                        {item.label}
+                                    </button>
+                                )}
+                            </For>
+                        </div>
+                    </nav>
+                </Show>
 
                 {activeView() === 'palette' ? <CommandPalette onCommandEffect={handleCommandEffect} /> : null}
                 {activeView() === 'settings' ? <SettingsPage onSettingsSaved={handleSettingsSaved} /> : null}
                 {activeView() === 'diagnostics' ? <DiagnosticsPage /> : null}
+                {activeView() === 'plugins' ? <PluginManagerPage /> : null}
             </div>
         </main>
     );

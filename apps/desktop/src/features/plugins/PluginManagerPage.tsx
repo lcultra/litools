@@ -1,7 +1,11 @@
+import { PageHeader } from '../../components/PageHeader';
+import { Panel } from '../../components/Panel';
+
 export function PluginManagerPage() {
     return (
-        <section class="rounded-[20px] border border-border bg-surface p-6 shadow-[var(--shadow-panel)]">
-            <h1 class="m-0 text-2xl font-semibold">插件</h1>
-        </section>
+        <Panel>
+            <PageHeader description="管理插件和扩展能力。" title="插件" />
+            <p class="m-0 mt-6 rounded-xl bg-surface-muted px-4 py-3 text-sm text-muted">插件管理功能将在后续版本开放。</p>
+        </Panel>
     );
 }

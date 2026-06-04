@@ -62,6 +62,15 @@ pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn start_dragging(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = window::main_window(&app_handle) {
+        window.start_dragging().map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     Ok(app.settings().clone())

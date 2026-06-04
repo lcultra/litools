@@ -42,10 +42,19 @@
     --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.42);
 }
 
+html,
+body,
+#root {
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 body {
     margin: 0;
-    background: var(--app);
     color: var(--fg);
+    user-select: none;
 }
 
 button,
