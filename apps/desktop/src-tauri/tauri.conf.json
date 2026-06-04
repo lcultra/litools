@@ -16,10 +16,11 @@
         "title": "litools",
         "width": 820,
         "height": 560,
-        "resizable": true,
+        "resizable": false,
         "fullscreen": false,
         "decorations": false,
-        "transparent": true
+        "transparent": true,
+        "shadow": false
       }
     ]
   },

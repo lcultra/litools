@@ -66,7 +66,7 @@ export function App() {
 
     return (
         <main class="h-screen overflow-hidden text-fg transition-colors">
-            <div class="grid h-full w-full">
+            <div class="grid w-full">
                 <Show when={activeView() !== 'palette'}>
                     <nav class="flex items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-muted shadow-[var(--shadow-panel)]">
                         <button class="rounded-lg px-3 py-2 font-semibold text-fg hover:bg-surface-muted" onClick={() => setActiveView('palette')} type="button">

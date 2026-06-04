@@ -54,6 +54,7 @@ body,
 body {
     margin: 0;
     color: var(--fg);
+    -webkit-user-select: none;
     user-select: none;
 }
 
@@ -61,4 +62,16 @@ button,
 input,
 select {
     font: inherit;
+}
+
+#root,
+#root * {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+input,
+textarea {
+    -webkit-user-select: text;
+    user-select: text;
 }

@@ -63,6 +63,7 @@ fn main() {
             commands::hide_main_window,
             commands::show_main_window,
             commands::start_dragging,
+            commands::resize_main_window_height,
             commands::get_settings,
             commands::update_settings,
             commands::list_plugins,

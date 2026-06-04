@@ -1,8 +1,11 @@
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-import { executeResult, hideMainWindow, search } from '../../bridge/commands';
+import { executeResult, hideMainWindow, resizeMainWindowHeight, search } from '../../bridge/commands';
 import { onFocusSearch } from '../../bridge/events';
 import type { BuiltinCommandEffect, SearchResult } from '../../bridge/types';
 import { PaletteView } from './PaletteView';
+
+const MIN_LAUNCHER_HEIGHT = 96;
+const MAX_LAUNCHER_HEIGHT = 520;
 
 type PaletteSearchControllerProps = {
     onCommandEffect: (effect: BuiltinCommandEffect) => void;
@@ -10,6 +13,8 @@ type PaletteSearchControllerProps = {
 
 export function PaletteSearchController(props: PaletteSearchControllerProps) {
     let inputElement: HTMLInputElement | undefined;
+    let resizeFrame = 0;
+    let lastSyncedHeight = 0;
     let searchRequestId = 0;
     const [query, setQuery] = createSignal('');
     const [results, setResults] = createSignal<SearchResult[]>([]);
@@ -81,6 +86,39 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
         void runResult(results()[selectedIndex()]);
     }
 
+    function clampLauncherHeight(height: number) {
+        return Math.min(Math.max(Math.ceil(height), MIN_LAUNCHER_HEIGHT), MAX_LAUNCHER_HEIGHT);
+    }
+
+    function scheduleWindowHeightSync(height: number) {
+        const nextHeight = clampLauncherHeight(height);
+
+        if (nextHeight === lastSyncedHeight) {
+            return;
+        }
+
+        window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = window.requestAnimationFrame(() => {
+            lastSyncedHeight = nextHeight;
+            void resizeMainWindowHeight(nextHeight);
+        });
+    }
+
+    function measureContentHeight(element: HTMLElement) {
+        return element.getBoundingClientRect().height;
+    }
+
+    function handleContentElement(element: HTMLElement) {
+        const observer = new ResizeObserver(() => scheduleWindowHeightSync(measureContentHeight(element)));
+        observer.observe(element);
+        scheduleWindowHeightSync(measureContentHeight(element));
+
+        onCleanup(() => {
+            window.cancelAnimationFrame(resizeFrame);
+            observer.disconnect();
+        });
+    }
+
     function selectResultByOffset(offset: number) {
         setSelectedIndex((current) => (results().length ? (current + offset + results().length) % results().length : 0));
         queueMicrotask(() => inputElement?.focus());
@@ -121,6 +159,7 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
                 inputElement = element;
             }}
             loading={loading()}
+            onContentElement={handleContentElement}
             onInput={setQuery}
             onKeyDown={handleKeyDown}
             onResultRun={(result) => void runResult(result)}

@@ -2,7 +2,7 @@ use litools_core::{BuiltinCommandEffect, CommandExecution};
 use litools_search::SearchResult;
 use litools_settings::AppSettings;
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, LogicalSize, Manager, Size, State};
 
 use crate::{shortcut, state::AppState, window};
 
@@ -65,6 +65,22 @@ pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
 pub fn start_dragging(app_handle: AppHandle) -> Result<(), String> {
     if let Some(window) = window::main_window(&app_handle) {
         window.start_dragging().map_err(|error| error.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = window::main_window(&app_handle) {
+        let width = window
+            .outer_size()
+            .map_err(|error| error.to_string())?
+            .to_logical::<f64>(window.scale_factor().map_err(|error| error.to_string())?)
+            .width;
+        window
+            .set_size(Size::Logical(LogicalSize { width, height }))
+            .map_err(|error| error.to_string())?;
     }
 
     Ok(())
