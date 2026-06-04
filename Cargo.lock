@@ -1833,6 +1833,7 @@ dependencies = [
  "litools-telemetry",
  "rusqlite",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "uuid",
@@ -1844,6 +1845,7 @@ version = "0.1.0"
 dependencies = [
  "litools-core",
  "litools-search",
+ "litools-settings",
  "serde",
  "serde_json",
  "tauri",

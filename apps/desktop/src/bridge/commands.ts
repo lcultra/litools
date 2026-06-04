@@ -21,6 +21,10 @@ export function getSettings(): Promise<AppSettings> {
   return invoke<AppSettings>('get_settings');
 }
 
+export function updateSettings(settings: AppSettings): Promise<AppSettings> {
+  return invoke<AppSettings>('update_settings', { settings });
+}
+
 export function getDiagnostics(): Promise<DiagnosticsResponse> {
   return invoke<DiagnosticsResponse>('get_diagnostics');
 }

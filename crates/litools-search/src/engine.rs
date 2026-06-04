@@ -17,10 +17,21 @@ impl SearchEngine {
     }
 
     pub fn search(&self, query: SearchQuery) -> Vec<SearchResult> {
+        self.search_with_providers(query, std::iter::empty::<&str>())
+    }
+
+    pub fn search_with_providers<'a>(
+        &self,
+        query: SearchQuery,
+        enabled_provider_ids: impl IntoIterator<Item = &'a str>,
+    ) -> Vec<SearchResult> {
+        let enabled_provider_ids = enabled_provider_ids.into_iter().collect::<Vec<_>>();
         let mut results = Vec::new();
 
         for provider in &self.providers {
-            results.extend(provider.search(&query));
+            if enabled_provider_ids.is_empty() || enabled_provider_ids.contains(&provider.id()) {
+                results.extend(provider.search(&query));
+            }
         }
 
         rank_results(results, query.limit)

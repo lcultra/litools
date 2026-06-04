@@ -1,7 +1,7 @@
 use litools_index::IndexDatabase;
 use litools_plugin::PluginManager;
 use litools_search::SearchEngine;
-use litools_settings::{AppSettings, storage::SettingsStore};
+use litools_settings::storage::SettingsStore;
 
 pub struct AppContext {
     pub database: IndexDatabase,
@@ -11,12 +11,12 @@ pub struct AppContext {
 }
 
 impl AppContext {
-    pub fn new(database: IndexDatabase, search: SearchEngine) -> Self {
+    pub fn new(database: IndexDatabase, search: SearchEngine, settings: SettingsStore) -> Self {
         Self {
             database,
             search,
             plugins: PluginManager::new(),
-            settings: SettingsStore::new(AppSettings::default()),
+            settings,
         }
     }
 }

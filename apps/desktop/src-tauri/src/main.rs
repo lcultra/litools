@@ -1,24 +1,27 @@
 mod commands;
+mod shortcut;
 mod state;
 mod tray;
 mod window;
 
 use state::AppState;
 use tauri::{Manager, WindowEvent};
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::ShortcutState;
 
 fn main() {
-    let palette_shortcut = Shortcut::new(Some(Modifiers::META), Code::Space);
-
     tauri::Builder::default()
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
-                    if shortcut == &palette_shortcut
-                        && event.state() == ShortcutState::Pressed
+                    let Some(state) = app.try_state::<AppState>() else {
+                        return;
+                    };
+
+                    if event.state() == ShortcutState::Pressed
+                        && shortcut::matches_palette_shortcut(shortcut, &state)
                         && let Some(window) = window::main_window(app)
                     {
-                        window::toggle_main_window(&window);
+                        window::toggle_main_window(&window, state.center_on_show());
                     }
                 })
                 .build(),
@@ -27,7 +30,7 @@ fn main() {
             let data_dir = app.path().app_data_dir()?;
             app.manage(AppState::bootstrap(data_dir)?);
             tray::setup_tray(app)?;
-            app.global_shortcut().register(palette_shortcut)?;
+            shortcut::register_global_shortcut(app.handle(), &app.state::<AppState>().global_hotkey());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -41,10 +44,14 @@ fn main() {
 
             match event {
                 WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
-                    api.prevent_close();
-                    let _ = window.hide();
+                    if state.close_to_tray() {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    } else {
+                        state.request_quit();
+                    }
                 }
-                WindowEvent::Focused(false) if !state.is_quitting() => {
+                WindowEvent::Focused(false) if !state.is_quitting() && state.hide_on_blur() => {
                     let _ = window.hide();
                 }
                 _ => {}
@@ -56,6 +63,7 @@ fn main() {
             commands::hide_main_window,
             commands::show_main_window,
             commands::get_settings,
+            commands::update_settings,
             commands::list_plugins,
             commands::get_diagnostics
         ])

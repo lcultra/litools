@@ -1,21 +1,57 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+pub const DEFAULT_GLOBAL_HOTKEY: &str = "CommandOrControl+Space";
+pub const DEFAULT_RESULT_LIMIT: usize = 20;
+pub const MAX_RESULT_LIMIT: usize = 50;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AppSettings {
     pub theme: String,
     pub palette: PaletteSettings,
     pub search: SearchSettings,
+    pub window: WindowSettings,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PaletteSettings {
     pub global_hotkey: String,
     pub result_limit: usize,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct SearchSettings {
     pub enabled_providers: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct WindowSettings {
+    pub hide_on_blur: bool,
+    pub close_to_tray: bool,
+    pub center_on_show: bool,
+}
+
+impl AppSettings {
+    pub fn normalized(mut self) -> Self {
+        if !matches!(self.theme.as_str(), "system" | "light" | "dark") {
+            self.theme = "system".to_string();
+        }
+
+        if self.palette.global_hotkey.trim().is_empty() {
+            self.palette.global_hotkey = DEFAULT_GLOBAL_HOTKEY.to_string();
+        }
+
+        self.palette.result_limit = self.palette.result_limit.clamp(1, MAX_RESULT_LIMIT);
+
+        self.search.enabled_providers.retain(|provider| !provider.trim().is_empty());
+        self.search.enabled_providers.sort();
+        self.search.enabled_providers.dedup();
+
+        if self.search.enabled_providers.is_empty() {
+            self.search.enabled_providers.push("commands".to_string());
+        }
+
+        self
+    }
 }
 
 impl Default for AppSettings {
@@ -23,12 +59,63 @@ impl Default for AppSettings {
         Self {
             theme: "system".to_string(),
             palette: PaletteSettings {
-                global_hotkey: "CommandOrControl+Space".to_string(),
-                result_limit: 20,
+                global_hotkey: DEFAULT_GLOBAL_HOTKEY.to_string(),
+                result_limit: DEFAULT_RESULT_LIMIT,
             },
             search: SearchSettings {
                 enabled_providers: vec!["commands".to_string()],
             },
+            window: WindowSettings {
+                hide_on_blur: true,
+                close_to_tray: true,
+                center_on_show: true,
+            },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_settings_include_phase_one_window_behavior() {
+        let settings = AppSettings::default();
+
+        assert_eq!(settings.theme, "system");
+        assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
+        assert_eq!(settings.palette.result_limit, DEFAULT_RESULT_LIMIT);
+        assert_eq!(settings.search.enabled_providers, ["commands"]);
+        assert!(settings.window.hide_on_blur);
+        assert!(settings.window.close_to_tray);
+        assert!(settings.window.center_on_show);
+    }
+
+    #[test]
+    fn normalization_clamps_and_repairs_invalid_values() {
+        let settings = AppSettings {
+            theme: "unknown".to_string(),
+            palette: PaletteSettings {
+                global_hotkey: " ".to_string(),
+                result_limit: 100,
+            },
+            search: SearchSettings {
+                enabled_providers: vec!["".to_string(), "commands".to_string(), "commands".to_string()],
+            },
+            window: WindowSettings {
+                hide_on_blur: false,
+                close_to_tray: false,
+                center_on_show: false,
+            },
+        }
+        .normalized();
+
+        assert_eq!(settings.theme, "system");
+        assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
+        assert_eq!(settings.palette.result_limit, MAX_RESULT_LIMIT);
+        assert_eq!(settings.search.enabled_providers, ["commands"]);
+        assert!(!settings.window.hide_on_blur);
+        assert!(!settings.window.close_to_tray);
+        assert!(!settings.window.center_on_show);
     }
 }

@@ -8,9 +8,13 @@ pub struct SearchQuery {
 
 impl SearchQuery {
     pub fn new(text: impl Into<String>) -> Self {
+        Self::with_limit(text, 20)
+    }
+
+    pub fn with_limit(text: impl Into<String>, limit: usize) -> Self {
         Self {
             text: text.into(),
-            limit: 20,
+            limit,
         }
     }
 }

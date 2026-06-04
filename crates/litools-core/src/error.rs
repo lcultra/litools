@@ -6,6 +6,8 @@ pub enum LitoolsError {
     Index(#[from] rusqlite::Error),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
     #[error("command not found: {0}")]
     CommandNotFound(String),
 }

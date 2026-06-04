@@ -28,7 +28,7 @@ export type CommandExecution = {
 };
 
 export type AppSettings = {
-  theme: string;
+  theme: 'system' | 'light' | 'dark' | string;
   palette: {
     global_hotkey: string;
     result_limit: number;
@@ -36,6 +36,17 @@ export type AppSettings = {
   search: {
     enabled_providers: string[];
   };
+  window: {
+    hide_on_blur: boolean;
+    close_to_tray: boolean;
+    center_on_show: boolean;
+  };
+};
+
+export type ShortcutStatus = {
+  accelerator: string;
+  registered: boolean;
+  error?: string | null;
 };
 
 export type UsageEvent = {
@@ -47,6 +58,12 @@ export type UsageEvent = {
 
 export type DiagnosticsResponse = {
   app_version: string;
+  app_data_dir: string;
+  platform: string;
   plugin_count: number;
+  command_count: number;
+  recent_usage_count: number;
   recent_usage: UsageEvent[];
+  settings: AppSettings;
+  shortcut: ShortcutStatus;
 };
