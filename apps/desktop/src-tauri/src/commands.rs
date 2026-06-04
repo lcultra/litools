@@ -1,7 +1,7 @@
 use litools_core::{BuiltinCommandEffect, CommandExecution};
 use litools_search::SearchResult;
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::{state::AppState, window};
 
@@ -26,8 +26,13 @@ pub fn execute_result(
     match execution.effect {
         BuiltinCommandEffect::QuitApp => app_handle.exit(0),
         BuiltinCommandEffect::OpenSettings => {
-            if let Some(window) = app_handle.get_webview_window("main") {
-                let _ = window.set_focus();
+            if let Some(window) = window::main_window(&app_handle) {
+                window::show_view(&window, "settings");
+            }
+        }
+        BuiltinCommandEffect::OpenLogs => {
+            if let Some(window) = window::main_window(&app_handle) {
+                window::show_view(&window, "diagnostics");
             }
         }
         _ => {}

@@ -1,4 +1,5 @@
-import { createSignal } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
+import { onNavigate } from './bridge/events';
 import type { BuiltinCommandEffect } from './bridge/types';
 import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
 import { CommandPalette } from './features/palette/CommandPalette';
@@ -9,6 +10,14 @@ type ActiveView = 'palette' | 'settings' | 'diagnostics';
 export function App() {
   const [activeView, setActiveView] = createSignal<ActiveView>('palette');
   const [darkTheme, setDarkTheme] = createSignal(true);
+
+  onMount(() => {
+    const unsubscribe = onNavigate(setActiveView);
+
+    onCleanup(() => {
+      void unsubscribe.then((dispose) => dispose());
+    });
+  });
 
   function handleCommandEffect(effect: BuiltinCommandEffect) {
     if (effect === 'openSettings') {
