@@ -11,6 +11,8 @@ const MAX_LAUNCHER_HEIGHT = 520;
 export const PALETTE_GRID_COLUMNS = 9;
 const DEFAULT_VISIBLE_ROWS = 2;
 
+let cachedIdleSections: LauncherSection[] = [];
+
 type PaletteSearchControllerProps = {
     onCommandEffect: (effect: BuiltinCommandEffect) => void;
 };
@@ -37,7 +39,7 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
     let lastSyncedHeight = 0;
     let panelRequestId = 0;
     const [query, setQuery] = createSignal('');
-    const [sections, setSections] = createSignal<LauncherSection[]>([]);
+    const [sections, setSections] = createSignal<LauncherSection[]>(cachedIdleSections);
     const [expandedSectionIds, setExpandedSectionIds] = createSignal<Set<string>>(new Set<string>());
     const [selectedIndex, setSelectedIndex] = createSignal(0);
     const [error, setError] = createSignal<string | null>(null);
@@ -88,6 +90,10 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
             const response = await launcherPanel(currentQuery);
             if (requestId !== panelRequestId) {
                 return;
+            }
+
+            if (!currentQuery.trim()) {
+                cachedIdleSections = response.sections;
             }
 
             setSections(response.sections);

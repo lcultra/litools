@@ -45,7 +45,7 @@ pub fn start_app_watcher(app_handle: AppHandle) -> AppWatcherHandle {
 
 #[cfg(target_os = "macos")]
 fn platform_app_watcher(app_handle: AppHandle) -> AppWatcherHandle {
-    use litools_system::platform::macos::application_dirs;
+    use litools_system::platform::application_dirs;
     use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
     let watched_dirs = application_dirs()
