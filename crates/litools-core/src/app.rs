@@ -17,6 +17,7 @@ use uuid::Uuid;
 
 const APP_SETTINGS_KEY: &str = "app_settings";
 const APPS_INDEX_STATUS_KEY: &str = "apps_last_refresh_status";
+const LAUNCHER_RESULT_LIMIT: usize = 20;
 const RELOAD_INDEX_TRIGGER_DIRECT: &str = "direct";
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -80,7 +81,7 @@ impl LitoolsApp {
     pub fn search(&self, text: impl Into<String>) -> Vec<SearchResult> {
         let settings = self.context.settings.get();
         self.context.search.search_with_providers(
-            SearchQuery::with_limit(text, settings.palette.result_limit),
+            SearchQuery::with_limit(text, LAUNCHER_RESULT_LIMIT),
             settings.search.enabled_providers.iter().map(String::as_str),
         )
     }
@@ -126,7 +127,7 @@ impl LitoolsApp {
         let mut sections = Vec::new();
 
         if settings.palette.show_recent {
-            let recent_items = self.recent_launcher_items(settings.palette.result_limit)?;
+            let recent_items = self.recent_launcher_items(LAUNCHER_RESULT_LIMIT)?;
 
             if let Some(section) = section_if_not_empty("recent", "最近使用", recent_items) {
                 sections.push(section);
@@ -134,7 +135,7 @@ impl LitoolsApp {
         }
 
         if settings.palette.show_pinned {
-            let pinned_items = self.pinned_launcher_items(settings.palette.result_limit)?;
+            let pinned_items = self.pinned_launcher_items(LAUNCHER_RESULT_LIMIT)?;
 
             if let Some(section) = section_if_not_empty("pinned", "已固定", pinned_items) {
                 sections.push(section);
@@ -578,26 +579,6 @@ mod tests {
     }
 
     #[test]
-    fn launcher_panel_returns_best_section_for_query_without_settings_limit() {
-        let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
-        let mut settings = app.settings().clone();
-        settings.palette.result_limit = 1;
-        app.update_settings(settings).expect("update settings");
-
-        let panel = app.launcher_panel("t").expect("launcher panel");
-
-        assert_eq!(panel.sections.len(), 1);
-        assert_eq!(panel.sections[0].id, "best");
-        assert!(panel.sections[0].items.len() > 1);
-        assert!(
-            panel.sections[0]
-                .items
-                .iter()
-                .any(|item| item.result.id == "open-settings")
-        );
-    }
-
-    #[test]
     fn launcher_panel_respects_section_settings() {
         let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
         let mut settings = app.settings().clone();
@@ -678,7 +659,6 @@ mod tests {
             theme: "invalid".to_string(),
             palette: PaletteSettings {
                 global_hotkey: "".to_string(),
-                result_limit: 100,
                 show_recent: false,
                 show_pinned: false,
             },
@@ -695,21 +675,8 @@ mod tests {
         let updated = app.update_settings(settings).expect("update settings");
 
         assert_eq!(updated.theme, "system");
-        assert_eq!(updated.palette.result_limit, 50);
         assert_eq!(updated.search.enabled_providers, ["apps", "commands"]);
         assert_eq!(app.settings(), &updated);
-    }
-
-    #[test]
-    fn search_uses_settings_result_limit() {
-        let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
-        let mut settings = app.settings().clone();
-        settings.palette.result_limit = 1;
-        app.update_settings(settings).expect("update settings");
-
-        let results = app.search("");
-
-        assert_eq!(results.len(), 1);
     }
 
     #[test]

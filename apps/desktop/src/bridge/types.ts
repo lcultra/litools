@@ -82,7 +82,6 @@ export type AppSettings = {
     theme: ThemeValue;
     palette: {
         global_hotkey: string;
-        result_limit: number;
         show_recent: boolean;
         show_pinned: boolean;
     };

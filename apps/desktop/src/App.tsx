@@ -1,18 +1,24 @@
-import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { useLocation, useNavigate } from '@solidjs/router';
+import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { getSettings } from './bridge/commands';
 import { onNavigate } from './bridge/events';
 import type { AppSettings, BuiltinCommandEffect } from './bridge/types';
+import { ManagementLayout } from './components/ManagementLayout';
 import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
 import { CommandPalette } from './features/palette/CommandPalette';
 import { PluginManagerPage } from './features/plugins/PluginManagerPage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { isDarkThemeValue } from './shared/theme';
-import { type AppViewId, secondaryViewNavItems } from './views/registry';
+import { routeForPath } from './views/registry';
 
 export function App() {
-    const [activeView, setActiveView] = createSignal<AppViewId>('palette');
+    const location = useLocation();
+    const navigate = useNavigate();
     const [settings, setSettings] = createSignal<AppSettings | null>(null);
     const [systemDark, setSystemDark] = createSignal(false);
+
+    const activeRoute = () => routeForPath(location.pathname);
+    const isLauncher = () => activeRoute().kind === 'launcher';
 
     onMount(() => {
         void refreshSettings();
@@ -22,7 +28,7 @@ export function App() {
         const handleSystemTheme = (event: MediaQueryListEvent) => setSystemDark(event.matches);
         media.addEventListener('change', handleSystemTheme);
 
-        const unsubscribe = onNavigate(setActiveView);
+        const unsubscribe = onNavigate((path) => navigate(path));
 
         onCleanup(() => {
             media.removeEventListener('change', handleSystemTheme);
@@ -42,17 +48,21 @@ export function App() {
         return isDarkThemeValue(settings()?.theme, systemDark());
     }
 
+    function openLauncher() {
+        navigate('/');
+    }
+
     function handleSettingsSaved(nextSettings: AppSettings) {
         setSettings(nextSettings);
     }
 
     function handleCommandEffect(effect: BuiltinCommandEffect) {
         if (effect === 'openSettings') {
-            setActiveView('settings');
+            navigate('/settings');
         }
 
         if (effect === 'openLogs') {
-            setActiveView('diagnostics');
+            navigate('/diagnostics');
         }
 
         if (effect === 'toggleTheme') {
@@ -60,40 +70,25 @@ export function App() {
         }
 
         if (effect === 'reloadIndex') {
-            setActiveView('palette');
+            navigate('/');
         }
     }
 
     return (
         <main class="h-screen overflow-hidden text-fg transition-colors">
-            <div class="grid w-full">
-                <Show when={activeView() !== 'palette'}>
-                    <nav class="flex items-center justify-between rounded-2xl border border-border bg-surface px-3 py-2 text-sm text-muted shadow-[var(--shadow-panel)]">
-                        <button class="rounded-lg px-3 py-2 font-semibold text-fg hover:bg-surface-muted" onClick={() => setActiveView('palette')} type="button">
-                            litools
-                        </button>
-                        <div class="flex gap-1">
-                            <For each={secondaryViewNavItems}>
-                                {(item) => (
-                                    <button
-                                        class="rounded-lg px-3 py-2 outline-none transition-colors hover:bg-surface-muted/60 focus-visible:bg-surface-muted/60"
-                                        classList={{ 'bg-surface-muted text-fg': activeView() === item.id }}
-                                        onClick={() => setActiveView(item.id)}
-                                        type="button"
-                                    >
-                                        {item.label}
-                                    </button>
-                                )}
-                            </For>
-                        </div>
-                    </nav>
-                </Show>
-
-                {activeView() === 'palette' ? <CommandPalette onCommandEffect={handleCommandEffect} /> : null}
-                {activeView() === 'settings' ? <SettingsPage onSettingsSaved={handleSettingsSaved} /> : null}
-                {activeView() === 'diagnostics' ? <DiagnosticsPage /> : null}
-                {activeView() === 'plugins' ? <PluginManagerPage /> : null}
-            </div>
+            <Show when={!isLauncher()} fallback={<CommandPalette onCommandEffect={handleCommandEffect} />}>
+                <ManagementLayout onOpenLauncher={openLauncher}>
+                    <Show when={activeRoute().path === '/settings'}>
+                        <SettingsPage onSettingsSaved={handleSettingsSaved} />
+                    </Show>
+                    <Show when={activeRoute().path === '/diagnostics'}>
+                        <DiagnosticsPage />
+                    </Show>
+                    <Show when={activeRoute().path === '/plugins'}>
+                        <PluginManagerPage />
+                    </Show>
+                </ManagementLayout>
+            </Show>
         </main>
     );
 }

@@ -70,12 +70,12 @@ pub fn execute_result(
         BuiltinCommandEffect::QuitApp => app_handle.exit(0),
         BuiltinCommandEffect::OpenSettings => {
             if let Some(window) = window::main_window(&app_handle) {
-                window::show_view(&window, "settings", state.center_on_show());
+                window::open_route(&window, "/settings", state.center_on_show());
             }
         }
         BuiltinCommandEffect::OpenLogs => {
             if let Some(window) = window::main_window(&app_handle) {
-                window::show_view(&window, "diagnostics", state.center_on_show());
+                window::open_route(&window, "/diagnostics", state.center_on_show());
             }
         }
         _ => {}

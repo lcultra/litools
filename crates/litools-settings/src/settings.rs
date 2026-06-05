@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_GLOBAL_HOTKEY: &str = "CommandOrControl+Space";
-pub const DEFAULT_RESULT_LIMIT: usize = 20;
-pub const MAX_RESULT_LIMIT: usize = 50;
 pub const DEFAULT_ENABLED_PROVIDERS: &[&str] = &["apps", "commands"];
 pub const SUPPORTED_SEARCH_PROVIDERS: &[&str] = &["apps", "commands"];
 
@@ -17,7 +15,6 @@ pub struct AppSettings {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PaletteSettings {
     pub global_hotkey: String,
-    pub result_limit: usize,
     pub show_recent: bool,
     pub show_pinned: bool,
 }
@@ -44,8 +41,6 @@ impl AppSettings {
             self.palette.global_hotkey = DEFAULT_GLOBAL_HOTKEY.to_string();
         }
 
-        self.palette.result_limit = self.palette.result_limit.clamp(1, MAX_RESULT_LIMIT);
-
         self.search
             .enabled_providers
             .retain(|provider| SUPPORTED_SEARCH_PROVIDERS.contains(&provider.as_str()));
@@ -70,7 +65,6 @@ impl Default for AppSettings {
             theme: "system".to_string(),
             palette: PaletteSettings {
                 global_hotkey: DEFAULT_GLOBAL_HOTKEY.to_string(),
-                result_limit: DEFAULT_RESULT_LIMIT,
                 show_recent: true,
                 show_pinned: true,
             },
@@ -99,7 +93,6 @@ mod tests {
 
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
-        assert_eq!(settings.palette.result_limit, DEFAULT_RESULT_LIMIT);
         assert!(settings.palette.show_recent);
         assert!(settings.palette.show_pinned);
         assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
@@ -114,7 +107,6 @@ mod tests {
             theme: "unknown".to_string(),
             palette: PaletteSettings {
                 global_hotkey: " ".to_string(),
-                result_limit: 100,
                 show_recent: false,
                 show_pinned: false,
             },
@@ -135,7 +127,6 @@ mod tests {
 
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
-        assert_eq!(settings.palette.result_limit, MAX_RESULT_LIMIT);
         assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
         assert!(!settings.palette.show_recent);
         assert!(!settings.palette.show_pinned);

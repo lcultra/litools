@@ -20,25 +20,17 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id().as_ref() {
             SHOW_ID => {
                 if let Some(window) = window::main_window(app) {
-                    window::show_view(&window, "palette", app.state::<AppState>().center_on_show());
+                    window::open_route(&window, "/", app.state::<AppState>().center_on_show());
                 }
             }
             SETTINGS_ID => {
                 if let Some(window) = window::main_window(app) {
-                    window::show_view(
-                        &window,
-                        "settings",
-                        app.state::<AppState>().center_on_show(),
-                    );
+                    window::open_route(&window, "/settings", app.state::<AppState>().center_on_show());
                 }
             }
             DIAGNOSTICS_ID => {
                 if let Some(window) = window::main_window(app) {
-                    window::show_view(
-                        &window,
-                        "diagnostics",
-                        app.state::<AppState>().center_on_show(),
-                    );
+                    window::open_route(&window, "/diagnostics", app.state::<AppState>().center_on_show());
                 }
             }
             QUIT_ID => {
