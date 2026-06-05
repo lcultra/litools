@@ -103,6 +103,15 @@ pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn open_settings(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = window::main_window(&app_handle) {
+        window::open_route(&window, "/settings", app_handle.state::<AppState>().center_on_show());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
     if let Some(window) = window::main_window(&app_handle) {
         window.set_focus().map_err(|error| error.to_string())?;

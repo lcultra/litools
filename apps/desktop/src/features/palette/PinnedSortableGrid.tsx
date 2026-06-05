@@ -81,7 +81,7 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
         // biome-ignore lint/a11y/useSemanticElements lint/a11y/useFocusableInteractive: dnd-kit sortable must bind directly to this div tile.
         <div
             ref={sortable.ref}
-            class="relative grid size-full cursor-grab grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-[opacity,background-color,border-color] duration-150 active:cursor-grabbing"
+            class="relative grid size-full cursor-pointer grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-[opacity,background-color,border-color] duration-150"
             classList={{
                 'border-accent/40 bg-accent/15 text-fg': props.selected && !sortable.isDragging(),
                 'bg-transparent hover:bg-surface-muted/60 focus-visible:bg-surface-muted/60': !props.selected && !sortable.isDragging(),

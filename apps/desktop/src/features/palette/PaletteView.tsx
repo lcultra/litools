@@ -1,8 +1,8 @@
 import { createSignal, For, onCleanup, Show } from 'solid-js';
-import { startDragging } from '../../bridge/commands';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
 import { Panel } from '../../components/Panel';
 import { providerLabel } from '../../shared/labels';
+import { PaletteSearchInput } from './PaletteSearchInput';
 import { PinnedSortableGrid } from './PinnedSortableGrid';
 
 export type PaletteRenderItem = {
@@ -94,14 +94,6 @@ export function PaletteView(props: PaletteViewProps) {
     const totalVisibleItems = () => props.renderSections.reduce((count, section) => count + section.items.length, 0);
     const shouldShowResults = () => props.error || totalVisibleItems() > 0 || props.query.trim();
 
-    function handleSearchDragStart(event: PointerEvent) {
-        if (event.button !== 0) {
-            return;
-        }
-
-        void startDragging();
-    }
-
     function handlePanelContextMenu(event: MouseEvent) {
         event.preventDefault();
     }
@@ -109,7 +101,7 @@ export function PaletteView(props: PaletteViewProps) {
     function handlePanelPointerDown(event: PointerEvent) {
         const target = event.target;
 
-        if (!(target instanceof HTMLElement) || target.closest('input')) {
+        if (!(target instanceof HTMLElement) || target.closest('input, textarea, [contenteditable="true"], [data-launcher-no-drag], [data-launcher-interactive]')) {
             return;
         }
 
@@ -135,26 +127,14 @@ export function PaletteView(props: PaletteViewProps) {
     return (
         <div ref={handleContentElement} class="p-px" on:contextmenu={handlePanelContextMenu}>
             <Panel class="grid w-full self-start grid-rows-[auto_auto]" variant="launcher">
-                <form onPointerDown={handleSearchDragStart} onSubmit={props.onSubmit}>
-                    <input
-                        ref={props.inputRef}
-                        aria-autocomplete="none"
-                        autocapitalize="off"
-                        autocomplete="off"
-                        autocorrect="off"
-                        autofocus
-                        class="h-[68px] w-full border-0 border-b border-border bg-transparent px-4 py-2 text-2xl leading-[2rem] text-fg outline-none placeholder:text-muted"
-                        id="launcher-search"
-                        inputmode="search"
-                        name="launcher-search"
-                        on:blur={props.onInputBlur}
-                        on:keydown={props.onKeyDown}
-                        onInput={(event) => props.onInput(event.currentTarget.value)}
-                        placeholder="搜索应用、命令、文件、插件..."
-                        spellcheck={false}
-                        value={props.query}
-                    />
-                </form>
+                <PaletteSearchInput
+                    inputRef={props.inputRef}
+                    onInput={props.onInput}
+                    onInputBlur={props.onInputBlur}
+                    onKeyDown={props.onKeyDown}
+                    onSubmit={props.onSubmit}
+                    query={props.query}
+                />
 
                 <Show when={shouldShowResults()}>
                     <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">

@@ -33,6 +33,10 @@ export function showMainWindow(): Promise<void> {
     return invoke<void>('show_main_window');
 }
 
+export function openSettings(): Promise<void> {
+    return invoke<void>('open_settings');
+}
+
 export function focusMainWindow(): Promise<void> {
     return invoke<void>('focus_main_window');
 }
