@@ -20,11 +20,11 @@ pub fn show_main_window(window: &WebviewWindow, center_on_show: bool) {
     let _ = window.emit(FOCUS_SEARCH_EVENT, ());
 }
 
-pub fn open_route(window: &WebviewWindow, route: &str, center_on_show: bool) {
+pub fn open_route(window: &WebviewWindow, route: &str, _center_on_show: bool) {
     if route == "/" {
-        show_main_window(window, center_on_show);
+        show_main_window(window, false);
     } else {
-        show_management_window(window, center_on_show);
+        show_management_window(window, false);
     }
 
     let _ = window.emit(NAVIGATE_EVENT, route);

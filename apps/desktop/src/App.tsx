@@ -29,9 +29,19 @@ export function App() {
         media.addEventListener('change', handleSystemTheme);
 
         const unsubscribe = onNavigate((path) => navigate(path));
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape' || isLauncher()) {
+                return;
+            }
+
+            event.preventDefault();
+            navigate('/');
+        };
+        window.addEventListener('keydown', handleKeyDown);
 
         onCleanup(() => {
             media.removeEventListener('change', handleSystemTheme);
+            window.removeEventListener('keydown', handleKeyDown);
             void unsubscribe.then((dispose) => dispose());
         });
     });

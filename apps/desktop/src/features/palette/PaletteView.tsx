@@ -1,6 +1,6 @@
 import { createSignal, For, onCleanup, Show } from 'solid-js';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
-import { Panel } from '../../components/Panel';
+import { WindowFrame } from '../../components/WindowFrame';
 import { providerLabel } from '../../shared/labels';
 import { PaletteSearchInput } from './PaletteSearchInput';
 import { PinnedSortableGrid } from './PinnedSortableGrid';
@@ -125,8 +125,8 @@ export function PaletteView(props: PaletteViewProps) {
     }
 
     return (
-        <div ref={handleContentElement} class="p-px" on:contextmenu={handlePanelContextMenu}>
-            <Panel class="grid w-full self-start grid-rows-[auto_auto]" variant="launcher">
+        <div on:contextmenu={handlePanelContextMenu}>
+            <WindowFrame ref={handleContentElement} class="grid grid-rows-[auto_auto]">
                 <PaletteSearchInput
                     inputRef={props.inputRef}
                     onInput={props.onInput}
@@ -204,7 +204,7 @@ export function PaletteView(props: PaletteViewProps) {
                         </Show>
                     </div>
                 </Show>
-            </Panel>
+            </WindowFrame>
         </div>
     );
 }

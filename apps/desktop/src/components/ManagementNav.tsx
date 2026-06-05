@@ -2,21 +2,14 @@ import { A } from '@solidjs/router';
 import { For, Show } from 'solid-js';
 import { type ManagementNavGroup, managementNavGroupList, managementNavItems } from '../views/registry';
 
-type ManagementNavProps = {
-    onOpenLauncher: () => void;
-};
-
-export function ManagementNav(props: ManagementNavProps) {
+export function ManagementNav() {
     function itemsForGroup(group: ManagementNavGroup) {
         return managementNavItems.filter((item) => item.navGroup === group.id);
     }
 
     return (
-        <aside class="flex h-full w-48 shrink-0 flex-col border-border border-r bg-surface px-3 py-4">
-            <button class="rounded-xl px-3 py-2 text-left font-semibold text-fg hover:bg-surface-muted" onClick={props.onOpenLauncher} type="button">
-                litools
-            </button>
-            <nav class="mt-4 grid gap-4 text-sm">
+        <aside class="flex h-full w-48 shrink-0 flex-col border-border border-r px-3 py-4">
+            <nav class="grid gap-4 text-sm">
                 <For each={managementNavGroupList}>
                     {(group) => (
                         <Show when={itemsForGroup(group).length}>

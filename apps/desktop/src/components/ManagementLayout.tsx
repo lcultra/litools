@@ -1,6 +1,8 @@
 import type { JSX } from 'solid-js';
 import { Show } from 'solid-js';
+import { ManagementHeader } from './ManagementHeader';
 import { ManagementNav } from './ManagementNav';
+import { WindowFrame } from './WindowFrame';
 
 type ManagementLayoutMode = 'center' | 'standalone';
 
@@ -14,13 +16,14 @@ export function ManagementLayout(props: ManagementLayoutProps) {
     const mode = () => props.mode ?? 'center';
 
     return (
-        <div class="h-screen overflow-hidden rounded-[20px] bg-surface shadow-[inset_0_0_0_1px_var(--border)]">
-            <div class="flex h-full min-h-0">
+        <WindowFrame class="flex h-[calc(100vh-2px)] flex-col">
+            <ManagementHeader onClose={props.onOpenLauncher} />
+            <div class="flex min-h-0 flex-1">
                 <Show when={mode() === 'center'}>
-                    <ManagementNav onOpenLauncher={props.onOpenLauncher} />
+                    <ManagementNav />
                 </Show>
                 <section class="min-w-0 flex-1 overflow-y-auto p-6">{props.children}</section>
             </div>
-        </div>
+        </WindowFrame>
     );
 }
