@@ -1,8 +1,24 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AppSettings, CommandExecution, DiagnosticsResponse, IndexStatus, SearchResult } from './types';
+import type { AppSettings, CommandExecution, DiagnosticsResponse, IndexStatus, LauncherPanelResponse, SearchResult } from './types';
 
 export function search(query: string): Promise<SearchResult[]> {
     return invoke<SearchResult[]>('search', { query });
+}
+
+export function launcherPanel(query: string): Promise<LauncherPanelResponse> {
+    return invoke<LauncherPanelResponse>('launcher_panel', { query });
+}
+
+export function pinResult(resultId: string): Promise<void> {
+    return invoke<void>('pin_result', { resultId });
+}
+
+export function unpinResult(resultId: string): Promise<void> {
+    return invoke<void>('unpin_result', { resultId });
+}
+
+export function reorderPinnedResults(resultIds: string[]): Promise<void> {
+    return invoke<void>('reorder_pinned_results', { resultIds });
 }
 
 export function executeResult(resultId: string, actionId: string): Promise<CommandExecution> {

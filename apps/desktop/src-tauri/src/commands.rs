@@ -1,4 +1,6 @@
-use litools_core::{BuiltinCommandEffect, CommandExecution, ReloadIndexSummary};
+use litools_core::{
+    BuiltinCommandEffect, CommandExecution, LauncherPanelResponse, ReloadIndexSummary,
+};
 use litools_search::SearchResult;
 use litools_settings::AppSettings;
 use serde::Serialize;
@@ -17,6 +19,38 @@ use crate::{
 pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     Ok(app.search(query))
+}
+
+#[tauri::command]
+pub fn launcher_panel(
+    query: String,
+    state: State<'_, AppState>,
+) -> Result<LauncherPanelResponse, String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.launcher_panel(query).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn pin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.pin_result(result_id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn unpin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.unpin_result(result_id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn reorder_pinned_results(
+    result_ids: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.reorder_pinned_results(result_ids)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

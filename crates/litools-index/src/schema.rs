@@ -52,6 +52,14 @@ CREATE TABLE IF NOT EXISTS usage_events (
     selected_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS pinned_items (
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    pinned_at TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (target_type, target_id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value_json TEXT NOT NULL

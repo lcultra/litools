@@ -132,12 +132,11 @@ impl<'a> AppRepository<'a> {
             .optional()
     }
 
-    pub fn search_apps(&self, query: &str, limit: usize) -> rusqlite::Result<Vec<AppRecord>> {
+    pub fn search_apps(&self, query: &str, limit: Option<usize>) -> rusqlite::Result<Vec<AppRecord>> {
         let query = query.trim().to_lowercase();
-        let limit = limit as i64;
 
         if query.is_empty() {
-            let mut statement = self.connection.prepare(
+            let mut statement = self.connection.prepare(&format!(
                 "SELECT id,
                         name,
                         path,
@@ -149,16 +148,16 @@ impl<'a> AppRepository<'a> {
                         last_seen_at,
                         launch_count
                  FROM apps
-                 ORDER BY launch_count DESC, name ASC
-                 LIMIT ?1",
-            )?;
-            let rows = statement.query_map(params![limit], app_record_from_row)?;
+                 ORDER BY launch_count DESC, name ASC{}",
+                limit_clause(limit)
+            ))?;
+            let rows = statement.query_map([], app_record_from_row)?;
             return rows.collect();
         }
 
         let like_query = format!("%{query}%");
         let prefix_query = format!("{query}%");
-        let mut statement = self.connection.prepare(
+        let mut statement = self.connection.prepare(&format!(
             "SELECT id,
                     name,
                     path,
@@ -178,17 +177,17 @@ impl<'a> AppRepository<'a> {
                 OR lower(path) LIKE ?1
              ORDER BY
                 CASE
-                    WHEN lower(name) = ?3 THEN 0
-                    WHEN lower(name) LIKE ?4 THEN 1
+                    WHEN lower(name) = ?2 THEN 0
+                    WHEN lower(name) LIKE ?3 THEN 1
                     WHEN lower(localized_names_json) LIKE ?1 OR lower(aliases_json) LIKE ?1 THEN 2
                     ELSE 3
                 END,
                 launch_count DESC,
-                name ASC
-             LIMIT ?2",
-        )?;
+                name ASC{}",
+            limit_clause(limit)
+        ))?;
         let rows = statement.query_map(
-            params![like_query, limit, query, prefix_query],
+            params![like_query, query, prefix_query],
             app_record_from_row,
         )?;
         rows.collect()
@@ -201,6 +200,12 @@ impl<'a> AppRepository<'a> {
         )?;
         Ok(())
     }
+}
+
+fn limit_clause(limit: Option<usize>) -> String {
+    limit
+        .map(|limit| format!(" LIMIT {limit}"))
+        .unwrap_or_default()
 }
 
 fn app_record_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AppRecord> {
@@ -329,16 +334,109 @@ impl<'a> SettingsRepository<'a> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PinnedItemRecord {
+    pub target_type: String,
+    pub target_id: String,
+    pub pinned_at: String,
+    pub sort_order: i64,
+}
+
+pub struct PinnedRepository<'a> {
+    connection: &'a Connection,
+}
+
+impl<'a> PinnedRepository<'a> {
+    pub fn new(connection: &'a Connection) -> Self {
+        Self { connection }
+    }
+
+    pub fn list_pinned(&self, limit: usize) -> rusqlite::Result<Vec<PinnedItemRecord>> {
+        let mut statement = self.connection.prepare(
+            "SELECT target_type, target_id, pinned_at, sort_order
+             FROM pinned_items
+             ORDER BY sort_order ASC, pinned_at DESC
+             LIMIT ?1",
+        )?;
+        let rows = statement.query_map(params![limit as i64], |row| {
+            Ok(PinnedItemRecord {
+                target_type: row.get(0)?,
+                target_id: row.get(1)?,
+                pinned_at: row.get(2)?,
+                sort_order: row.get(3)?,
+            })
+        })?;
+
+        rows.collect()
+    }
+
+    pub fn pin(
+        &self,
+        target_type: &str,
+        target_id: &str,
+        pinned_at: &str,
+    ) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "INSERT INTO pinned_items (target_type, target_id, pinned_at, sort_order)
+             VALUES (?1, ?2, ?3, 0)
+             ON CONFLICT(target_type, target_id) DO UPDATE SET
+                pinned_at = excluded.pinned_at",
+            params![target_type, target_id, pinned_at],
+        )?;
+        Ok(())
+    }
+
+    pub fn unpin(&self, target_type: &str, target_id: &str) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "DELETE FROM pinned_items WHERE target_type = ?1 AND target_id = ?2",
+            params![target_type, target_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn is_pinned(&self, target_type: &str, target_id: &str) -> rusqlite::Result<bool> {
+        self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pinned_items WHERE target_type = ?1 AND target_id = ?2)",
+            params![target_type, target_id],
+            |row| row.get(0),
+        )
+    }
+
+    pub fn reorder(&self, ordered_targets: &[(String, String)]) -> rusqlite::Result<()> {
+        let transaction = self.connection.unchecked_transaction()?;
+
+        for (sort_order, (target_type, target_id)) in ordered_targets.iter().enumerate() {
+            transaction.execute(
+                "UPDATE pinned_items
+                 SET sort_order = ?1
+                 WHERE target_type = ?2 AND target_id = ?3",
+                params![sort_order as i64, target_type, target_id],
+            )?;
+        }
+
+        transaction.commit()
+    }
+}
+
 pub struct UsageRepository<'a> {
     connection: &'a Connection,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UsageEventRecord {
     pub target_type: String,
     pub target_id: String,
     pub query: Option<String>,
     pub selected_at: String,
+}
+
+fn usage_event_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<UsageEventRecord> {
+    Ok(UsageEventRecord {
+        target_type: row.get(0)?,
+        target_id: row.get(1)?,
+        query: row.get(2)?,
+        selected_at: row.get(3)?,
+    })
 }
 
 impl<'a> UsageRepository<'a> {
@@ -374,14 +472,32 @@ impl<'a> UsageRepository<'a> {
              LIMIT ?1",
         )?;
 
-        let rows = statement.query_map(params![limit], |row| {
-            Ok(UsageEventRecord {
-                target_type: row.get(0)?,
-                target_id: row.get(1)?,
-                query: row.get(2)?,
-                selected_at: row.get(3)?,
-            })
-        })?;
+        let rows = statement.query_map(params![limit], usage_event_from_row)?;
+
+        rows.collect()
+    }
+
+    pub fn recent_unique_targets(&self, limit: usize) -> rusqlite::Result<Vec<UsageEventRecord>> {
+        let mut statement = self.connection.prepare(
+            "SELECT latest.target_type,
+                    latest.target_id,
+                    latest.query,
+                    latest.selected_at
+             FROM usage_events latest
+             JOIN (
+                SELECT target_type, target_id, MAX(selected_at) AS selected_at
+                FROM usage_events
+                GROUP BY target_type, target_id
+             ) grouped
+                ON latest.target_type = grouped.target_type
+               AND latest.target_id = grouped.target_id
+               AND latest.selected_at = grouped.selected_at
+             GROUP BY latest.target_type, latest.target_id
+             ORDER BY latest.selected_at DESC
+             LIMIT ?1",
+        )?;
+
+        let rows = statement.query_map(params![limit], usage_event_from_row)?;
 
         rows.collect()
     }
@@ -488,7 +604,7 @@ mod tests {
             })
             .expect("write safari");
 
-        let results = repository.search_apps("term", 10).expect("search apps");
+        let results = repository.search_apps("term", Some(10)).expect("search apps");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "com.apple.Terminal");
@@ -516,8 +632,8 @@ mod tests {
             })
             .expect("write app");
 
-        let by_alias = repository.search_apps("weixin", 10).expect("search alias");
-        let by_initials = repository.search_apps("wx", 10).expect("search initials");
+        let by_alias = repository.search_apps("weixin", Some(10)).expect("search alias");
+        let by_initials = repository.search_apps("wx", Some(10)).expect("search initials");
 
         assert_eq!(by_alias[0].id, "com.tencent.xin");
         assert_eq!(by_initials[0].id, "com.tencent.xin");
@@ -615,6 +731,87 @@ mod tests {
                 .expect("count macos apps"),
             1
         );
+    }
+
+    #[test]
+    fn pinned_repository_pins_lists_and_unpins_items() {
+        let database = IndexDatabase::in_memory().expect("in-memory database");
+        let connection = database.connection();
+        let repository = PinnedRepository::new(&connection);
+
+        repository
+            .pin("app", "com.example.App", "2026-06-05T00:00:00Z")
+            .expect("pin app");
+        repository
+            .pin("command", "open-settings", "2026-06-06T00:00:00Z")
+            .expect("pin command");
+
+        assert!(
+            repository
+                .is_pinned("app", "com.example.App")
+                .expect("check pinned")
+        );
+
+        let pinned = repository.list_pinned(10).expect("list pinned");
+        assert_eq!(pinned.len(), 2);
+        assert_eq!(pinned[0].target_id, "open-settings");
+        assert_eq!(pinned[1].target_id, "com.example.App");
+
+        repository
+            .pin("app", "com.example.App", "2026-06-07T00:00:00Z")
+            .expect("update pinned app");
+        let pinned = repository.list_pinned(10).expect("list updated pinned");
+        assert_eq!(pinned[0].target_id, "com.example.App");
+        assert_eq!(pinned[0].pinned_at, "2026-06-07T00:00:00Z");
+
+        repository
+            .reorder(&[
+                ("command".to_string(), "open-settings".to_string()),
+                ("app".to_string(), "com.example.App".to_string()),
+            ])
+            .expect("reorder pinned items");
+        let pinned = repository.list_pinned(10).expect("list reordered pinned");
+        assert_eq!(pinned[0].target_id, "open-settings");
+        assert_eq!(pinned[0].sort_order, 0);
+        assert_eq!(pinned[1].target_id, "com.example.App");
+        assert_eq!(pinned[1].sort_order, 1);
+
+        repository
+            .unpin("app", "com.example.App")
+            .expect("unpin app");
+        assert!(
+            !repository
+                .is_pinned("app", "com.example.App")
+                .expect("check unpinned")
+        );
+    }
+
+    #[test]
+    fn usage_repository_lists_recent_unique_targets() {
+        let database = IndexDatabase::in_memory().expect("in-memory database");
+        let connection = database.connection();
+        let repository = UsageRepository::new(&connection);
+
+        for (id, target_type, target_id, selected_at) in [
+            ("1", "app", "com.example.App", "2026-06-05T00:00:00Z"),
+            ("2", "command", "open-settings", "2026-06-06T00:00:00Z"),
+            ("3", "app", "com.example.App", "2026-06-07T00:00:00Z"),
+        ] {
+            repository
+                .record_selection(id, target_type, target_id, None, selected_at)
+                .expect("record usage");
+        }
+
+        let recent = repository
+            .recent_unique_targets(10)
+            .expect("list recent unique targets");
+
+        assert_eq!(recent.len(), 2);
+        assert_eq!(recent[0].target_type, "app");
+        assert_eq!(recent[0].target_id, "com.example.App");
+        assert_eq!(recent[0].selected_at, "2026-06-07T00:00:00Z");
+        assert_eq!(recent[1].target_type, "command");
+        assert_eq!(recent[1].target_id, "open-settings");
     }
 
     #[test]

@@ -8,13 +8,23 @@
       "type": "object",
       "properties": {
         "global_hotkey": { "type": "string" },
-        "result_limit": { "type": "integer", "minimum": 1 }
+        "result_limit": { "type": "integer", "minimum": 1 },
+        "show_recent": { "type": "boolean" },
+        "show_pinned": { "type": "boolean" }
       }
     },
     "search": {
       "type": "object",
       "properties": {
         "enabled_providers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "window": {
+      "type": "object",
+      "properties": {
+        "hide_on_blur": { "type": "boolean" },
+        "close_to_tray": { "type": "boolean" },
+        "center_on_show": { "type": "boolean" }
       }
     }
   }

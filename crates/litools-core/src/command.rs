@@ -76,19 +76,34 @@ impl SearchProvider for BuiltinCommandProvider {
         BUILTIN_COMMANDS
             .iter()
             .filter(|command| command.matches(&needle))
-            .map(|command| SearchResult {
-                id: command.id.to_string(),
-                title: command.title.to_string(),
-                subtitle: Some(command.subtitle.to_string()),
-                icon_uri: None,
-                provider: self.id().to_string(),
-                score: command.score(&needle),
-                actions: vec![SearchResultAction {
-                    id: "execute".to_string(),
-                    label: "执行".to_string(),
-                }],
-            })
+            .map(|command| search_result_for_builtin_command(command, &query.text))
             .collect()
+    }
+}
+
+pub fn find_builtin_command(result_id: &str) -> Option<&'static BuiltinCommandDefinition> {
+    BUILTIN_COMMANDS
+        .iter()
+        .find(|command| command.id == result_id)
+}
+
+pub fn search_result_for_builtin_command(
+    command: &BuiltinCommandDefinition,
+    query: &str,
+) -> SearchResult {
+    let needle = query.to_lowercase();
+
+    SearchResult {
+        id: command.id.to_string(),
+        title: command.title.to_string(),
+        subtitle: Some(command.subtitle.to_string()),
+        icon_uri: None,
+        provider: "commands".to_string(),
+        score: command.score(&needle),
+        actions: vec![SearchResultAction {
+            id: "execute".to_string(),
+            label: "执行".to_string(),
+        }],
     }
 }
 

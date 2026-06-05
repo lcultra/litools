@@ -3,6 +3,9 @@ CREATE TABLE IF NOT EXISTS apps (
     name TEXT NOT NULL,
     path TEXT NOT NULL,
     icon_path TEXT,
+    localized_names_json TEXT NOT NULL DEFAULT '[]',
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    search_text TEXT NOT NULL DEFAULT '',
     platform TEXT NOT NULL,
     last_seen_at TEXT NOT NULL,
     launch_count INTEGER NOT NULL DEFAULT 0
@@ -48,9 +51,23 @@ CREATE TABLE IF NOT EXISTS usage_events (
     selected_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS pinned_items (
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    pinned_at TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (target_type, target_id)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS index_metadata (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS permission_grants (

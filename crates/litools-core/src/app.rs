@@ -1,11 +1,11 @@
-use std::{path::Path, sync::Arc};
+use std::{collections::HashSet, path::Path, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use litools_index::{
     IndexDatabase,
     repository::{
         AppRecord, AppRepository, AppUpsert, CommandRepository, IndexMetadataRepository,
-        SettingsRepository, UsageEventRecord, UsageRepository,
+        PinnedRepository, SettingsRepository, UsageEventRecord, UsageRepository,
     },
 };
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
@@ -35,10 +35,16 @@ pub struct ReloadIndexSummary {
 }
 
 use crate::{
-    app_provider::{AppSearchProvider, OPEN_APP_ACTION_ID, app_id_from_result_id},
-    command::{BUILTIN_COMMANDS, BuiltinCommandEffect, BuiltinCommandProvider, CommandExecution},
+    app_provider::{
+        AppSearchProvider, OPEN_APP_ACTION_ID, app_id_from_result_id, search_result_for_app,
+    },
+    command::{
+        BUILTIN_COMMANDS, BuiltinCommandEffect, BuiltinCommandProvider, CommandExecution,
+        find_builtin_command, search_result_for_builtin_command,
+    },
     context::AppContext,
     error::{LitoolsError, LitoolsResult},
+    launcher::{LauncherItem, LauncherPanelResponse, LauncherSection},
 };
 
 pub struct LitoolsApp {
@@ -79,8 +85,103 @@ impl LitoolsApp {
         )
     }
 
+    fn search_without_limit(&self, text: impl Into<String>) -> Vec<SearchResult> {
+        let settings = self.context.settings.get();
+        self.context.search.search_with_providers(
+            SearchQuery::without_limit(text),
+            settings.search.enabled_providers.iter().map(String::as_str),
+        )
+    }
+
     pub fn settings(&self) -> &AppSettings {
         self.context.settings.get()
+    }
+
+    pub fn launcher_panel(
+        &self,
+        query: impl Into<String>,
+    ) -> LitoolsResult<LauncherPanelResponse> {
+        let query = query.into();
+        let trimmed_query = query.trim();
+
+        if !trimmed_query.is_empty() {
+            let mut items = Vec::new();
+
+            for result in self.search_without_limit(trimmed_query) {
+                let is_pinned = match self.target_from_result_id(&result.id) {
+                    Some((target_type, target_id)) => self.is_target_pinned(target_type, &target_id)?,
+                    None => false,
+                };
+                items.push(LauncherItem { result, is_pinned });
+            }
+
+            return Ok(LauncherPanelResponse {
+                sections: section_if_not_empty("best", "最佳搜索结果", items)
+                    .into_iter()
+                    .collect(),
+            });
+        }
+
+        let settings = self.context.settings.get();
+        let mut sections = Vec::new();
+        let mut pinned_targets = HashSet::new();
+
+        if settings.palette.show_pinned {
+            let pinned_items = self.pinned_launcher_items(settings.palette.result_limit)?;
+            pinned_targets.extend(pinned_items.iter().filter_map(|item| {
+                self.target_from_result_id(&item.result.id)
+                    .map(|(target_type, target_id)| (target_type.to_string(), target_id))
+            }));
+
+            if let Some(section) = section_if_not_empty("pinned", "已固定", pinned_items) {
+                sections.push(section);
+            }
+        }
+
+        if settings.palette.show_recent {
+            let recent_items = self.recent_launcher_items(settings.palette.result_limit, &pinned_targets)?;
+
+            if let Some(section) = section_if_not_empty("recent", "最近使用", recent_items) {
+                sections.push(section);
+            }
+        }
+
+        Ok(LauncherPanelResponse { sections })
+    }
+
+    pub fn pin_result(&self, result_id: impl Into<String>) -> LitoolsResult<()> {
+        let result_id = result_id.into();
+        let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
+        let connection = self.context.database.connection();
+        PinnedRepository::new(&connection).pin(target_type, &target_id, &Utc::now().to_rfc3339())?;
+        Ok(())
+    }
+
+    pub fn unpin_result(&self, result_id: impl Into<String>) -> LitoolsResult<()> {
+        let result_id = result_id.into();
+        let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
+        let connection = self.context.database.connection();
+        PinnedRepository::new(&connection).unpin(target_type, &target_id)?;
+        Ok(())
+    }
+
+    pub fn reorder_pinned_results(&self, result_ids: Vec<String>) -> LitoolsResult<()> {
+        let connection = self.context.database.connection();
+        let pinned = PinnedRepository::new(&connection);
+        let mut targets = Vec::with_capacity(result_ids.len());
+
+        for result_id in result_ids {
+            let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
+
+            if !pinned.is_pinned(target_type, &target_id)? {
+                return Err(LitoolsError::CommandNotFound(result_id));
+            }
+
+            targets.push((target_type.to_string(), target_id));
+        }
+
+        pinned.reorder(&targets)?;
+        Ok(())
     }
 
     pub fn update_settings(&mut self, settings: AppSettings) -> LitoolsResult<AppSettings> {
@@ -225,6 +326,93 @@ impl LitoolsApp {
         Ok(UsageRepository::new(&connection).count_events()?)
     }
 
+    fn pinned_launcher_items(&self, limit: usize) -> LitoolsResult<Vec<LauncherItem>> {
+        let connection = self.context.database.connection();
+        let pinned = PinnedRepository::new(&connection).list_pinned(limit)?;
+        let apps = AppRepository::new(&connection);
+        let mut items = Vec::new();
+
+        for record in pinned {
+            if let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)? {
+                items.push(LauncherItem {
+                    result,
+                    is_pinned: true,
+                });
+            }
+        }
+
+        Ok(items)
+    }
+
+    fn recent_launcher_items(
+        &self,
+        limit: usize,
+        pinned_targets: &HashSet<(String, String)>,
+    ) -> LitoolsResult<Vec<LauncherItem>> {
+        let connection = self.context.database.connection();
+        let usage = UsageRepository::new(&connection).recent_unique_targets(limit)?;
+        let apps = AppRepository::new(&connection);
+        let pinned = PinnedRepository::new(&connection);
+        let mut items = Vec::new();
+
+        for record in usage {
+            if pinned_targets.contains(&(record.target_type.clone(), record.target_id.clone())) {
+                continue;
+            }
+
+            let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)? else {
+                continue;
+            };
+            let is_pinned = pinned.is_pinned(&record.target_type, &record.target_id)?;
+            items.push(LauncherItem { result, is_pinned });
+
+            if items.len() >= limit {
+                break;
+            }
+        }
+
+        Ok(items)
+    }
+
+    fn is_target_pinned(&self, target_type: &str, target_id: &str) -> LitoolsResult<bool> {
+        let connection = self.context.database.connection();
+        Ok(PinnedRepository::new(&connection).is_pinned(target_type, target_id)?)
+    }
+
+    fn validated_target_from_result_id(&self, result_id: &str) -> LitoolsResult<(&'static str, String)> {
+        let Some((target_type, target_id)) = self.target_from_result_id(result_id) else {
+            return Err(LitoolsError::CommandNotFound(result_id.to_string()));
+        };
+
+        if target_id.is_empty() {
+            return Err(LitoolsError::CommandNotFound(result_id.to_string()));
+        }
+
+        match target_type {
+            "app" => {
+                let connection = self.context.database.connection();
+                AppRepository::new(&connection)
+                    .find_app(&target_id)?
+                    .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
+            }
+            "command" => {
+                find_builtin_command(&target_id)
+                    .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
+            }
+            _ => return Err(LitoolsError::CommandNotFound(result_id.to_string())),
+        }
+
+        Ok((target_type, target_id))
+    }
+
+    fn target_from_result_id(&self, result_id: &str) -> Option<(&'static str, String)> {
+        if let Some(app_id) = app_id_from_result_id(result_id) {
+            return Some(("app", app_id.to_string()));
+        }
+
+        find_builtin_command(result_id).map(|command| ("command", command.id.to_string()))
+    }
+
     fn execute_app_result(
         &self,
         result_id: &str,
@@ -277,6 +465,37 @@ impl LitoolsApp {
 
     pub fn context(&self) -> &AppContext {
         &self.context
+    }
+}
+
+fn section_if_not_empty(
+    id: impl Into<String>,
+    title: impl Into<String>,
+    items: Vec<LauncherItem>,
+) -> Option<LauncherSection> {
+    if items.is_empty() {
+        return None;
+    }
+
+    Some(LauncherSection {
+        id: id.into(),
+        title: title.into(),
+        items,
+    })
+}
+
+fn result_for_target(
+    apps: &AppRepository<'_>,
+    target_type: &str,
+    target_id: &str,
+) -> LitoolsResult<Option<SearchResult>> {
+    match target_type {
+        "app" => Ok(apps
+            .find_app(target_id)?
+            .map(|app| search_result_for_app(app, ""))),
+        "command" => Ok(find_builtin_command(target_id)
+            .map(|command| search_result_for_builtin_command(command, ""))),
+        _ => Ok(None),
     }
 }
 
@@ -367,6 +586,83 @@ mod tests {
     }
 
     #[test]
+    fn launcher_panel_returns_best_section_for_query_without_settings_limit() {
+        let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
+        let mut settings = app.settings().clone();
+        settings.palette.result_limit = 1;
+        app.update_settings(settings).expect("update settings");
+
+        let panel = app.launcher_panel("t").expect("launcher panel");
+
+        assert_eq!(panel.sections.len(), 1);
+        assert_eq!(panel.sections[0].id, "best");
+        assert!(panel.sections[0].items.len() > 1);
+        assert!(
+            panel.sections[0]
+                .items
+                .iter()
+                .any(|item| item.result.id == "open-settings")
+        );
+    }
+
+    #[test]
+    fn launcher_panel_respects_section_settings() {
+        let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
+        let mut settings = app.settings().clone();
+        settings.palette.show_recent = false;
+        settings.palette.show_pinned = false;
+        app.update_settings(settings).expect("update settings");
+
+        let panel = app.launcher_panel("").expect("launcher panel");
+
+        assert!(panel.sections.is_empty());
+    }
+
+    #[test]
+    fn pin_result_adds_pinned_section_item() {
+        let app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
+
+        app.pin_result("open-settings").expect("pin command");
+        let panel = app.launcher_panel("").expect("launcher panel");
+
+        let pinned = panel
+            .sections
+            .iter()
+            .find(|section| section.id == "pinned")
+            .expect("pinned section");
+        assert_eq!(pinned.items[0].result.id, "open-settings");
+        assert!(pinned.items[0].is_pinned);
+
+        app.unpin_result("open-settings").expect("unpin command");
+        let panel = app.launcher_panel("").expect("launcher panel");
+        assert!(panel.sections.iter().all(|section| section.id != "pinned"));
+    }
+
+    #[test]
+    fn reorder_pinned_results_updates_launcher_order() {
+        let app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
+
+        app.pin_result("open-settings").expect("pin settings");
+        app.pin_result("reload-index").expect("pin reload");
+        app.reorder_pinned_results(vec!["open-settings".to_string(), "reload-index".to_string()])
+            .expect("reorder pinned results");
+
+        let panel = app.launcher_panel("").expect("launcher panel");
+        let pinned = panel
+            .sections
+            .iter()
+            .find(|section| section.id == "pinned")
+            .expect("pinned section");
+        let ids = pinned
+            .items
+            .iter()
+            .map(|item| item.result.id.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(ids, vec!["open-settings", "reload-index"]);
+    }
+
+    #[test]
     fn update_settings_persists_normalized_settings() {
         let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
         let settings = AppSettings {
@@ -374,6 +670,8 @@ mod tests {
             palette: PaletteSettings {
                 global_hotkey: "".to_string(),
                 result_limit: 100,
+                show_recent: false,
+                show_pinned: false,
             },
             search: SearchSettings {
                 enabled_providers: vec![],

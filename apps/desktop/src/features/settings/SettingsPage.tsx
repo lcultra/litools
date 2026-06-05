@@ -174,6 +174,27 @@ export function SettingsPage(props: SettingsPageProps) {
                             />
                         </label>
 
+                        <ToggleRow
+                            checked={settings().palette.show_recent}
+                            label="显示最近使用"
+                            onChange={(checked) =>
+                                updateDraft((draft) => ({
+                                    ...draft,
+                                    palette: { ...draft.palette, show_recent: checked },
+                                }))
+                            }
+                        />
+                        <ToggleRow
+                            checked={settings().palette.show_pinned}
+                            label="显示已固定"
+                            onChange={(checked) =>
+                                updateDraft((draft) => ({
+                                    ...draft,
+                                    palette: { ...draft.palette, show_pinned: checked },
+                                }))
+                            }
+                        />
+
                         <InfoRow label="已启用的数据源" value={providerListLabel(settings().search.enabled_providers)} />
 
                         <ToggleRow

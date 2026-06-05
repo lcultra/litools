@@ -31,23 +31,25 @@ impl SearchProvider for AppSearchProvider {
             .search_apps(&query.text, query.limit)
             .unwrap_or_default()
             .into_iter()
-            .map(|app| {
-                let score = score_app_result(&app, &query.text);
-
-                SearchResult {
-                    id: format!("{APP_RESULT_PREFIX}{}", app.id),
-                    title: app.name,
-                    subtitle: Some(app.path),
-                    icon_uri: Some(app_icon_uri(&app.id)),
-                    provider: APP_PROVIDER_ID.to_string(),
-                    score,
-                    actions: vec![SearchResultAction {
-                        id: OPEN_APP_ACTION_ID.to_string(),
-                        label: "打开".to_string(),
-                    }],
-                }
-            })
+            .map(|app| search_result_for_app(app, &query.text))
             .collect()
+    }
+}
+
+pub fn search_result_for_app(app: AppRecord, query: &str) -> SearchResult {
+    let score = score_app_result(&app, query);
+
+    SearchResult {
+        id: format!("{APP_RESULT_PREFIX}{}", app.id),
+        title: app.name,
+        subtitle: Some(app.path),
+        icon_uri: Some(app_icon_uri(&app.id)),
+        provider: APP_PROVIDER_ID.to_string(),
+        score,
+        actions: vec![SearchResultAction {
+            id: OPEN_APP_ACTION_ID.to_string(),
+            label: "打开".to_string(),
+        }],
     }
 }
 

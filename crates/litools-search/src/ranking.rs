@@ -1,6 +1,6 @@
 use crate::provider::SearchResult;
 
-pub fn rank_results(mut results: Vec<SearchResult>, limit: usize) -> Vec<SearchResult> {
+pub fn rank_results(mut results: Vec<SearchResult>, limit: Option<usize>) -> Vec<SearchResult> {
     results.sort_by(|left, right| {
         right
             .score
@@ -8,6 +8,10 @@ pub fn rank_results(mut results: Vec<SearchResult>, limit: usize) -> Vec<SearchR
             .unwrap_or(std::cmp::Ordering::Equal)
             .then_with(|| left.title.cmp(&right.title))
     });
-    results.truncate(limit);
+
+    if let Some(limit) = limit {
+        results.truncate(limit);
+    }
+
     results
 }

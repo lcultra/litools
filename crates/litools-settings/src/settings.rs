@@ -18,6 +18,8 @@ pub struct AppSettings {
 pub struct PaletteSettings {
     pub global_hotkey: String,
     pub result_limit: usize,
+    pub show_recent: bool,
+    pub show_pinned: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -69,6 +71,8 @@ impl Default for AppSettings {
             palette: PaletteSettings {
                 global_hotkey: DEFAULT_GLOBAL_HOTKEY.to_string(),
                 result_limit: DEFAULT_RESULT_LIMIT,
+                show_recent: true,
+                show_pinned: true,
             },
             search: SearchSettings {
                 enabled_providers: DEFAULT_ENABLED_PROVIDERS
@@ -96,6 +100,8 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
         assert_eq!(settings.palette.result_limit, DEFAULT_RESULT_LIMIT);
+        assert!(settings.palette.show_recent);
+        assert!(settings.palette.show_pinned);
         assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
         assert!(settings.window.hide_on_blur);
         assert!(settings.window.close_to_tray);
@@ -109,6 +115,8 @@ mod tests {
             palette: PaletteSettings {
                 global_hotkey: " ".to_string(),
                 result_limit: 100,
+                show_recent: false,
+                show_pinned: false,
             },
             search: SearchSettings {
                 enabled_providers: vec![
@@ -129,6 +137,8 @@ mod tests {
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
         assert_eq!(settings.palette.result_limit, MAX_RESULT_LIMIT);
         assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
+        assert!(!settings.palette.show_recent);
+        assert!(!settings.palette.show_pinned);
         assert!(!settings.window.hide_on_blur);
         assert!(!settings.window.close_to_tray);
         assert!(!settings.window.center_on_show);

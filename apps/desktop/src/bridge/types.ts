@@ -24,6 +24,21 @@ export type CommandExecution = {
     effect: BuiltinCommandEffect;
 };
 
+export type LauncherItem = {
+    result: SearchResult;
+    isPinned: boolean;
+};
+
+export type LauncherSection = {
+    id: string;
+    title: string;
+    items: LauncherItem[];
+};
+
+export type LauncherPanelResponse = {
+    sections: LauncherSection[];
+};
+
 export type ReloadIndexSummary = {
     trigger: string;
     startedAt: string;
@@ -68,6 +83,8 @@ export type AppSettings = {
     palette: {
         global_hotkey: string;
         result_limit: number;
+        show_recent: boolean;
+        show_pinned: boolean;
     };
     search: {
         enabled_providers: string[];

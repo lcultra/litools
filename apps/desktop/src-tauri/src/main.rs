@@ -86,6 +86,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::search,
+            commands::launcher_panel,
+            commands::pin_result,
+            commands::unpin_result,
+            commands::reorder_pinned_results,
             commands::execute_result,
             commands::hide_main_window,
             commands::show_main_window,
