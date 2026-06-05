@@ -4,7 +4,8 @@ use chrono::Utc;
 use litools_index::{
     IndexDatabase,
     repository::{
-        AppRepository, CommandRepository, SettingsRepository, UsageEventRecord, UsageRepository,
+        AppRecord, AppRepository, AppUpsert, CommandRepository, SettingsRepository,
+        UsageEventRecord, UsageRepository,
     },
 };
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
@@ -126,14 +127,17 @@ impl LitoolsApp {
         let apps = AppRepository::new(&connection);
         let now = Utc::now().to_rfc3339();
         for app in discovered_apps {
-            apps.upsert_app(
-                &app.id,
-                &app.name,
-                &app.path,
-                app.icon_path.as_deref(),
-                std::env::consts::OS,
-                &now,
-            )?;
+            apps.upsert_app(AppUpsert {
+                id: &app.id,
+                name: &app.name,
+                path: &app.path,
+                icon_path: app.icon_path.as_deref(),
+                localized_names: &app.localized_names,
+                aliases: &app.aliases,
+                search_text: &app.search_text,
+                platform: std::env::consts::OS,
+                last_seen_at: &now,
+            })?;
         }
 
         Ok(())
@@ -142,6 +146,11 @@ impl LitoolsApp {
     pub fn recent_usage_events(&self, limit: usize) -> LitoolsResult<Vec<UsageEventRecord>> {
         let connection = self.context.database.connection();
         Ok(UsageRepository::new(&connection).recent_events(limit)?)
+    }
+
+    pub fn find_app(&self, id: &str) -> LitoolsResult<Option<AppRecord>> {
+        let connection = self.context.database.connection();
+        Ok(AppRepository::new(&connection).find_app(id)?)
     }
 
     pub fn command_count(&self) -> LitoolsResult<usize> {

@@ -80,6 +80,7 @@ impl SearchProvider for BuiltinCommandProvider {
                 id: command.id.to_string(),
                 title: command.title.to_string(),
                 subtitle: Some(command.subtitle.to_string()),
+                icon_uri: None,
                 provider: self.id().to_string(),
                 score: command.score(&needle),
                 actions: vec![SearchResultAction {

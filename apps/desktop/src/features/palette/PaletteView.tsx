@@ -1,4 +1,4 @@
-import { For, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import { startDragging } from '../../bridge/commands';
 import type { SearchResult } from '../../bridge/types';
 import { Panel } from '../../components/Panel';
@@ -17,6 +17,19 @@ type PaletteViewProps = {
     results: SearchResult[];
     selectedIndex: number;
 };
+
+function ResultIcon(props: { result: SearchResult }) {
+    const [failed, setFailed] = createSignal(false);
+    const fallback = () => providerLabel(props.result.provider).slice(0, 1);
+
+    return (
+        <span class="grid size-10 place-items-center overflow-hidden text-sm font-semibold text-muted">
+            <Show when={props.result.iconUri && !failed()} fallback={fallback()}>
+                <img alt="" class="size-10 object-contain" draggable={false} onError={() => setFailed(true)} src={props.result.iconUri ?? undefined} />
+            </Show>
+        </span>
+    );
+}
 
 export function PaletteView(props: PaletteViewProps) {
     function handleDragStart(event: PointerEvent) {
@@ -48,11 +61,11 @@ export function PaletteView(props: PaletteViewProps) {
                     <Show when={!props.loading} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">正在搜索...</p>}>
                         <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
                             <Show when={props.results.length > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
-                                <div class="grid auto-rows-[92px] grid-cols-[repeat(auto-fill,minmax(88px,1fr))] gap-2 overflow-y-auto overscroll-contain">
+                                <div class="grid auto-rows-[82px] grid-cols-9 gap-2 overflow-y-auto overscroll-contain">
                                     <For each={props.results}>
                                         {(result, index) => (
                                             <button
-                                                class="grid cursor-pointer grid-rows-[1fr_auto] place-items-center gap-2 rounded-2xl border border-transparent p-3 text-center text-inherit outline-none transition-colors"
+                                                class="grid cursor-pointer grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-colors"
                                                 classList={{
                                                     'border-accent/40 bg-accent/15 text-fg': props.selectedIndex === index(),
                                                     'bg-transparent hover:bg-surface-muted/60 focus-visible:bg-surface-muted/60': props.selectedIndex !== index(),
@@ -61,9 +74,7 @@ export function PaletteView(props: PaletteViewProps) {
                                                 tabindex={-1}
                                                 type="button"
                                             >
-                                                <span class="grid size-12 place-items-center rounded-2xl bg-app text-sm font-semibold text-muted">
-                                                    {providerLabel(result.provider).slice(0, 1)}
-                                                </span>
+                                                <ResultIcon result={result} />
                                                 <span class="w-full truncate text-xs font-medium">{result.title}</span>
                                             </button>
                                         )}

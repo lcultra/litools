@@ -6,6 +6,9 @@ pub struct DiscoveredApp {
     pub name: String,
     pub path: String,
     pub icon_path: Option<String>,
+    pub localized_names: Vec<String>,
+    pub aliases: Vec<String>,
+    pub search_text: String,
 }
 
 pub trait SystemAdapter: Send + Sync {

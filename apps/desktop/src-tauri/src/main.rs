@@ -1,4 +1,7 @@
 mod commands;
+mod icon_protocol;
+#[cfg(target_os = "macos")]
+mod macos_icon;
 mod shortcut;
 mod state;
 mod tray;
@@ -9,7 +12,19 @@ use tauri::{Manager, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 fn main() {
+    let icon_protocol = icon_protocol::IconProtocol::default();
+
     tauri::Builder::default()
+        .register_uri_scheme_protocol("litools-icon", move |context, request| {
+            let Some(state) = context.app_handle().try_state::<AppState>() else {
+                return tauri::http::Response::builder()
+                    .status(tauri::http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .body(Vec::new())
+                    .expect("valid icon protocol error response");
+            };
+
+            icon_protocol.handle(&state, request.uri())
+        })
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {

@@ -6,9 +6,25 @@ pub struct AppRecord {
     pub name: String,
     pub path: String,
     pub icon_path: Option<String>,
+    pub localized_names: Vec<String>,
+    pub aliases: Vec<String>,
+    pub search_text: String,
     pub platform: String,
     pub last_seen_at: String,
     pub launch_count: i64,
+}
+
+#[derive(Clone, Debug)]
+pub struct AppUpsert<'a> {
+    pub id: &'a str,
+    pub name: &'a str,
+    pub path: &'a str,
+    pub icon_path: Option<&'a str>,
+    pub localized_names: &'a [String],
+    pub aliases: &'a [String],
+    pub search_text: &'a str,
+    pub platform: &'a str,
+    pub last_seen_at: &'a str,
 }
 
 pub struct AppRepository<'a> {
@@ -25,25 +41,46 @@ impl<'a> AppRepository<'a> {
             .query_row("SELECT COUNT(*) FROM apps", [], |row| row.get(0))
     }
 
-    pub fn upsert_app(
-        &self,
-        id: &str,
-        name: &str,
-        path: &str,
-        icon_path: Option<&str>,
-        platform: &str,
-        last_seen_at: &str,
-    ) -> rusqlite::Result<()> {
+    pub fn upsert_app(&self, app: AppUpsert<'_>) -> rusqlite::Result<()> {
+        let localized_names_json = serde_json::to_string(app.localized_names)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+        let aliases_json = serde_json::to_string(app.aliases)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+
         self.connection.execute(
-            "INSERT INTO apps (id, name, path, icon_path, platform, last_seen_at, launch_count)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)
+            "INSERT INTO apps (
+                id,
+                name,
+                path,
+                icon_path,
+                localized_names_json,
+                aliases_json,
+                search_text,
+                platform,
+                last_seen_at,
+                launch_count
+             )
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0)
              ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 path = excluded.path,
                 icon_path = excluded.icon_path,
+                localized_names_json = excluded.localized_names_json,
+                aliases_json = excluded.aliases_json,
+                search_text = excluded.search_text,
                 platform = excluded.platform,
                 last_seen_at = excluded.last_seen_at",
-            params![id, name, path, icon_path, platform, last_seen_at],
+            params![
+                app.id,
+                app.name,
+                app.path,
+                app.icon_path,
+                localized_names_json,
+                aliases_json,
+                app.search_text,
+                app.platform,
+                app.last_seen_at
+            ],
         )?;
         Ok(())
     }
@@ -51,7 +88,16 @@ impl<'a> AppRepository<'a> {
     pub fn find_app(&self, id: &str) -> rusqlite::Result<Option<AppRecord>> {
         self.connection
             .query_row(
-                "SELECT id, name, path, icon_path, platform, last_seen_at, launch_count
+                "SELECT id,
+                        name,
+                        path,
+                        icon_path,
+                        localized_names_json,
+                        aliases_json,
+                        search_text,
+                        platform,
+                        last_seen_at,
+                        launch_count
                  FROM apps
                  WHERE id = ?1",
                 params![id],
@@ -66,7 +112,16 @@ impl<'a> AppRepository<'a> {
 
         if query.is_empty() {
             let mut statement = self.connection.prepare(
-                "SELECT id, name, path, icon_path, platform, last_seen_at, launch_count
+                "SELECT id,
+                        name,
+                        path,
+                        icon_path,
+                        localized_names_json,
+                        aliases_json,
+                        search_text,
+                        platform,
+                        last_seen_at,
+                        launch_count
                  FROM apps
                  ORDER BY launch_count DESC, name ASC
                  LIMIT ?1",
@@ -76,14 +131,40 @@ impl<'a> AppRepository<'a> {
         }
 
         let like_query = format!("%{query}%");
+        let prefix_query = format!("{query}%");
         let mut statement = self.connection.prepare(
-            "SELECT id, name, path, icon_path, platform, last_seen_at, launch_count
+            "SELECT id,
+                    name,
+                    path,
+                    icon_path,
+                    localized_names_json,
+                    aliases_json,
+                    search_text,
+                    platform,
+                    last_seen_at,
+                    launch_count
              FROM apps
-             WHERE lower(name) LIKE ?1 OR lower(id) LIKE ?1 OR lower(path) LIKE ?1
-             ORDER BY launch_count DESC, name ASC
+             WHERE lower(name) LIKE ?1
+                OR lower(localized_names_json) LIKE ?1
+                OR lower(aliases_json) LIKE ?1
+                OR lower(search_text) LIKE ?1
+                OR lower(id) LIKE ?1
+                OR lower(path) LIKE ?1
+             ORDER BY
+                CASE
+                    WHEN lower(name) = ?3 THEN 0
+                    WHEN lower(name) LIKE ?4 THEN 1
+                    WHEN lower(localized_names_json) LIKE ?1 OR lower(aliases_json) LIKE ?1 THEN 2
+                    ELSE 3
+                END,
+                launch_count DESC,
+                name ASC
              LIMIT ?2",
         )?;
-        let rows = statement.query_map(params![like_query, limit], app_record_from_row)?;
+        let rows = statement.query_map(
+            params![like_query, limit, query, prefix_query],
+            app_record_from_row,
+        )?;
         rows.collect()
     }
 
@@ -102,9 +183,18 @@ fn app_record_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<AppRecord> {
         name: row.get(1)?,
         path: row.get(2)?,
         icon_path: row.get(3)?,
-        platform: row.get(4)?,
-        last_seen_at: row.get(5)?,
-        launch_count: row.get(6)?,
+        localized_names: json_string_array(row.get::<_, String>(4)?)?,
+        aliases: json_string_array(row.get::<_, String>(5)?)?,
+        search_text: row.get(6)?,
+        platform: row.get(7)?,
+        last_seen_at: row.get(8)?,
+        launch_count: row.get(9)?,
+    })
+}
+
+fn json_string_array(value: String) -> rusqlite::Result<Vec<String>> {
+    serde_json::from_str(&value).map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
     })
 }
 
@@ -276,14 +366,17 @@ mod tests {
         let repository = AppRepository::new(&connection);
 
         repository
-            .upsert_app(
-                "com.example.App",
-                "Example",
-                "/Applications/Example.app",
-                Some("/Applications/Example.app/Contents/Resources/App.icns"),
-                "macos",
-                "2026-06-04T00:00:00Z",
-            )
+            .upsert_app(AppUpsert {
+                id: "com.example.App",
+                name: "Example",
+                path: "/Applications/Example.app",
+                icon_path: Some("/Applications/Example.app/Contents/Resources/App.icns"),
+                localized_names: &[],
+                aliases: &[],
+                search_text: "Example com.example.App /Applications/Example.app",
+                platform: "macos",
+                last_seen_at: "2026-06-04T00:00:00Z",
+            })
             .expect("write app");
 
         let app = repository
@@ -292,6 +385,10 @@ mod tests {
             .expect("app exists");
 
         assert_eq!(app.name, "Example");
+        assert_eq!(
+            app.search_text,
+            "Example com.example.App /Applications/Example.app"
+        );
         assert_eq!(repository.count_apps().expect("count apps"), 1);
     }
 
@@ -302,24 +399,30 @@ mod tests {
         let repository = AppRepository::new(&connection);
 
         repository
-            .upsert_app(
-                "com.apple.Terminal",
-                "Terminal",
-                "/System/Applications/Utilities/Terminal.app",
-                None,
-                "macos",
-                "2026-06-04T00:00:00Z",
-            )
+            .upsert_app(AppUpsert {
+                id: "com.apple.Terminal",
+                name: "Terminal",
+                path: "/System/Applications/Utilities/Terminal.app",
+                icon_path: None,
+                localized_names: &[],
+                aliases: &[],
+                search_text: "Terminal com.apple.Terminal /System/Applications/Utilities/Terminal.app",
+                platform: "macos",
+                last_seen_at: "2026-06-04T00:00:00Z",
+            })
             .expect("write terminal");
         repository
-            .upsert_app(
-                "com.apple.Safari",
-                "Safari",
-                "/Applications/Safari.app",
-                None,
-                "macos",
-                "2026-06-04T00:00:00Z",
-            )
+            .upsert_app(AppUpsert {
+                id: "com.apple.Safari",
+                name: "Safari",
+                path: "/Applications/Safari.app",
+                icon_path: None,
+                localized_names: &[],
+                aliases: &[],
+                search_text: "Safari com.apple.Safari /Applications/Safari.app",
+                platform: "macos",
+                last_seen_at: "2026-06-04T00:00:00Z",
+            })
             .expect("write safari");
 
         let results = repository.search_apps("term", 10).expect("search apps");
@@ -329,20 +432,54 @@ mod tests {
     }
 
     #[test]
+    fn app_repository_searches_localized_aliases_and_search_text() {
+        let database = IndexDatabase::in_memory().expect("in-memory database");
+        let connection = database.connection();
+        let repository = AppRepository::new(&connection);
+        let localized_names = vec!["微信".to_string(), "WeChat".to_string()];
+        let aliases = vec!["wx".to_string(), "weixin".to_string()];
+
+        repository
+            .upsert_app(AppUpsert {
+                id: "com.tencent.xin",
+                name: "微信",
+                path: "/Applications/WeChat.app",
+                icon_path: None,
+                localized_names: &localized_names,
+                aliases: &aliases,
+                search_text: "微信 WeChat wx weixin com.tencent.xin /Applications/WeChat.app",
+                platform: "macos",
+                last_seen_at: "2026-06-04T00:00:00Z",
+            })
+            .expect("write app");
+
+        let by_alias = repository.search_apps("weixin", 10).expect("search alias");
+        let by_initials = repository.search_apps("wx", 10).expect("search initials");
+
+        assert_eq!(by_alias[0].id, "com.tencent.xin");
+        assert_eq!(by_initials[0].id, "com.tencent.xin");
+        assert_eq!(by_alias[0].localized_names, localized_names);
+        assert_eq!(by_alias[0].aliases, aliases);
+    }
+
+    #[test]
     fn app_repository_increments_launch_count() {
         let database = IndexDatabase::in_memory().expect("in-memory database");
         let connection = database.connection();
         let repository = AppRepository::new(&connection);
 
         repository
-            .upsert_app(
-                "com.example.App",
-                "Example",
-                "/Applications/Example.app",
-                None,
-                "macos",
-                "2026-06-04T00:00:00Z",
-            )
+            .upsert_app(AppUpsert {
+                id: "com.example.App",
+                name: "Example",
+                path: "/Applications/Example.app",
+                icon_path: None,
+                localized_names: &[],
+                aliases: &[],
+                search_text: "Example com.example.App /Applications/Example.app",
+                platform: "macos",
+                last_seen_at: "2026-06-04T00:00:00Z",
+            })
             .expect("write app");
         repository
             .increment_launch_count("com.example.App")

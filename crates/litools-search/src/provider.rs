@@ -3,10 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::query::SearchQuery;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub id: String,
     pub title: String,
     pub subtitle: Option<String>,
+    pub icon_uri: Option<String>,
     pub provider: String,
     pub score: f32,
     pub actions: Vec<SearchResultAction>,

@@ -4,6 +4,9 @@ CREATE TABLE IF NOT EXISTS apps (
     name TEXT NOT NULL,
     path TEXT NOT NULL,
     icon_path TEXT,
+    localized_names_json TEXT NOT NULL DEFAULT '[]',
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    search_text TEXT NOT NULL DEFAULT '',
     platform TEXT NOT NULL,
     last_seen_at TEXT NOT NULL,
     launch_count INTEGER NOT NULL DEFAULT 0

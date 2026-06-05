@@ -7,6 +7,7 @@ export type SearchResult = {
     id: string;
     title: string;
     subtitle?: string | null;
+    iconUri?: string | null;
     provider: string;
     score: number;
     actions: SearchResultAction[];

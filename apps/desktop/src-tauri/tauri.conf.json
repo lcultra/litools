@@ -11,6 +11,9 @@
   },
   "app": {
     "macOSPrivateApi": true,
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost litools-icon:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
+    },
     "windows": [
       {
         "title": "litools",

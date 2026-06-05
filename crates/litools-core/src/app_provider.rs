@@ -36,6 +36,7 @@ impl SearchProvider for AppSearchProvider {
                     id: format!("{APP_RESULT_PREFIX}{}", app.id),
                     title: app.name,
                     subtitle: Some(app.path),
+                    icon_uri: Some(app_icon_uri(&app.id)),
                     provider: APP_PROVIDER_ID.to_string(),
                     score,
                     actions: vec![SearchResultAction {
@@ -46,6 +47,25 @@ impl SearchProvider for AppSearchProvider {
             })
             .collect()
     }
+}
+
+fn app_icon_uri(app_id: &str) -> String {
+    format!(
+        "litools-icon://app/{}",
+        percent_encode_uri_path_segment(app_id)
+    )
+}
+
+fn percent_encode_uri_path_segment(value: &str) -> String {
+    value
+        .bytes()
+        .flat_map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                vec![byte as char]
+            }
+            _ => format!("%{byte:02X}").chars().collect(),
+        })
+        .collect()
 }
 
 fn score_app_result(name: &str, id: &str, path: &str, query: &str, launch_count: i64) -> f32 {
@@ -98,6 +118,14 @@ mod tests {
             Some("com.apple.Safari")
         );
         assert_eq!(app_id_from_result_id("open-settings"), None);
+    }
+
+    #[test]
+    fn app_icon_uri_encodes_app_id() {
+        assert_eq!(
+            app_icon_uri("path:/Applications/My App.app"),
+            "litools-icon://app/path%3A%2FApplications%2FMy%20App.app"
+        );
     }
 
     #[test]
