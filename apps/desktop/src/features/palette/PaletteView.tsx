@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, For, onCleanup, Show } from 'solid-js';
 import { startDragging } from '../../bridge/commands';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
 import { Panel } from '../../components/Panel';
@@ -32,7 +32,9 @@ type PaletteViewProps = {
     inputRef: (element: HTMLInputElement) => void;
     onContentElement: (element: HTMLElement) => void;
     onInput: (value: string) => void;
+    onInputBlur: () => void;
     onKeyDown: (event: KeyboardEvent) => void;
+    onPinnedDragEnd: () => void;
     onPinnedReorder: (orderedIds: string[]) => void;
     onResultContextMenu: (renderItem: PaletteRenderItem, position: { x: number; y: number }) => void;
     onResultRun: (result: SearchResult) => void;
@@ -104,6 +106,16 @@ export function PaletteView(props: PaletteViewProps) {
         event.preventDefault();
     }
 
+    function handlePanelPointerDown(event: PointerEvent) {
+        const target = event.target;
+
+        if (!(target instanceof HTMLElement) || target.closest('input')) {
+            return;
+        }
+
+        event.preventDefault();
+    }
+
     function handleResultClick(renderItem: PaletteRenderItem) {
         props.onResultRun(renderItem.result);
     }
@@ -114,8 +126,14 @@ export function PaletteView(props: PaletteViewProps) {
         props.onResultContextMenu(renderItem, { x: event.clientX, y: event.clientY });
     }
 
+    function handleContentElement(element: HTMLElement) {
+        props.onContentElement(element);
+        element.addEventListener('pointerdown', handlePanelPointerDown, { capture: true });
+        onCleanup(() => element.removeEventListener('pointerdown', handlePanelPointerDown, { capture: true }));
+    }
+
     return (
-        <div ref={props.onContentElement} class="p-px" on:contextmenu={handlePanelContextMenu}>
+        <div ref={handleContentElement} class="p-px" on:contextmenu={handlePanelContextMenu}>
             <Panel class="grid w-full self-start grid-rows-[auto_auto]" variant="launcher">
                 <form onPointerDown={handleSearchDragStart} onSubmit={props.onSubmit}>
                     <input
@@ -125,10 +143,11 @@ export function PaletteView(props: PaletteViewProps) {
                         autocomplete="off"
                         autocorrect="off"
                         autofocus
-                        class="w-full border-0 border-b border-border bg-transparent px-6 py-6 text-2xl font-medium text-fg outline-none placeholder:text-muted"
+                        class="h-[68px] w-full border-0 border-b border-border bg-transparent px-4 py-2 text-2xl leading-[2rem] text-fg outline-none placeholder:text-muted"
                         id="launcher-search"
                         inputmode="search"
                         name="launcher-search"
+                        on:blur={props.onInputBlur}
                         on:keydown={props.onKeyDown}
                         onInput={(event) => props.onInput(event.currentTarget.value)}
                         placeholder="搜索应用、命令、文件、插件..."
@@ -191,6 +210,7 @@ export function PaletteView(props: PaletteViewProps) {
                                                     <PinnedSortableGrid
                                                         items={section.items}
                                                         selectedIndex={props.selectedIndex}
+                                                        onDragEnd={props.onPinnedDragEnd}
                                                         onReorder={props.onPinnedReorder}
                                                         onResultClick={handleResultClick}
                                                         onResultContextMenu={handleResultContextMenu}

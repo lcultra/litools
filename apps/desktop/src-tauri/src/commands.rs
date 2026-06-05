@@ -4,7 +4,7 @@ use litools_core::{
 use litools_search::SearchResult;
 use litools_settings::AppSettings;
 use serde::Serialize;
-use tauri::{AppHandle, LogicalSize, Manager, Size, State};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, State};
 
 use crate::{
     app_watcher::AppWatcherStatus,
@@ -97,6 +97,17 @@ pub fn hide_main_window(app_handle: AppHandle) -> Result<(), String> {
 pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
     if let Some(window) = window::main_window(&app_handle) {
         window::show_main_window(&window, app_handle.state::<AppState>().center_on_show());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
+    if let Some(window) = window::main_window(&app_handle) {
+        window.set_focus().map_err(|error| error.to_string())?;
+        window.emit(window::FOCUS_SEARCH_EVENT, ())
+            .map_err(|error| error.to_string())?;
     }
 
     Ok(())

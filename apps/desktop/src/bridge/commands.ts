@@ -33,6 +33,10 @@ export function showMainWindow(): Promise<void> {
     return invoke<void>('show_main_window');
 }
 
+export function focusMainWindow(): Promise<void> {
+    return invoke<void>('focus_main_window');
+}
+
 export function startDragging(): Promise<void> {
     return invoke<void>('start_dragging');
 }

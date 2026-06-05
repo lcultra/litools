@@ -1,7 +1,7 @@
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
-import { executeResult, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
+import { executeResult, focusMainWindow, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
 import type { BuiltinCommandEffect, LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
 import { type PaletteRenderSection, PaletteView } from './PaletteView';
@@ -230,10 +230,25 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
         });
     }
 
+    function focusSearchInput() {
+        queueMicrotask(() => inputElement?.focus({ preventScroll: true }));
+    }
+
+    function refocusSearchInputAfterBlur() {
+        focusSearchInput();
+        window.requestAnimationFrame(() => inputElement?.focus({ preventScroll: true }));
+    }
+
+    function refocusSearchInputAfterPinnedDrag() {
+        window.setTimeout(() => {
+            void focusMainWindow().then(() => inputElement?.focus({ preventScroll: true }));
+        }, 0);
+    }
+
     function selectAdjacent(offset: number) {
         const items = visibleFlatItems();
         setSelectedIndex((current) => (items.length ? (current + offset + items.length) % items.length : 0));
-        queueMicrotask(() => inputElement?.focus());
+        focusSearchInput();
     }
 
     function selectVertical(offset: number) {
@@ -252,7 +267,7 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
         const targetItem = targetRow.items[Math.min(current.col, targetRow.items.length - 1)];
 
         setSelectedIndex(targetItem.globalIndex);
-        queueMicrotask(() => inputElement?.focus());
+        focusSearchInput();
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -317,7 +332,9 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
             }}
             onContentElement={handleContentElement}
             onInput={setQuery}
+            onInputBlur={refocusSearchInputAfterBlur}
             onKeyDown={handleKeyDown}
+            onPinnedDragEnd={refocusSearchInputAfterPinnedDrag}
             onPinnedReorder={(resultIds) => void reorderPinnedSection(resultIds)}
             onResultContextMenu={(renderItem, position) => void showResultContextMenu(renderItem, position)}
             onResultRun={(result) => void runResult(result)}

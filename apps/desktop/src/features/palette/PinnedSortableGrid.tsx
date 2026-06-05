@@ -9,6 +9,7 @@ import type { PaletteRenderItem } from './PaletteView';
 type PinnedSortableGridProps = {
     items: PaletteRenderItem[];
     selectedIndex: number;
+    onDragEnd: () => void;
     onReorder: (orderedIds: string[]) => void;
     onResultClick: (item: PaletteRenderItem) => void;
     onResultContextMenu: (item: PaletteRenderItem, event: MouseEvent) => void;
@@ -87,6 +88,7 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
                 'pointer-events-none opacity-45 will-change-transform': sortable.isDragging(),
                 'border-accent/70': sortable.isDropTarget() && !sortable.isDragging(),
             }}
+            data-launcher-interactive
             onClick={handleClick}
             onContextMenu={(event) => props.onResultContextMenu(props.item, event)}
             onKeyDown={(event) => {
@@ -127,12 +129,12 @@ export function PinnedSortableGrid(props: PinnedSortableGridProps) {
         const currentItems = items();
         const nextItems = move(currentItems, event);
 
-        if (hasSameOrder(currentItems, nextItems)) {
-            return;
+        if (!hasSameOrder(currentItems, nextItems)) {
+            setItems(nextItems);
+            props.onReorder(nextItems.map((item) => item.id));
         }
 
-        setItems(nextItems);
-        props.onReorder(nextItems.map((item) => item.id));
+        props.onDragEnd();
     }
 
     return (

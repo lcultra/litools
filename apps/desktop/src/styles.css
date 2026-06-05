@@ -58,12 +58,6 @@ body {
     user-select: none;
 }
 
-button,
-input,
-select {
-    font: inherit;
-}
-
 #root,
 #root * {
     -webkit-user-select: none;
