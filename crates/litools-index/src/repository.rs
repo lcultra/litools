@@ -1,5 +1,12 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IndexMetadataRecord {
+    pub key: String,
+    pub value_json: String,
+    pub updated_at: String,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct AppRecord {
     pub id: String,
@@ -39,6 +46,25 @@ impl<'a> AppRepository<'a> {
     pub fn count_apps(&self) -> rusqlite::Result<usize> {
         self.connection
             .query_row("SELECT COUNT(*) FROM apps", [], |row| row.get(0))
+    }
+
+    pub fn count_apps_by_platform(&self, platform: &str) -> rusqlite::Result<usize> {
+        self.connection.query_row(
+            "SELECT COUNT(*) FROM apps WHERE platform = ?1",
+            params![platform],
+            |row| row.get(0),
+        )
+    }
+
+    pub fn delete_apps_not_seen_at(
+        &self,
+        platform: &str,
+        last_seen_at: &str,
+    ) -> rusqlite::Result<usize> {
+        self.connection.execute(
+            "DELETE FROM apps WHERE platform = ?1 AND last_seen_at <> ?2",
+            params![platform, last_seen_at],
+        )
     }
 
     pub fn upsert_app(&self, app: AppUpsert<'_>) -> rusqlite::Result<()> {
@@ -230,6 +256,43 @@ impl<'a> CommandRepository<'a> {
                 action = excluded.action,
                 enabled = excluded.enabled",
             params![id, namespace, title, subtitle, action],
+        )?;
+        Ok(())
+    }
+}
+
+pub struct IndexMetadataRepository<'a> {
+    connection: &'a Connection,
+}
+
+impl<'a> IndexMetadataRepository<'a> {
+    pub fn new(connection: &'a Connection) -> Self {
+        Self { connection }
+    }
+
+    pub fn get(&self, key: &str) -> rusqlite::Result<Option<IndexMetadataRecord>> {
+        self.connection
+            .query_row(
+                "SELECT key, value_json, updated_at FROM index_metadata WHERE key = ?1",
+                params![key],
+                |row| {
+                    Ok(IndexMetadataRecord {
+                        key: row.get(0)?,
+                        value_json: row.get(1)?,
+                        updated_at: row.get(2)?,
+                    })
+                },
+            )
+            .optional()
+    }
+
+    pub fn set_json(&self, key: &str, value_json: &str, updated_at: &str) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "INSERT INTO index_metadata (key, value_json, updated_at) VALUES (?1, ?2, ?3)
+             ON CONFLICT(key) DO UPDATE SET
+                value_json = excluded.value_json,
+                updated_at = excluded.updated_at",
+            params![key, value_json, updated_at],
         )?;
         Ok(())
     }
@@ -491,5 +554,90 @@ mod tests {
             .expect("app exists");
 
         assert_eq!(app.launch_count, 1);
+    }
+
+    #[test]
+    fn app_repository_deletes_apps_not_seen_on_platform() {
+        let database = IndexDatabase::in_memory().expect("in-memory database");
+        let connection = database.connection();
+        let repository = AppRepository::new(&connection);
+
+        for (id, platform, last_seen_at) in [
+            ("com.example.Current", "macos", "2026-06-05T00:00:00Z"),
+            ("com.example.Stale", "macos", "2026-06-04T00:00:00Z"),
+            (
+                "com.example.OtherPlatform",
+                "windows",
+                "2026-06-04T00:00:00Z",
+            ),
+        ] {
+            repository
+                .upsert_app(AppUpsert {
+                    id,
+                    name: id,
+                    path: "/Applications/Example.app",
+                    icon_path: None,
+                    localized_names: &[],
+                    aliases: &[],
+                    search_text: id,
+                    platform,
+                    last_seen_at,
+                })
+                .expect("write app");
+        }
+
+        let removed = repository
+            .delete_apps_not_seen_at("macos", "2026-06-05T00:00:00Z")
+            .expect("delete stale apps");
+
+        assert_eq!(removed, 1);
+        assert!(
+            repository
+                .find_app("com.example.Current")
+                .expect("find current")
+                .is_some()
+        );
+        assert!(
+            repository
+                .find_app("com.example.Stale")
+                .expect("find stale")
+                .is_none()
+        );
+        assert!(
+            repository
+                .find_app("com.example.OtherPlatform")
+                .expect("find other platform")
+                .is_some()
+        );
+        assert_eq!(
+            repository
+                .count_apps_by_platform("macos")
+                .expect("count macos apps"),
+            1
+        );
+    }
+
+    #[test]
+    fn index_metadata_repository_round_trips_json() {
+        let database = IndexDatabase::in_memory().expect("in-memory database");
+        let connection = database.connection();
+        let repository = IndexMetadataRepository::new(&connection);
+
+        repository
+            .set_json(
+                "apps_last_refresh_status",
+                r#"{"success":true}"#,
+                "2026-06-05T00:00:00Z",
+            )
+            .expect("write metadata");
+
+        let metadata = repository
+            .get("apps_last_refresh_status")
+            .expect("read metadata")
+            .expect("metadata exists");
+
+        assert_eq!(metadata.key, "apps_last_refresh_status");
+        assert_eq!(metadata.value_json, r#"{"success":true}"#);
+        assert_eq!(metadata.updated_at, "2026-06-05T00:00:00Z");
     }
 }

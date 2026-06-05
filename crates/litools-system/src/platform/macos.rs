@@ -32,6 +32,10 @@ impl SystemAdapter for MacosSystemAdapter {
     }
 }
 
+pub fn application_dirs() -> Vec<PathBuf> {
+    default_application_dirs()
+}
+
 fn default_application_dirs() -> Vec<PathBuf> {
     let mut dirs = vec![
         PathBuf::from("/Applications"),

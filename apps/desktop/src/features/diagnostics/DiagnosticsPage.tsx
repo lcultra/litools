@@ -1,5 +1,7 @@
-import { createResource, For, Show } from 'solid-js';
+import { createResource, For, onCleanup, onMount, Show } from 'solid-js';
 import { getDiagnostics } from '../../bridge/commands';
+import { onIndexStatusChanged } from '../../bridge/events';
+import type { AppWatcherStatus, IconCacheSummary, IndexStatus, ReloadIndexSummary } from '../../bridge/types';
 import { InfoRow } from '../../components/InfoRow';
 import { PageHeader } from '../../components/PageHeader';
 import { Panel } from '../../components/Panel';
@@ -7,6 +9,16 @@ import { providerLabel, targetTypeLabel } from '../palette/providerLabels';
 
 export function DiagnosticsPage() {
     const [diagnostics, { refetch }] = createResource(getDiagnostics);
+
+    onMount(() => {
+        const unsubscribe = onIndexStatusChanged(() => {
+            void refetch();
+        });
+
+        onCleanup(() => {
+            void unsubscribe.then((dispose) => dispose());
+        });
+    });
 
     return (
         <Panel>
@@ -29,6 +41,12 @@ export function DiagnosticsPage() {
                             <InfoRow label="应用数据目录" value={diagnostics().app_data_dir} />
                             <InfoRow label="已安装插件" value={String(diagnostics().plugin_count)} />
                             <InfoRow label="已索引命令" value={String(diagnostics().command_count)} />
+                            <InfoRow label="已索引应用" value={String(diagnostics().app_count)} />
+                            <InfoRow label="应用索引状态" value={indexStatusSummary(diagnostics().index_status)} />
+                            <InfoRow label="最近索引刷新" value={reloadSummary(diagnostics().last_persisted_index_status ?? diagnostics().index_status.lastSummary)} />
+                            <InfoRow label="应用监听" value={watcherSummary(diagnostics().app_watcher)} />
+                            <InfoRow label="监听目录" value={diagnostics().app_watcher.watchedPaths.join('，') || '无'} />
+                            <InfoRow label="图标缓存" value={iconCacheSummary(diagnostics().icon_cache)} />
                             <InfoRow label="最近使用次数" value={String(diagnostics().recent_usage_count)} />
                             <InfoRow label="主题" value={themeLabel(diagnostics().settings.theme)} />
                             <InfoRow label="结果数量上限" value={String(diagnostics().settings.palette.result_limit)} />
@@ -61,6 +79,60 @@ export function DiagnosticsPage() {
             </Show>
         </Panel>
     );
+}
+
+function indexStatusSummary(status: IndexStatus) {
+    if (status.running) {
+        return status.pending ? '刷新中，已有待处理刷新' : '刷新中';
+    }
+
+    if (status.lastError) {
+        return `失败：${status.lastError}`;
+    }
+
+    if (status.lastSummary?.success) {
+        return '最近刷新成功';
+    }
+
+    return '空闲';
+}
+
+function reloadSummary(summary: ReloadIndexSummary | null | undefined) {
+    if (!summary) {
+        return '暂无刷新记录';
+    }
+
+    return [
+        summary.success ? '成功' : '失败',
+        `触发：${summary.trigger}`,
+        `应用：${summary.appsDiscovered}`,
+        `移除：${summary.appsRemoved}`,
+        `耗时：${summary.durationMs}ms`,
+        summary.finishedAt,
+    ].join('，');
+}
+
+function watcherSummary(status: AppWatcherStatus) {
+    if (status.enabled) {
+        return `已启用（${status.status}）`;
+    }
+
+    return status.error ? `${status.status}：${status.error}` : status.status;
+}
+
+function iconCacheSummary(summary: IconCacheSummary) {
+    const sizeMb = (summary.totalBytes / 1024 / 1024).toFixed(1);
+    const parts = [`${summary.fileCount}/${summary.maxFiles} 个文件`, `${sizeMb}MB`];
+
+    if (summary.lastPrunedAt) {
+        parts.push(`最近清理 ${summary.lastPrunedFiles} 个`);
+    }
+
+    if (summary.error) {
+        parts.push(`错误：${summary.error}`);
+    }
+
+    return parts.join('，');
 }
 
 function themeLabel(theme: string) {

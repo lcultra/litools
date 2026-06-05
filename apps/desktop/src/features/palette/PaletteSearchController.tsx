@@ -1,6 +1,6 @@
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import { executeResult, hideMainWindow, resizeMainWindowHeight, search } from '../../bridge/commands';
-import { onFocusSearch } from '../../bridge/events';
+import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
 import type { BuiltinCommandEffect, SearchResult } from '../../bridge/types';
 import { PaletteView } from './PaletteView';
 
@@ -28,43 +28,58 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
             inputElement?.focus();
             inputElement?.select();
         });
+        const unsubscribeIndexStatus = onIndexStatusChanged((status) => {
+            if (status.lastSummary?.success) {
+                void refreshSearchResults({ preserveSelection: true });
+            }
+        });
 
         onCleanup(() => {
             void unsubscribe.then((dispose) => dispose());
+            void unsubscribeIndexStatus.then((dispose) => dispose());
         });
     });
 
     createEffect(() => {
-        const currentQuery = query();
-        const requestId = ++searchRequestId;
-        setError(null);
-        setLoading(true);
-
+        query();
         const timeout = window.setTimeout(() => {
-            search(currentQuery)
-                .then((nextResults) => {
-                    if (requestId !== searchRequestId) {
-                        return;
-                    }
-
-                    setResults(nextResults);
-                    setSelectedIndex(0);
-                })
-                .catch((searchError) => {
-                    if (requestId === searchRequestId) {
-                        setError(`搜索失败：${String(searchError)}`);
-                        setResults([]);
-                    }
-                })
-                .finally(() => {
-                    if (requestId === searchRequestId) {
-                        setLoading(false);
-                    }
-                });
+            void refreshSearchResults({ preserveSelection: false });
         }, 120);
 
         onCleanup(() => window.clearTimeout(timeout));
     });
+
+    async function refreshSearchResults(options: { preserveSelection: boolean }) {
+        const currentQuery = query();
+        const previousSelectedId = results()[selectedIndex()]?.id;
+        const requestId = ++searchRequestId;
+        setError(null);
+        setLoading(true);
+
+        try {
+            const nextResults = await search(currentQuery);
+            if (requestId !== searchRequestId) {
+                return;
+            }
+
+            setResults(nextResults);
+            if (options.preserveSelection && previousSelectedId) {
+                const nextSelectedIndex = nextResults.findIndex((result) => result.id === previousSelectedId);
+                setSelectedIndex(nextSelectedIndex >= 0 ? nextSelectedIndex : 0);
+            } else {
+                setSelectedIndex(0);
+            }
+        } catch (searchError) {
+            if (requestId === searchRequestId) {
+                setError(`搜索失败：${String(searchError)}`);
+                setResults([]);
+            }
+        } finally {
+            if (requestId === searchRequestId) {
+                setLoading(false);
+            }
+        }
+    }
 
     async function runResult(result: SearchResult | undefined) {
         const [firstAction] = result?.actions ?? [];

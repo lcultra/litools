@@ -1,20 +1,38 @@
 use std::{path::Path, sync::Arc};
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use litools_index::{
     IndexDatabase,
     repository::{
-        AppRecord, AppRepository, AppUpsert, CommandRepository, SettingsRepository,
-        UsageEventRecord, UsageRepository,
+        AppRecord, AppRepository, AppUpsert, CommandRepository, IndexMetadataRepository,
+        SettingsRepository, UsageEventRecord, UsageRepository,
     },
 };
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 use litools_settings::{AppSettings, storage::SettingsStore};
 use litools_system::{NativeSystemAdapter, SystemAdapter};
 use litools_telemetry::init_logging;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 const APP_SETTINGS_KEY: &str = "app_settings";
+const APPS_INDEX_STATUS_KEY: &str = "apps_last_refresh_status";
+const RELOAD_INDEX_TRIGGER_DIRECT: &str = "direct";
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ReloadIndexSummary {
+    pub trigger: String,
+    pub started_at: String,
+    pub finished_at: String,
+    pub duration_ms: i64,
+    pub commands_upserted: usize,
+    pub apps_discovered: usize,
+    pub apps_upserted: usize,
+    pub apps_removed: usize,
+    pub success: bool,
+    pub error: Option<String>,
+}
 
 use crate::{
     app_provider::{AppSearchProvider, OPEN_APP_ACTION_ID, app_id_from_result_id},
@@ -87,7 +105,9 @@ impl LitoolsApp {
         let effect = builtin_effect_for_result(&result_id)?;
 
         match effect {
-            BuiltinCommandEffect::ReloadIndex => self.reload_index()?,
+            BuiltinCommandEffect::ReloadIndex => {
+                let _ = self.reload_index()?;
+            }
             BuiltinCommandEffect::ToggleTheme => self.toggle_theme()?,
             _ => {}
         }
@@ -109,10 +129,17 @@ impl LitoolsApp {
         })
     }
 
-    pub fn reload_index(&self) -> LitoolsResult<()> {
+    pub fn reload_index(&self) -> LitoolsResult<ReloadIndexSummary> {
+        self.reload_index_with_trigger(RELOAD_INDEX_TRIGGER_DIRECT)
+    }
+
+    pub fn reload_index_with_trigger(&self, trigger: &str) -> LitoolsResult<ReloadIndexSummary> {
+        let started_at = Utc::now();
         let discovered_apps = NativeSystemAdapter.discover_apps();
+        let apps_discovered = discovered_apps.len();
         let connection = self.context.database.connection();
-        let commands = CommandRepository::new(&connection);
+        let transaction = connection.unchecked_transaction()?;
+        let commands = CommandRepository::new(&transaction);
 
         for command in BUILTIN_COMMANDS {
             commands.upsert_command(
@@ -124,9 +151,9 @@ impl LitoolsApp {
             )?;
         }
 
-        let apps = AppRepository::new(&connection);
-        let now = Utc::now().to_rfc3339();
-        for app in discovered_apps {
+        let apps = AppRepository::new(&transaction);
+        let last_seen_at = started_at.to_rfc3339();
+        for app in &discovered_apps {
             apps.upsert_app(AppUpsert {
                 id: &app.id,
                 name: &app.name,
@@ -136,11 +163,30 @@ impl LitoolsApp {
                 aliases: &app.aliases,
                 search_text: &app.search_text,
                 platform: std::env::consts::OS,
-                last_seen_at: &now,
+                last_seen_at: &last_seen_at,
             })?;
         }
 
-        Ok(())
+        let apps_removed = apps.delete_apps_not_seen_at(std::env::consts::OS, &last_seen_at)?;
+        let finished_at = Utc::now();
+        let summary = reload_index_summary(
+            trigger,
+            started_at,
+            finished_at,
+            BUILTIN_COMMANDS.len(),
+            apps_discovered,
+            discovered_apps.len(),
+            apps_removed,
+            None,
+        );
+        IndexMetadataRepository::new(&transaction).set_json(
+            APPS_INDEX_STATUS_KEY,
+            &serde_json::to_string(&summary)?,
+            &finished_at.to_rfc3339(),
+        )?;
+        transaction.commit()?;
+
+        Ok(summary)
     }
 
     pub fn recent_usage_events(&self, limit: usize) -> LitoolsResult<Vec<UsageEventRecord>> {
@@ -156,6 +202,22 @@ impl LitoolsApp {
     pub fn command_count(&self) -> LitoolsResult<usize> {
         let connection = self.context.database.connection();
         Ok(CommandRepository::new(&connection).count_commands()?)
+    }
+
+    pub fn app_count(&self) -> LitoolsResult<usize> {
+        let connection = self.context.database.connection();
+        Ok(AppRepository::new(&connection).count_apps()?)
+    }
+
+    pub fn index_status(&self) -> LitoolsResult<Option<ReloadIndexSummary>> {
+        let connection = self.context.database.connection();
+        let Some(metadata) =
+            IndexMetadataRepository::new(&connection).get(APPS_INDEX_STATUS_KEY)?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(serde_json::from_str(&metadata.value_json)?))
     }
 
     pub fn usage_event_count(&self) -> LitoolsResult<usize> {
@@ -215,6 +277,30 @@ impl LitoolsApp {
 
     pub fn context(&self) -> &AppContext {
         &self.context
+    }
+}
+
+fn reload_index_summary(
+    trigger: &str,
+    started_at: DateTime<Utc>,
+    finished_at: DateTime<Utc>,
+    commands_upserted: usize,
+    apps_discovered: usize,
+    apps_upserted: usize,
+    apps_removed: usize,
+    error: Option<String>,
+) -> ReloadIndexSummary {
+    ReloadIndexSummary {
+        trigger: trigger.to_string(),
+        started_at: started_at.to_rfc3339(),
+        finished_at: finished_at.to_rfc3339(),
+        duration_ms: (finished_at - started_at).num_milliseconds(),
+        commands_upserted,
+        apps_discovered,
+        apps_upserted,
+        apps_removed,
+        success: error.is_none(),
+        error,
     }
 }
 

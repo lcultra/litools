@@ -1,10 +1,17 @@
-use litools_core::{BuiltinCommandEffect, CommandExecution};
+use litools_core::{BuiltinCommandEffect, CommandExecution, ReloadIndexSummary};
 use litools_search::SearchResult;
 use litools_settings::AppSettings;
 use serde::Serialize;
 use tauri::{AppHandle, LogicalSize, Manager, Size, State};
 
-use crate::{shortcut, state::AppState, window};
+use crate::{
+    app_watcher::AppWatcherStatus,
+    icon_cache::{IconCacheSummary, icon_cache_summary},
+    index_refresh::{IndexRefreshTrigger, IndexStatus, request_index_refresh},
+    shortcut,
+    state::AppState,
+    window,
+};
 
 #[tauri::command]
 pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
@@ -87,9 +94,9 @@ pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(
 }
 
 #[tauri::command]
-pub fn reload_index(state: State<'_, AppState>) -> Result<(), String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
-    app.reload_index().map_err(|error| error.to_string())
+pub fn reload_index(app_handle: AppHandle) -> Result<IndexStatus, String> {
+    request_index_refresh(&app_handle, IndexRefreshTrigger::Manual);
+    Ok(app_handle.state::<AppState>().index_status())
 }
 
 #[tauri::command]
@@ -154,6 +161,11 @@ pub struct DiagnosticsResponse {
     platform: String,
     plugin_count: usize,
     command_count: usize,
+    app_count: usize,
+    index_status: IndexStatus,
+    last_persisted_index_status: Option<ReloadIndexSummary>,
+    app_watcher: AppWatcherStatus,
+    icon_cache: IconCacheSummary,
     recent_usage_count: usize,
     recent_usage: Vec<UsageEventResponse>,
     settings: AppSettings,
@@ -183,6 +195,11 @@ pub fn get_diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsResponse
         platform: std::env::consts::OS.to_string(),
         plugin_count: app.context().plugins.installed_plugins().len(),
         command_count: app.command_count().map_err(|error| error.to_string())?,
+        app_count: app.app_count().map_err(|error| error.to_string())?,
+        index_status: state.index_status(),
+        last_persisted_index_status: app.index_status().map_err(|error| error.to_string())?,
+        app_watcher: state.app_watcher_status(),
+        icon_cache: icon_cache_summary(state.data_dir()),
         recent_usage_count,
         recent_usage,
         settings: app.settings().clone(),

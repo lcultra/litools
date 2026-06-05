@@ -1,5 +1,5 @@
 import { createEffect, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
-import { getSettings, reloadIndex } from './bridge/commands';
+import { getSettings } from './bridge/commands';
 import { onNavigate } from './bridge/events';
 import type { AppSettings, BuiltinCommandEffect } from './bridge/types';
 import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
@@ -15,7 +15,6 @@ export function App() {
 
     onMount(() => {
         void refreshSettings();
-        void reloadIndex();
 
         const media = window.matchMedia('(prefers-color-scheme: dark)');
         setSystemDark(media.matches);

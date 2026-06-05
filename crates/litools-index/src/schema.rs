@@ -57,6 +57,12 @@ CREATE TABLE IF NOT EXISTS settings (
     value_json TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS index_metadata (
+    key TEXT PRIMARY KEY,
+    value_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS permission_grants (
     plugin_id TEXT NOT NULL,
     permission TEXT NOT NULL,

@@ -1,5 +1,8 @@
+mod app_watcher;
 mod commands;
+mod icon_cache;
 mod icon_protocol;
+mod index_refresh;
 #[cfg(target_os = "macos")]
 mod macos_icon;
 mod shortcut;
@@ -48,6 +51,12 @@ fn main() {
             shortcut::register_global_shortcut(
                 app.handle(),
                 &app.state::<AppState>().global_hotkey(),
+            );
+            let app_watcher = app_watcher::start_app_watcher(app.handle().clone());
+            app.state::<AppState>().set_app_watcher(app_watcher);
+            index_refresh::request_index_refresh(
+                app.handle(),
+                index_refresh::IndexRefreshTrigger::Startup,
             );
             Ok(())
         })

@@ -9,17 +9,21 @@ authors.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+chrono.workspace = true
 icns.workspace = true
 image.workspace = true
 litools-core.workspace = true
 litools-index.workspace = true
 litools-search.workspace = true
 litools-settings.workspace = true
+litools-system.workspace = true
 lru.workspace = true
+notify.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
 tokio.workspace = true
+uuid.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

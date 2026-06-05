@@ -1,4 +1,7 @@
-use litools_index::{IndexDatabase, repository::AppRepository};
+use litools_index::{
+    IndexDatabase,
+    repository::{AppRecord, AppRepository},
+};
 use litools_search::{SearchProvider, SearchQuery, SearchResult, SearchResultAction};
 
 pub const APP_PROVIDER_ID: &str = "apps";
@@ -29,8 +32,7 @@ impl SearchProvider for AppSearchProvider {
             .unwrap_or_default()
             .into_iter()
             .map(|app| {
-                let score =
-                    score_app_result(&app.name, &app.id, &app.path, &query.text, app.launch_count);
+                let score = score_app_result(&app, &query.text);
 
                 SearchResult {
                     id: format!("{APP_RESULT_PREFIX}{}", app.id),
@@ -68,39 +70,70 @@ fn percent_encode_uri_path_segment(value: &str) -> String {
         .collect()
 }
 
-fn score_app_result(name: &str, id: &str, path: &str, query: &str, launch_count: i64) -> f32 {
+fn score_app_result(app: &AppRecord, query: &str) -> f32 {
     let query = query.trim().to_lowercase();
-    let launch_bonus = (launch_count.min(20) as f32) * 0.5;
+    let launch_bonus = (app.launch_count.min(20) as f32) * 0.5;
 
     if query.is_empty() {
         return 80.0 + launch_bonus;
     }
 
-    let name = name.to_lowercase();
-    let id = id.to_lowercase();
-    let path = path.to_lowercase();
+    let name = app.name.to_lowercase();
+    let localized_names = normalized_terms(&app.localized_names);
+    let aliases = normalized_terms(&app.aliases);
+    let id = app.id.to_lowercase();
+    let path = app.path.to_lowercase();
+    let search_text = app.search_text.to_lowercase();
 
     if name == query {
-        return 120.0 + launch_bonus;
+        return 130.0 + launch_bonus;
+    }
+
+    if localized_names.iter().any(|term| term == &query) {
+        return 122.0 + launch_bonus;
+    }
+
+    if aliases.iter().any(|term| term == &query) {
+        return 116.0 + launch_bonus;
     }
 
     if name.starts_with(&query) {
-        return 105.0 + launch_bonus;
+        return 108.0 + launch_bonus;
+    }
+
+    if localized_names.iter().any(|term| term.starts_with(&query)) {
+        return 102.0 + launch_bonus;
+    }
+
+    if aliases.iter().any(|term| term.starts_with(&query)) {
+        return 96.0 + launch_bonus;
+    }
+
+    if name.contains(&query) || localized_names.iter().any(|term| term.contains(&query)) {
+        return 82.0 + launch_bonus;
+    }
+
+    if aliases.iter().any(|term| term.contains(&query)) {
+        return 76.0 + launch_bonus;
     }
 
     if id.starts_with(&query) {
-        return 90.0 + launch_bonus;
+        return 68.0 + launch_bonus;
     }
 
-    if name.contains(&query) {
-        return 75.0 + launch_bonus;
-    }
-
-    if id.contains(&query) || path.contains(&query) {
+    if id.contains(&query) || path.contains(&query) || search_text.contains(&query) {
         return 55.0 + launch_bonus;
     }
 
     0.0
+}
+
+fn normalized_terms(terms: &[String]) -> Vec<String> {
+    terms
+        .iter()
+        .map(|term| term.trim().to_lowercase())
+        .filter(|term| !term.is_empty())
+        .collect()
 }
 
 pub fn app_id_from_result_id(result_id: &str) -> Option<&str> {
@@ -132,18 +165,60 @@ mod tests {
     fn exact_app_match_scores_above_prefix_match() {
         assert!(
             score_app_result(
-                "Safari",
-                "com.apple.Safari",
-                "/Applications/Safari.app",
-                "safari",
-                0
+                &app_record("com.apple.Safari", "Safari", &[], &[], 0),
+                "safari"
             ) > score_app_result(
-                "Safari Technology Preview",
-                "com.apple.SafariTechnologyPreview",
-                "/Applications/Safari Technology Preview.app",
+                &app_record(
+                    "com.apple.SafariTechnologyPreview",
+                    "Safari Technology Preview",
+                    &[],
+                    &[],
+                    0,
+                ),
                 "safari",
-                0
             )
         );
+    }
+
+    #[test]
+    fn alias_match_scores_above_path_fallback() {
+        assert!(
+            score_app_result(
+                &app_record("com.tencent.xin", "微信", &["WeChat"], &["wx", "weixin"], 0),
+                "wx",
+            ) > score_app_result(
+                &app_record("com.example.wxhelper", "Helper", &[], &[], 0),
+                "wx",
+            )
+        );
+    }
+
+    fn app_record(
+        id: &str,
+        name: &str,
+        localized_names: &[&str],
+        aliases: &[&str],
+        launch_count: i64,
+    ) -> AppRecord {
+        AppRecord {
+            id: id.to_string(),
+            name: name.to_string(),
+            path: format!("/Applications/{name}.app"),
+            icon_path: None,
+            localized_names: localized_names
+                .iter()
+                .map(|value| value.to_string())
+                .collect(),
+            aliases: aliases.iter().map(|value| value.to_string()).collect(),
+            search_text: [name]
+                .into_iter()
+                .chain(localized_names.iter().copied())
+                .chain(aliases.iter().copied())
+                .collect::<Vec<_>>()
+                .join(" "),
+            platform: "macos".to_string(),
+            last_seen_at: "2026-06-05T00:00:00Z".to_string(),
+            launch_count,
+        }
     }
 }
