@@ -127,6 +127,35 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
         }
     }
 
+    async function reorderPinnedSection(resultIds: string[]) {
+        setSections((currentSections) =>
+            currentSections.map((section) => {
+                if (section.id !== 'pinned') {
+                    return section;
+                }
+
+                const itemsById = new Map(section.items.map((item) => [item.result.id, item]));
+                const orderedItems = resultIds.flatMap((resultId) => {
+                    const item = itemsById.get(resultId);
+                    return item ? [item] : [];
+                });
+
+                if (orderedItems.length !== section.items.length) {
+                    return section;
+                }
+
+                return { ...section, items: orderedItems };
+            }),
+        );
+
+        try {
+            await reorderPinnedResults(resultIds);
+            setError(null);
+        } catch (reorderError) {
+            setError(`排序保存失败：${String(reorderError)}`);
+        }
+    }
+
     async function togglePinned(item: LauncherItem) {
         const pinned = item.isPinned;
 
@@ -160,15 +189,6 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
             await menu.popup(new LogicalPosition(position.x, position.y));
         } catch (menuError) {
             setError(`打开菜单失败：${String(menuError)}`);
-        }
-    }
-
-    async function reorderPinnedSection(resultIds: string[]) {
-        try {
-            await reorderPinnedResults(resultIds);
-            await refreshPanel({ preserveSelection: true, resetExpansion: false });
-        } catch (reorderError) {
-            setError(`排序失败：${String(reorderError)}`);
         }
     }
 
@@ -298,7 +318,7 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
             onContentElement={handleContentElement}
             onInput={setQuery}
             onKeyDown={handleKeyDown}
-            onPinnedSectionReorder={(resultIds) => void reorderPinnedSection(resultIds)}
+            onPinnedReorder={(resultIds) => void reorderPinnedSection(resultIds)}
             onResultContextMenu={(renderItem, position) => void showResultContextMenu(renderItem, position)}
             onResultRun={(result) => void runResult(result)}
             onSectionExpandedToggle={toggleSectionExpanded}

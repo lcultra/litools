@@ -32,6 +32,12 @@
 
 桌面前端已引入 `lucide-solid` 作为图标库。后续需要图标时，优先从 `lucide-solid` 导入对应图标组件，保持图标风格统一；不要临时内联 SVG 或混用其他图标库，除非已有图标库无法满足需求。
 
+## 后端数据库锁
+
+`litools-index` 的 `IndexDatabase` 使用 `Arc<Mutex<rusqlite::Connection>>` 管理数据库连接，标准库 `Mutex` 不可重入。后端实现中不要在持有 `self.context.database.connection()` 返回的 guard 时，再调用任何可能间接获取数据库连接的 helper（例如 result 校验、launcher item 构建、repository 查询封装等），否则会在同一线程再次 lock 数据库 mutex 并导致界面卡死。
+
+涉及数据库写入且需要先做业务校验时，优先分阶段处理：先在不持有数据库连接 guard 的情况下完成 result id 解析、命令校验等逻辑；再获取数据库连接，集中执行 repository 读取/写入和事务。典型案例是已固定排序持久化：不要在持有 `PinnedRepository`/connection 的同时调用 `validated_target_from_result_id`，因为 app result 校验会再次读取数据库。
+
 ## 前端代码校验
 
 每次更改桌面前端代码结束后，都需要运行前端代码格式化和校验：

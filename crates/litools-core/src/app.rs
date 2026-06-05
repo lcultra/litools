@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use litools_index::{
@@ -124,24 +124,19 @@ impl LitoolsApp {
 
         let settings = self.context.settings.get();
         let mut sections = Vec::new();
-        let mut pinned_targets = HashSet::new();
 
-        if settings.palette.show_pinned {
-            let pinned_items = self.pinned_launcher_items(settings.palette.result_limit)?;
-            pinned_targets.extend(pinned_items.iter().filter_map(|item| {
-                self.target_from_result_id(&item.result.id)
-                    .map(|(target_type, target_id)| (target_type.to_string(), target_id))
-            }));
+        if settings.palette.show_recent {
+            let recent_items = self.recent_launcher_items(settings.palette.result_limit)?;
 
-            if let Some(section) = section_if_not_empty("pinned", "已固定", pinned_items) {
+            if let Some(section) = section_if_not_empty("recent", "最近使用", recent_items) {
                 sections.push(section);
             }
         }
 
-        if settings.palette.show_recent {
-            let recent_items = self.recent_launcher_items(settings.palette.result_limit, &pinned_targets)?;
+        if settings.palette.show_pinned {
+            let pinned_items = self.pinned_launcher_items(settings.palette.result_limit)?;
 
-            if let Some(section) = section_if_not_empty("recent", "最近使用", recent_items) {
+            if let Some(section) = section_if_not_empty("pinned", "已固定", pinned_items) {
                 sections.push(section);
             }
         }
@@ -166,21 +161,26 @@ impl LitoolsApp {
     }
 
     pub fn reorder_pinned_results(&self, result_ids: Vec<String>) -> LitoolsResult<()> {
-        let connection = self.context.database.connection();
-        let pinned = PinnedRepository::new(&connection);
         let mut targets = Vec::with_capacity(result_ids.len());
 
         for result_id in result_ids {
             let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
+            targets.push((target_type.to_string(), target_id, result_id));
+        }
 
-            if !pinned.is_pinned(target_type, &target_id)? {
+        let connection = self.context.database.connection();
+        let pinned = PinnedRepository::new(&connection);
+        let mut ordered_targets = Vec::with_capacity(targets.len());
+
+        for (target_type, target_id, result_id) in targets {
+            if !pinned.is_pinned(&target_type, &target_id)? {
                 return Err(LitoolsError::CommandNotFound(result_id));
             }
 
-            targets.push((target_type.to_string(), target_id));
+            ordered_targets.push((target_type, target_id));
         }
 
-        pinned.reorder(&targets)?;
+        pinned.reorder(&ordered_targets)?;
         Ok(())
     }
 
@@ -344,11 +344,7 @@ impl LitoolsApp {
         Ok(items)
     }
 
-    fn recent_launcher_items(
-        &self,
-        limit: usize,
-        pinned_targets: &HashSet<(String, String)>,
-    ) -> LitoolsResult<Vec<LauncherItem>> {
+    fn recent_launcher_items(&self, limit: usize) -> LitoolsResult<Vec<LauncherItem>> {
         let connection = self.context.database.connection();
         let usage = UsageRepository::new(&connection).recent_unique_targets(limit)?;
         let apps = AppRepository::new(&connection);
@@ -356,10 +352,6 @@ impl LitoolsApp {
         let mut items = Vec::new();
 
         for record in usage {
-            if pinned_targets.contains(&(record.target_type.clone(), record.target_id.clone())) {
-                continue;
-            }
-
             let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)? else {
                 continue;
             };
@@ -660,6 +652,23 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(ids, vec!["open-settings", "reload-index"]);
+    }
+
+    #[test]
+    fn launcher_panel_keeps_recent_above_pinned_without_deduplication() {
+        let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
+
+        app.execute_result("open-settings", "execute")
+            .expect("record recent usage");
+        app.pin_result("open-settings").expect("pin settings");
+        let panel = app.launcher_panel("").expect("launcher panel");
+
+        assert_eq!(panel.sections[0].id, "recent");
+        assert_eq!(panel.sections[1].id, "pinned");
+        assert_eq!(panel.sections[0].items[0].result.id, "open-settings");
+        assert_eq!(panel.sections[1].items[0].result.id, "open-settings");
+        assert!(panel.sections[0].items[0].is_pinned);
+        assert!(panel.sections[1].items[0].is_pinned);
     }
 
     #[test]

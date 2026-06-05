@@ -378,7 +378,7 @@ impl<'a> PinnedRepository<'a> {
     ) -> rusqlite::Result<()> {
         self.connection.execute(
             "INSERT INTO pinned_items (target_type, target_id, pinned_at, sort_order)
-             VALUES (?1, ?2, ?3, 0)
+             VALUES (?1, ?2, ?3, COALESCE((SELECT MAX(sort_order) + 1 FROM pinned_items), 0))
              ON CONFLICT(target_type, target_id) DO UPDATE SET
                 pinned_at = excluded.pinned_at",
             params![target_type, target_id, pinned_at],
@@ -754,8 +754,10 @@ mod tests {
 
         let pinned = repository.list_pinned(10).expect("list pinned");
         assert_eq!(pinned.len(), 2);
-        assert_eq!(pinned[0].target_id, "open-settings");
-        assert_eq!(pinned[1].target_id, "com.example.App");
+        assert_eq!(pinned[0].target_id, "com.example.App");
+        assert_eq!(pinned[0].sort_order, 0);
+        assert_eq!(pinned[1].target_id, "open-settings");
+        assert_eq!(pinned[1].sort_order, 1);
 
         repository
             .pin("app", "com.example.App", "2026-06-07T00:00:00Z")
@@ -763,6 +765,7 @@ mod tests {
         let pinned = repository.list_pinned(10).expect("list updated pinned");
         assert_eq!(pinned[0].target_id, "com.example.App");
         assert_eq!(pinned[0].pinned_at, "2026-06-07T00:00:00Z");
+        assert_eq!(pinned[0].sort_order, 0);
 
         repository
             .reorder(&[

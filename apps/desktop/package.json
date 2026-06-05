@@ -13,6 +13,8 @@
     },
     "dependencies": {
         "@ark-ui/solid": "^5.37.0",
+        "@dnd-kit/helpers": "^0.4.0",
+        "@dnd-kit/solid": "^0.4.0",
         "@tauri-apps/api": "^2.0.0",
         "@tauri-apps/plugin-global-shortcut": "~2.3.2",
         "lucide-solid": "^1.17.0",
