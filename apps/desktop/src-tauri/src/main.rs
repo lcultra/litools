@@ -30,7 +30,10 @@ fn main() {
             let data_dir = app.path().app_data_dir()?;
             app.manage(AppState::bootstrap(data_dir)?);
             tray::setup_tray(app)?;
-            shortcut::register_global_shortcut(app.handle(), &app.state::<AppState>().global_hotkey());
+            shortcut::register_global_shortcut(
+                app.handle(),
+                &app.state::<AppState>().global_hotkey(),
+            );
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -64,6 +67,7 @@ fn main() {
             commands::show_main_window,
             commands::start_dragging,
             commands::resize_main_window_height,
+            commands::reload_index,
             commands::get_settings,
             commands::update_settings,
             commands::list_plugins,

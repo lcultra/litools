@@ -25,12 +25,20 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
             }
             SETTINGS_ID => {
                 if let Some(window) = window::main_window(app) {
-                    window::show_view(&window, "settings", app.state::<AppState>().center_on_show());
+                    window::show_view(
+                        &window,
+                        "settings",
+                        app.state::<AppState>().center_on_show(),
+                    );
                 }
             }
             DIAGNOSTICS_ID => {
                 if let Some(window) = window::main_window(app) {
-                    window::show_view(&window, "diagnostics", app.state::<AppState>().center_on_show());
+                    window::show_view(
+                        &window,
+                        "diagnostics",
+                        app.state::<AppState>().center_on_show(),
+                    );
                 }
             }
             QUIT_ID => {

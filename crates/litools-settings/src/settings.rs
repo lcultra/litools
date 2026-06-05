@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_GLOBAL_HOTKEY: &str = "CommandOrControl+Space";
 pub const DEFAULT_RESULT_LIMIT: usize = 20;
 pub const MAX_RESULT_LIMIT: usize = 50;
+pub const DEFAULT_ENABLED_PROVIDERS: &[&str] = &["apps", "commands"];
+pub const SUPPORTED_SEARCH_PROVIDERS: &[&str] = &["apps", "commands"];
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AppSettings {
@@ -42,12 +44,18 @@ impl AppSettings {
 
         self.palette.result_limit = self.palette.result_limit.clamp(1, MAX_RESULT_LIMIT);
 
-        self.search.enabled_providers.retain(|provider| !provider.trim().is_empty());
+        self.search
+            .enabled_providers
+            .retain(|provider| SUPPORTED_SEARCH_PROVIDERS.contains(&provider.as_str()));
         self.search.enabled_providers.sort();
         self.search.enabled_providers.dedup();
 
-        if self.search.enabled_providers.is_empty() {
-            self.search.enabled_providers.push("commands".to_string());
+        if self.search.enabled_providers.is_empty() || self.search.enabled_providers == ["commands"]
+        {
+            self.search.enabled_providers = DEFAULT_ENABLED_PROVIDERS
+                .iter()
+                .map(|provider| provider.to_string())
+                .collect();
         }
 
         self
@@ -63,7 +71,10 @@ impl Default for AppSettings {
                 result_limit: DEFAULT_RESULT_LIMIT,
             },
             search: SearchSettings {
-                enabled_providers: vec!["commands".to_string()],
+                enabled_providers: DEFAULT_ENABLED_PROVIDERS
+                    .iter()
+                    .map(|provider| provider.to_string())
+                    .collect(),
             },
             window: WindowSettings {
                 hide_on_blur: true,
@@ -85,7 +96,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
         assert_eq!(settings.palette.result_limit, DEFAULT_RESULT_LIMIT);
-        assert_eq!(settings.search.enabled_providers, ["commands"]);
+        assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
         assert!(settings.window.hide_on_blur);
         assert!(settings.window.close_to_tray);
         assert!(settings.window.center_on_show);
@@ -100,7 +111,11 @@ mod tests {
                 result_limit: 100,
             },
             search: SearchSettings {
-                enabled_providers: vec!["".to_string(), "commands".to_string(), "commands".to_string()],
+                enabled_providers: vec![
+                    "".to_string(),
+                    "commands".to_string(),
+                    "commands".to_string(),
+                ],
             },
             window: WindowSettings {
                 hide_on_blur: false,
@@ -113,7 +128,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
         assert_eq!(settings.palette.result_limit, MAX_RESULT_LIMIT);
-        assert_eq!(settings.search.enabled_providers, ["commands"]);
+        assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
         assert!(!settings.window.hide_on_blur);
         assert!(!settings.window.close_to_tray);
         assert!(!settings.window.center_on_show);

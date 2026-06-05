@@ -1,7 +1,7 @@
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 
-use crate::{state::ShortcutStatus, state::AppState};
+use crate::{state::AppState, state::ShortcutStatus};
 
 pub fn register_global_shortcut(app: &AppHandle, accelerator: &str) {
     let Some(state) = app.try_state::<AppState>() else {

@@ -94,6 +94,9 @@ impl AppState {
     }
 
     pub fn shortcut_status(&self) -> ShortcutStatus {
-        self.shortcut_status.lock().map(|status| status.clone()).unwrap_or_default()
+        self.shortcut_status
+            .lock()
+            .map(|status| status.clone())
+            .unwrap_or_default()
     }
 }

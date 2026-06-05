@@ -25,6 +25,10 @@ export function resizeMainWindowHeight(height: number): Promise<void> {
     return invoke<void>('resize_main_window_height', { height });
 }
 
+export function reloadIndex(): Promise<void> {
+    return invoke<void>('reload_index');
+}
+
 export function getSettings(): Promise<AppSettings> {
     return invoke<AppSettings>('get_settings');
 }

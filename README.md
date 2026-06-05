@@ -47,13 +47,13 @@ litools 是一个基于 Rust / Tauri / SolidJS 的桌面效率工具平台，目
 
 系统应用搜索是 uTools 风格启动器的核心能力，属于 Phase 1 验收项，而不是后续增强项。
 
-- [ ] 索引 `/Applications`
-- [ ] 索引 `~/Applications`
-- [ ] 解析 `.app` 名称
-- [ ] 获取 bundle id
-- [ ] 获取应用 icon
-- [ ] 支持打开应用
-- [ ] 最近打开应用优先
+- [x] 索引 `/Applications`
+- [x] 索引 `~/Applications`
+- [x] 解析 `.app` 名称
+- [x] 获取 bundle id
+- [x] 获取应用 icon
+- [x] 支持打开应用
+- [x] 最近打开应用优先
 
 #### 1.4 内置命令补齐
 
@@ -83,7 +83,7 @@ litools 是一个基于 Rust / Tauri / SolidJS 的桌面效率工具平台，目
 
 - [ ] 全键盘可操作
 - [ ] 快捷键唤起后输入框稳定聚焦
-- [ ] 可以搜索并打开系统应用
+- [x] 可以搜索并打开系统应用
 - [ ] 可以执行内置命令
 - [ ] 鼠标和键盘状态不互相打架
 - [ ] loading / empty / error 状态稳定

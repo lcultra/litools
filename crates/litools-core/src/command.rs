@@ -104,7 +104,11 @@ impl BuiltinCommandDefinition {
             return 100.0;
         }
 
-        if self.keywords.iter().any(|keyword| keyword.starts_with(needle)) {
+        if self
+            .keywords
+            .iter()
+            .any(|keyword| keyword.starts_with(needle))
+        {
             return 90.0;
         }
 

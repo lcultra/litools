@@ -3,16 +3,20 @@ use std::{path::Path, sync::Arc};
 use chrono::Utc;
 use litools_index::{
     IndexDatabase,
-    repository::{CommandRepository, SettingsRepository, UsageEventRecord, UsageRepository},
+    repository::{
+        AppRepository, CommandRepository, SettingsRepository, UsageEventRecord, UsageRepository,
+    },
 };
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 use litools_settings::{AppSettings, storage::SettingsStore};
+use litools_system::{NativeSystemAdapter, SystemAdapter};
 use litools_telemetry::init_logging;
 use uuid::Uuid;
 
 const APP_SETTINGS_KEY: &str = "app_settings";
 
 use crate::{
+    app_provider::{AppSearchProvider, OPEN_APP_ACTION_ID, app_id_from_result_id},
     command::{BUILTIN_COMMANDS, BuiltinCommandEffect, BuiltinCommandProvider, CommandExecution},
     context::AppContext,
     error::{LitoolsError, LitoolsResult},
@@ -29,13 +33,10 @@ impl LitoolsApp {
         std::fs::create_dir_all(data_dir.as_ref())?;
         let database = IndexDatabase::open(data_dir.as_ref().join("database.sqlite"))?;
         let settings = load_settings(&database)?;
+        let search = default_search_engine(database.clone());
 
         Ok(Self {
-            context: AppContext::new(
-                database,
-                default_search_engine(),
-                SettingsStore::new(settings),
-            ),
+            context: AppContext::new(database, search, SettingsStore::new(settings)),
         })
     }
 
@@ -44,13 +45,10 @@ impl LitoolsApp {
 
         let database = IndexDatabase::in_memory()?;
         let settings = load_settings(&database)?;
+        let search = default_search_engine(database.clone());
 
         Ok(Self {
-            context: AppContext::new(
-                database,
-                default_search_engine(),
-                SettingsStore::new(settings),
-            ),
+            context: AppContext::new(database, search, SettingsStore::new(settings)),
         })
     }
 
@@ -80,6 +78,11 @@ impl LitoolsApp {
     ) -> LitoolsResult<CommandExecution> {
         let result_id = result_id.into();
         let action_id = action_id.into();
+
+        if let Some(app_id) = app_id_from_result_id(&result_id) {
+            return self.execute_app_result(&result_id, app_id, &action_id);
+        }
+
         let effect = builtin_effect_for_result(&result_id)?;
 
         match effect {
@@ -106,6 +109,7 @@ impl LitoolsApp {
     }
 
     pub fn reload_index(&self) -> LitoolsResult<()> {
+        let discovered_apps = NativeSystemAdapter.discover_apps();
         let connection = self.context.database.connection();
         let commands = CommandRepository::new(&connection);
 
@@ -116,6 +120,19 @@ impl LitoolsApp {
                 command.title,
                 Some(command.subtitle),
                 "execute",
+            )?;
+        }
+
+        let apps = AppRepository::new(&connection);
+        let now = Utc::now().to_rfc3339();
+        for app in discovered_apps {
+            apps.upsert_app(
+                &app.id,
+                &app.name,
+                &app.path,
+                app.icon_path.as_deref(),
+                std::env::consts::OS,
+                &now,
             )?;
         }
 
@@ -137,6 +154,45 @@ impl LitoolsApp {
         Ok(UsageRepository::new(&connection).count_events()?)
     }
 
+    fn execute_app_result(
+        &self,
+        result_id: &str,
+        app_id: &str,
+        action_id: &str,
+    ) -> LitoolsResult<CommandExecution> {
+        if action_id != OPEN_APP_ACTION_ID {
+            return Err(LitoolsError::CommandNotFound(format!(
+                "{result_id}:{action_id}"
+            )));
+        }
+
+        let connection = self.context.database.connection();
+        let apps = AppRepository::new(&connection);
+        let app = apps
+            .find_app(app_id)?
+            .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
+
+        NativeSystemAdapter
+            .launch_app(&app.id)
+            .or_else(|_| NativeSystemAdapter.launch_app(&app.path))
+            .map_err(LitoolsError::System)?;
+        apps.increment_launch_count(&app.id)?;
+        UsageRepository::new(&connection).record_selection(
+            &Uuid::new_v4().to_string(),
+            "app",
+            &app.id,
+            None,
+            &Utc::now().to_rfc3339(),
+        )?;
+
+        Ok(CommandExecution {
+            message: format!("正在打开 {}", app.name),
+            result_id: result_id.to_string(),
+            action_id: action_id.to_string(),
+            effect: BuiltinCommandEffect::None,
+        })
+    }
+
     fn toggle_theme(&mut self) -> LitoolsResult<()> {
         let mut settings = self.context.settings.get().clone();
         settings.theme = match settings.theme.as_str() {
@@ -153,9 +209,10 @@ impl LitoolsApp {
     }
 }
 
-fn default_search_engine() -> SearchEngine {
+fn default_search_engine(database: IndexDatabase) -> SearchEngine {
     let mut search = SearchEngine::new();
     search.register_provider(Arc::new(BuiltinCommandProvider));
+    search.register_provider(Arc::new(AppSearchProvider::new(database)));
     search
 }
 
@@ -237,7 +294,7 @@ mod tests {
 
         assert_eq!(updated.theme, "system");
         assert_eq!(updated.palette.result_limit, 50);
-        assert_eq!(updated.search.enabled_providers, ["commands"]);
+        assert_eq!(updated.search.enabled_providers, ["apps", "commands"]);
         assert_eq!(app.settings(), &updated);
     }
 

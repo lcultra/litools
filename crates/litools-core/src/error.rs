@@ -10,4 +10,6 @@ pub enum LitoolsError {
     Json(#[from] serde_json::Error),
     #[error("未找到命令：{0}")]
     CommandNotFound(String),
+    #[error("系统操作失败：{0}")]
+    System(String),
 }

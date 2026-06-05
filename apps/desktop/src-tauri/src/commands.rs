@@ -87,6 +87,12 @@ pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(
 }
 
 #[tauri::command]
+pub fn reload_index(state: State<'_, AppState>) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.reload_index().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     Ok(app.settings().clone())
@@ -100,7 +106,8 @@ pub fn update_settings(
 ) -> Result<AppSettings, String> {
     let updated_settings = {
         let mut app = state.app().lock().map_err(|error| error.to_string())?;
-        app.update_settings(settings).map_err(|error| error.to_string())?
+        app.update_settings(settings)
+            .map_err(|error| error.to_string())?
     };
 
     shortcut::register_global_shortcut(&app_handle, &updated_settings.palette.global_hotkey);
