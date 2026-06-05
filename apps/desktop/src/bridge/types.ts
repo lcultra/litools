@@ -1,3 +1,5 @@
+import type { ThemeValue } from '../shared/theme';
+
 export type SearchResultAction = {
     id: string;
     label: string;
@@ -62,7 +64,7 @@ export type IconCacheSummary = {
 };
 
 export type AppSettings = {
-    theme: 'system' | 'light' | 'dark' | string;
+    theme: ThemeValue;
     palette: {
         global_hotkey: string;
         result_limit: number;

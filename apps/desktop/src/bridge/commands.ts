@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AppSettings, CommandExecution, DiagnosticsResponse, SearchResult } from './types';
+import type { AppSettings, CommandExecution, DiagnosticsResponse, IndexStatus, SearchResult } from './types';
 
 export function search(query: string): Promise<SearchResult[]> {
     return invoke<SearchResult[]>('search', { query });
@@ -25,8 +25,8 @@ export function resizeMainWindowHeight(height: number): Promise<void> {
     return invoke<void>('resize_main_window_height', { height });
 }
 
-export function reloadIndex(): Promise<void> {
-    return invoke<void>('reload_index');
+export function reloadIndex(): Promise<IndexStatus> {
+    return invoke<IndexStatus>('reload_index');
 }
 
 export function getSettings(): Promise<AppSettings> {

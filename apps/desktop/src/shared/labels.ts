@@ -10,6 +10,10 @@ export function providerLabel(provider: string) {
     return provider;
 }
 
+export function providerListLabel(providers: string[]) {
+    return providers.map(providerLabel).join('，') || '无';
+}
+
 export function targetTypeLabel(targetType: string) {
     if (targetType === 'command') {
         return '命令';

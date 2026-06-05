@@ -16,6 +16,18 @@
 
 优先参考 `llms-solid.txt`，需要跨组件总览时再看 `llms.txt`，需要完整示例和细节时再看 `llms-full.txt`。
 
+后续涉及 SolidJS API、响应式模型、组件模式或最佳实践查询时，优先参考官方 LLMs 文档入口：
+
+- https://docs.solidjs.com/llms.txt — SolidJS 官方文档结构化入口
+
+## 前端代码组织
+
+- 跨 feature 复用的公共 helper 放在 `apps/desktop/src/shared/`；单 feature 私有 helper 放在对应 feature 目录；组件私有逻辑保留在组件文件内。
+- 通用 UI 组件放在 `apps/desktop/src/components/`，不要创建无边界的 `helpers`/`utils` 大杂烩。
+- 默认不引入全局状态库；页面状态优先用本地 `createSignal` / `createResource`。
+- 只有当状态需要跨 feature 一致读写或避免多层 props 透传时，才用 Solid Context 承载 App 级 signals/stores/actions。
+- 不要把页面编辑态、搜索态、诊断 resource、表单草稿、loading/error 等临时状态提升为全局状态。
+
 ## 前端图标库
 
 桌面前端已引入 `lucide-solid` 作为图标库。后续需要图标时，优先从 `lucide-solid` 导入对应图标组件，保持图标风格统一；不要临时内联 SVG 或混用其他图标库，除非已有图标库无法满足需求。

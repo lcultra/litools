@@ -2,7 +2,7 @@ import { createSignal, For, Show } from 'solid-js';
 import { startDragging } from '../../bridge/commands';
 import type { SearchResult } from '../../bridge/types';
 import { Panel } from '../../components/Panel';
-import { providerLabel } from './providerLabels';
+import { providerLabel } from '../../shared/labels';
 
 type PaletteViewProps = {
     error: string | null;

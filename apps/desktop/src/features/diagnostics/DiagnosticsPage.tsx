@@ -1,11 +1,12 @@
 import { createResource, For, onCleanup, onMount, Show } from 'solid-js';
 import { getDiagnostics } from '../../bridge/commands';
 import { onIndexStatusChanged } from '../../bridge/events';
-import type { AppWatcherStatus, IconCacheSummary, IndexStatus, ReloadIndexSummary } from '../../bridge/types';
 import { InfoRow } from '../../components/InfoRow';
 import { PageHeader } from '../../components/PageHeader';
 import { Panel } from '../../components/Panel';
-import { providerLabel, targetTypeLabel } from '../palette/providerLabels';
+import { providerListLabel, targetTypeLabel } from '../../shared/labels';
+import { themeLabel } from '../../shared/theme';
+import { iconCacheSummary, indexStatusSummary, reloadSummary, watchedPathsSummary, watcherSummary, windowBehaviorSummary } from './formatters';
 
 export function DiagnosticsPage() {
     const [diagnostics, { refetch }] = createResource(getDiagnostics);
@@ -45,12 +46,12 @@ export function DiagnosticsPage() {
                             <InfoRow label="应用索引状态" value={indexStatusSummary(diagnostics().index_status)} />
                             <InfoRow label="最近索引刷新" value={reloadSummary(diagnostics().last_persisted_index_status ?? diagnostics().index_status.lastSummary)} />
                             <InfoRow label="应用监听" value={watcherSummary(diagnostics().app_watcher)} />
-                            <InfoRow label="监听目录" value={diagnostics().app_watcher.watchedPaths.join('，') || '无'} />
+                            <InfoRow label="监听目录" value={watchedPathsSummary(diagnostics().app_watcher.watchedPaths)} />
                             <InfoRow label="图标缓存" value={iconCacheSummary(diagnostics().icon_cache)} />
                             <InfoRow label="最近使用次数" value={String(diagnostics().recent_usage_count)} />
                             <InfoRow label="主题" value={themeLabel(diagnostics().settings.theme)} />
                             <InfoRow label="结果数量上限" value={String(diagnostics().settings.palette.result_limit)} />
-                            <InfoRow label="已启用的数据源" value={diagnostics().settings.search.enabled_providers.map(providerLabel).join('，')} />
+                            <InfoRow label="已启用的数据源" value={providerListLabel(diagnostics().settings.search.enabled_providers)} />
                             <InfoRow label="窗口行为" value={windowBehaviorSummary(diagnostics().settings)} />
                             <InfoRow label="全局快捷键" value={diagnostics().shortcut.accelerator} />
                             <InfoRow label="快捷键状态" value={diagnostics().shortcut.registered ? '已注册' : (diagnostics().shortcut.error ?? '未注册')} />
@@ -79,78 +80,4 @@ export function DiagnosticsPage() {
             </Show>
         </Panel>
     );
-}
-
-function indexStatusSummary(status: IndexStatus) {
-    if (status.running) {
-        return status.pending ? '刷新中，已有待处理刷新' : '刷新中';
-    }
-
-    if (status.lastError) {
-        return `失败：${status.lastError}`;
-    }
-
-    if (status.lastSummary?.success) {
-        return '最近刷新成功';
-    }
-
-    return '空闲';
-}
-
-function reloadSummary(summary: ReloadIndexSummary | null | undefined) {
-    if (!summary) {
-        return '暂无刷新记录';
-    }
-
-    return [
-        summary.success ? '成功' : '失败',
-        `触发：${summary.trigger}`,
-        `应用：${summary.appsDiscovered}`,
-        `移除：${summary.appsRemoved}`,
-        `耗时：${summary.durationMs}ms`,
-        summary.finishedAt,
-    ].join('，');
-}
-
-function watcherSummary(status: AppWatcherStatus) {
-    if (status.enabled) {
-        return `已启用（${status.status}）`;
-    }
-
-    return status.error ? `${status.status}：${status.error}` : status.status;
-}
-
-function iconCacheSummary(summary: IconCacheSummary) {
-    const sizeMb = (summary.totalBytes / 1024 / 1024).toFixed(1);
-    const parts = [`${summary.fileCount}/${summary.maxFiles} 个文件`, `${sizeMb}MB`];
-
-    if (summary.lastPrunedAt) {
-        parts.push(`最近清理 ${summary.lastPrunedFiles} 个`);
-    }
-
-    if (summary.error) {
-        parts.push(`错误：${summary.error}`);
-    }
-
-    return parts.join('，');
-}
-
-function themeLabel(theme: string) {
-    if (theme === 'dark') {
-        return '深色';
-    }
-
-    if (theme === 'light') {
-        return '浅色';
-    }
-
-    return '跟随系统';
-}
-
-function windowBehaviorSummary(settings: { window: { hide_on_blur: boolean; close_to_tray: boolean; center_on_show: boolean } }) {
-    return [
-        settings.window.hide_on_blur ? '失焦时隐藏' : '失焦时保持显示',
-        settings.window.close_to_tray ? '关闭到托盘' : '关闭即退出',
-        settings.window.center_on_show ? '显示时居中' : '保持窗口位置',
-    ].join('，');
 }

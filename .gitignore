@@ -1,3 +1,4 @@
+.claude/settings.local.json
 /target/
 **/target/
 **/node_modules/

@@ -1,12 +1,14 @@
 import { createListCollection, Select } from '@ark-ui/solid/select';
 import { Switch } from '@ark-ui/solid/switch';
-import { createResource, createSignal, For, Show } from 'solid-js';
+import { createEffect, createResource, createSignal, For, Show } from 'solid-js';
+import { Portal } from 'solid-js/web';
 import { getSettings, updateSettings } from '../../bridge/commands';
 import type { AppSettings } from '../../bridge/types';
 import { InfoRow } from '../../components/InfoRow';
 import { PageHeader } from '../../components/PageHeader';
 import { Panel } from '../../components/Panel';
-import { providerLabel } from '../palette/providerLabels';
+import { providerListLabel } from '../../shared/labels';
+import { isThemeValue, type ThemeOption, themeOptions } from '../../shared/theme';
 
 type SettingsPageProps = {
     onSettingsSaved: (settings: AppSettings) => void;
@@ -14,24 +16,11 @@ type SettingsPageProps = {
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-type ThemeOption = {
-    label: string;
-    value: 'system' | 'light' | 'dark';
-};
-
 const themeCollection = createListCollection<ThemeOption>({
-    items: [
-        { label: '跟随系统', value: 'system' },
-        { label: '浅色', value: 'light' },
-        { label: '深色', value: 'dark' },
-    ],
+    items: themeOptions,
     itemToString: (item) => item.label,
     itemToValue: (item) => item.value,
 });
-
-function isThemeValue(value: string): value is ThemeOption['value'] {
-    return value === 'system' || value === 'light' || value === 'dark';
-}
 
 export function SettingsPage(props: SettingsPageProps) {
     const [settings] = createResource(getSettings);
@@ -39,20 +28,16 @@ export function SettingsPage(props: SettingsPageProps) {
     const [saveState, setSaveState] = createSignal<SaveState>('idle');
     const [error, setError] = createSignal<string | null>(null);
 
-    function currentDraft() {
-        const nextDraft = draft();
+    createEffect(() => {
         const loadedSettings = settings();
 
-        if (nextDraft) {
-            return nextDraft;
-        }
-
-        if (loadedSettings) {
+        if (loadedSettings && !draft()) {
             setDraft(structuredClone(loadedSettings));
-            return loadedSettings;
         }
+    });
 
-        return null;
+    function currentDraft() {
+        return draft();
     }
 
     function updateDraft(update: (settings: AppSettings) => AppSettings) {
@@ -131,21 +116,23 @@ export function SettingsPage(props: SettingsPageProps) {
                                     <Select.Indicator class="text-muted">⌄</Select.Indicator>
                                 </Select.Trigger>
                             </Select.Control>
-                            <Select.Positioner>
-                                <Select.Content class="z-50 mt-1 min-w-[var(--reference-width)] rounded-lg border border-border bg-surface p-1 text-fg shadow-[var(--shadow-panel)]">
-                                    <For each={themeCollection.items}>
-                                        {(item) => (
-                                            <Select.Item
-                                                class="cursor-pointer rounded-md px-3 py-2 outline-none data-[highlighted]:bg-surface-muted data-[state=checked]:font-semibold"
-                                                item={item}
-                                            >
-                                                <Select.ItemText>{item.label}</Select.ItemText>
-                                                <Select.ItemIndicator class="float-right text-muted">✓</Select.ItemIndicator>
-                                            </Select.Item>
-                                        )}
-                                    </For>
-                                </Select.Content>
-                            </Select.Positioner>
+                            <Portal>
+                                <Select.Positioner>
+                                    <Select.Content class="z-50 mt-1 min-w-[var(--reference-width)] rounded-lg border border-border bg-surface p-1 text-fg shadow-[var(--shadow-panel)]">
+                                        <For each={themeCollection.items}>
+                                            {(item) => (
+                                                <Select.Item
+                                                    class="cursor-pointer rounded-md px-3 py-2 outline-none data-[highlighted]:bg-surface-muted data-[state=checked]:font-semibold"
+                                                    item={item}
+                                                >
+                                                    <Select.ItemText>{item.label}</Select.ItemText>
+                                                    <Select.ItemIndicator class="float-right text-muted">✓</Select.ItemIndicator>
+                                                </Select.Item>
+                                            )}
+                                        </For>
+                                    </Select.Content>
+                                </Select.Positioner>
+                            </Portal>
                             <Select.HiddenSelect />
                         </Select.Root>
 
@@ -187,7 +174,7 @@ export function SettingsPage(props: SettingsPageProps) {
                             />
                         </label>
 
-                        <InfoRow label="已启用的数据源" value={settings().search.enabled_providers.map(providerLabel).join('，')} />
+                        <InfoRow label="已启用的数据源" value={providerListLabel(settings().search.enabled_providers)} />
 
                         <ToggleRow
                             checked={settings().window.hide_on_blur}

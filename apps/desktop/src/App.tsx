@@ -6,6 +6,7 @@ import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
 import { CommandPalette } from './features/palette/CommandPalette';
 import { PluginManagerPage } from './features/plugins/PluginManagerPage';
 import { SettingsPage } from './features/settings/SettingsPage';
+import { isDarkThemeValue } from './shared/theme';
 import { type AppViewId, secondaryViewNavItems } from './views/registry';
 
 export function App() {
@@ -38,8 +39,7 @@ export function App() {
     }
 
     function isDarkTheme() {
-        const theme = settings()?.theme;
-        return theme === 'dark' || (theme === 'system' && systemDark());
+        return isDarkThemeValue(settings()?.theme, systemDark());
     }
 
     function handleSettingsSaved(nextSettings: AppSettings) {
