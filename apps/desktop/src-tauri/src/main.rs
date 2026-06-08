@@ -6,6 +6,7 @@ mod ipc;
 #[cfg(target_os = "macos")]
 mod macos_icon;
 mod plugin_protocol;
+mod plugin_runtime;
 mod shortcut;
 mod state;
 mod surface;
@@ -131,6 +132,13 @@ fn main() {
             ipc::settings::update_settings,
             ipc::plugins::list_plugins,
             ipc::plugins::get_plugin_runtime_descriptor,
+            plugin_runtime::ipc::dock_plugin_runtime,
+            plugin_runtime::ipc::hide_docked_plugin_runtime,
+            plugin_runtime::ipc::detach_plugin_runtime,
+            plugin_runtime::ipc::close_plugin_runtime,
+            plugin_runtime::ipc::close_plugin_runtime_by_id,
+            plugin_runtime::ipc::get_plugin_runtime_info,
+            plugin_runtime::ipc::plugin_runtime_call,
             ipc::diagnostics::get_diagnostics
         ])
         .run(tauri::generate_context!())

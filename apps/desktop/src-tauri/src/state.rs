@@ -12,6 +12,13 @@ use serde::Serialize;
 use crate::{
     app_watcher::{AppWatcherHandle, AppWatcherState, AppWatcherStatus},
     index_refresh::IndexStatus,
+    plugin_runtime::{
+        model::{
+            PluginRuntimeBounds, PluginRuntimeContext, PluginRuntimeLifecycle,
+            PluginRuntimePlacement,
+        },
+        registry::{PluginRuntimeRegistration, PluginRuntimeRegistry},
+    },
     surface::{
         model::{SurfaceLifecycle, SurfaceMetadata},
         registry::SurfaceRegistry,
@@ -49,6 +56,7 @@ pub struct AppState {
     app_watcher: AppWatcherState,
     app_watcher_handle: Mutex<Option<AppWatcherHandle>>,
     surfaces: Mutex<SurfaceRegistry>,
+    plugin_runtimes: Mutex<PluginRuntimeRegistry>,
 }
 
 impl AppState {
@@ -63,6 +71,7 @@ impl AppState {
             app_watcher: AppWatcherState::default(),
             app_watcher_handle: Mutex::new(None),
             surfaces: Mutex::new(SurfaceRegistry::default()),
+            plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
         })
     }
 
@@ -192,6 +201,132 @@ impl AppState {
 
     pub fn remove_surface(&self, target: &str) -> Option<SurfaceMetadata> {
         self.surfaces.lock().ok()?.remove(target)
+    }
+
+    pub fn next_plugin_runtime_id(&self) -> Result<String, String> {
+        self.plugin_runtimes
+            .lock()
+            .map_err(|error| error.to_string())
+            .map(|mut registry| registry.next_runtime_id())
+    }
+
+    pub fn register_plugin_runtime(
+        &self,
+        registration: PluginRuntimeRegistration,
+        id: String,
+        webview_label: String,
+    ) -> Result<PluginRuntimeContext, String> {
+        self.plugin_runtimes
+            .lock()
+            .map_err(|error| error.to_string())?
+            .register_runtime(registration, id, webview_label)
+    }
+
+    pub fn plugin_runtime(&self, id: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.runtime(id)
+    }
+
+    pub fn plugin_runtime_for_webview_label(&self, label: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .runtime_for_webview_label(label)
+    }
+
+    pub fn plugin_runtime_for_window_label(&self, label: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .runtime_for_window_label(label)
+    }
+
+    pub fn plugin_runtime_for_plugin_command(
+        &self,
+        plugin_id: &str,
+        command_id: &str,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .runtime_for_plugin_command(plugin_id, command_id)
+    }
+
+    pub fn mark_plugin_runtime_lifecycle(
+        &self,
+        id: &str,
+        lifecycle: PluginRuntimeLifecycle,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .mark_lifecycle(id, lifecycle)
+    }
+
+    pub fn move_plugin_runtime_to_host(
+        &self,
+        id: &str,
+        host_window_label: String,
+        placement: PluginRuntimePlacement,
+        bounds: Option<PluginRuntimeBounds>,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .move_to_host(id, host_window_label, placement, bounds)
+    }
+
+    pub fn mark_plugin_runtime_bounds(
+        &self,
+        id: &str,
+        bounds: Option<PluginRuntimeBounds>,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.mark_bounds(id, bounds)
+    }
+
+    pub fn mark_plugin_runtime_title(
+        &self,
+        id: &str,
+        title: String,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.mark_title(id, title)
+    }
+
+    pub fn mark_plugin_runtime_detached_window(
+        &self,
+        id: &str,
+        detached_window_label: Option<String>,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .mark_detached_window(id, detached_window_label)
+    }
+
+    pub fn mark_plugin_runtime_header_webview(
+        &self,
+        id: &str,
+        header_webview_label: Option<String>,
+    ) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()?
+            .mark_header_webview(id, header_webview_label)
+    }
+
+    pub fn mark_plugin_runtime_ready(&self, id: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.mark_ready(id)
+    }
+
+    pub fn mark_plugin_runtime_focus_enter(&self, id: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.mark_focus_enter(id)
+    }
+
+    pub fn mark_plugin_runtime_leave(&self, id: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.mark_leave(id)
+    }
+
+    pub fn remove_plugin_runtime(&self, target: &str) -> Option<PluginRuntimeContext> {
+        self.plugin_runtimes.lock().ok()?.remove(target)
     }
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {

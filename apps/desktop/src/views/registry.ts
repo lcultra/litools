@@ -6,12 +6,13 @@ export type ViewKind = (typeof viewKinds)[number];
 export type HostKind = (typeof hostKinds)[number];
 export type ManagementNavGroupId = (typeof managementNavGroups)[number];
 
-export const viewIds = ['palette', 'settings', 'diagnostics', 'plugins', 'pluginRuntime'] as const;
+export const viewIds = ['palette', 'settings', 'diagnostics', 'plugins', 'pluginRuntime', 'pluginRuntimeHeader'] as const;
 
 export type AppViewId = (typeof viewIds)[number];
 export type CoreRoutePath = '/' | '/settings' | '/diagnostics' | '/plugins';
 export type PluginRuntimeRoutePath = `/plugin-runtime/${string}/${string}`;
-export type AppRoutePath = CoreRoutePath | PluginRuntimeRoutePath;
+export type PluginRuntimeHeaderRoutePath = `/plugin-runtime-header/${string}`;
+export type AppRoutePath = CoreRoutePath | PluginRuntimeRoutePath | PluginRuntimeHeaderRoutePath;
 
 type RouteDefinition = {
     allowedHosts: HostKind[];
@@ -104,8 +105,13 @@ export function isPluginRuntimeRoutePath(value: string): value is PluginRuntimeR
     return parts.length === 4 && parts[0] === '' && parts[1] === 'plugin-runtime' && Boolean(parts[2]) && Boolean(parts[3]);
 }
 
+export function isPluginRuntimeHeaderRoutePath(value: string): value is PluginRuntimeHeaderRoutePath {
+    const parts = value.split('/');
+    return parts.length === 3 && parts[0] === '' && parts[1] === 'plugin-runtime-header' && Boolean(parts[2]);
+}
+
 export function isAppRoutePath(value: string): value is AppRoutePath {
-    return routeDefinitions.some((route) => route.path === value) || isPluginRuntimeRoutePath(value);
+    return routeDefinitions.some((route) => route.path === value) || isPluginRuntimeRoutePath(value) || isPluginRuntimeHeaderRoutePath(value);
 }
 
 export function routeForViewId(viewId: AppViewId) {
@@ -127,6 +133,20 @@ export function routeForPath(pathname: string): RouteDefinition {
         };
     }
 
+    if (isPluginRuntimeHeaderRoutePath(pathname)) {
+        return {
+            allowedHosts: ['runtime'],
+            defaultHost: 'runtime',
+            description: '插件运行时标题栏。',
+            id: 'pluginRuntimeHeader',
+            kind: 'runtime',
+            label: '插件标题栏',
+            path: pathname,
+            showInManagementNav: false,
+            title: '插件标题栏',
+        };
+    }
+
     return routeDefinitions.find((route) => route.path === pathname) ?? fallbackRoute;
 }
 
@@ -140,7 +160,7 @@ export function hostForRoute(path: AppRoutePath) {
 
 export function canDetachRoute(path: AppRoutePath) {
     const route = routeForPath(path);
-    return route.kind !== 'launcher' && route.allowedHosts.includes('detached');
+    return route.kind !== 'launcher' && route.id !== 'pluginRuntimeHeader' && route.allowedHosts.includes('detached');
 }
 
 export function pathForNavigationPayload(payload: string): AppRoutePath | null {
@@ -158,4 +178,13 @@ export function pluginRuntimeRouteParts(path: AppRoutePath): { pluginId: string;
 
     const [, , pluginId, commandId] = path.split('/');
     return { pluginId, commandId };
+}
+
+export function pluginRuntimeHeaderRouteParts(path: AppRoutePath): { runtimeId: string } | null {
+    if (!isPluginRuntimeHeaderRoutePath(path)) {
+        return null;
+    }
+
+    const [, , runtimeId] = path.split('/');
+    return { runtimeId };
 }

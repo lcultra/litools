@@ -81,6 +81,32 @@ export type PluginRuntimeDescriptor = {
     permissions: string[];
 };
 
+export type PluginRuntimePlacement = 'docked' | 'detached';
+export type PluginRuntimeLifecycle = 'created' | 'ready' | 'active' | 'closed' | 'failed';
+
+export type PluginRuntimeBounds = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+export type PluginRuntimeInfo = {
+    runtimeId: string;
+    pluginId: string;
+    commandId: string;
+    pluginName: string;
+    title: string;
+    hostWindowLabel: string;
+    detachedWindowLabel?: string | null;
+    headerWebviewLabel?: string | null;
+    webviewLabel: string;
+    placement: PluginRuntimePlacement;
+    bounds?: PluginRuntimeBounds | null;
+    lifecycle: PluginRuntimeLifecycle;
+    permissions: string[];
+};
+
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };
 export type WindowHostKind = 'main' | 'detached' | 'runtime';
 export type SurfaceLifecycle = 'active' | 'hidden' | 'destroyed';

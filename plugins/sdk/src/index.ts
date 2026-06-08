@@ -26,3 +26,65 @@ export type PluginCommand = {
   keywords?: string[];
   mode: 'instant' | 'view' | 'searchProvider';
 };
+
+export type PluginRuntimeLifecycle = 'created' | 'ready' | 'active' | 'closed' | 'failed';
+export type PluginRuntimePlacement = 'docked' | 'detached';
+
+export type PluginRuntimeBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type PluginRuntimeInfo = {
+  runtimeId: string;
+  pluginId: string;
+  commandId: string;
+  pluginName: string;
+  title: string;
+  hostWindowLabel: string;
+  detachedWindowLabel?: string | null;
+  headerWebviewLabel?: string | null;
+  webviewLabel: string;
+  placement: PluginRuntimePlacement;
+  bounds?: PluginRuntimeBounds | null;
+  lifecycle: PluginRuntimeLifecycle;
+  permissions: string[];
+};
+
+export type PermissionQueryResult = {
+  permission: string;
+  state: 'granted' | 'denied';
+};
+
+export type LitoolsRuntimeApi = {
+  runtime: {
+    ready(): Promise<PluginRuntimeInfo>;
+    getInfo(): Promise<PluginRuntimeInfo>;
+  };
+  permissions: {
+    query(permission: PluginPermission | string): Promise<PermissionQueryResult>;
+  };
+  lifecycle: {
+    onEnter(callback: () => void): () => void;
+    onLeave(callback: () => void): () => void;
+  };
+  ui: {
+    close(): Promise<void>;
+    setTitle(title: string): Promise<void>;
+    toast(message: string, options?: Record<string, unknown>): Promise<void>;
+  };
+  storage: {
+    get<T = unknown>(key: string): Promise<T | null>;
+    set(key: string, value: unknown): Promise<void>;
+    remove(key: string): Promise<void>;
+    clear(): Promise<void>;
+  };
+};
+
+declare global {
+  interface Window {
+    litools: LitoolsRuntimeApi;
+  }
+}

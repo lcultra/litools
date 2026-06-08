@@ -1,6 +1,7 @@
 use tauri::{Manager, Window, WindowEvent};
 
 use crate::{
+    plugin_runtime,
     state::AppState,
     surface::{events, model::SurfaceLifecycle},
     windowing::{labels, native},
@@ -15,6 +16,9 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
         labels::MAIN_WINDOW_LABEL => handle_main_window_event(window, event, &state),
         label if labels::is_detached_panel_window_label(label) => {
             handle_detached_panel_event(window, event, &state)
+        }
+        label if labels::is_plugin_runtime_window_label(label) => {
+            handle_plugin_runtime_event(window, event, &state)
         }
         _ => {}
     }
@@ -61,6 +65,38 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
         }
         WindowEvent::Destroyed => {
             state.remove_surface(window.label());
+        }
+        _ => {}
+    }
+}
+
+fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &AppState) {
+    match event {
+        WindowEvent::Focused(true) => {
+            if let Some(context) = state.plugin_runtime_for_window_label(window.label()) {
+                let _ =
+                    plugin_runtime::service::enter_runtime(window.app_handle(), state, &context.id);
+            }
+        }
+        WindowEvent::Focused(false) => {
+            if let Some(context) = state.plugin_runtime_for_window_label(window.label()) {
+                let _ =
+                    plugin_runtime::service::leave_runtime(window.app_handle(), state, &context.id);
+            }
+        }
+        WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+            let _ = plugin_runtime::service::layout_runtime_window(
+                window.app_handle(),
+                state,
+                window.label(),
+            );
+        }
+        WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
+            let _ = plugin_runtime::service::cleanup_runtime_window(
+                window.app_handle(),
+                state,
+                window.label(),
+            );
         }
         _ => {}
     }

@@ -15,5 +15,5 @@
       "mode": "view"
     }
   ],
-  "permissions": ["ui:window"]
+  "permissions": ["ui:window", "ui:toast", "storage:plugin"]
 }

@@ -24,6 +24,21 @@ pub fn plugin_asset_url(plugin_id: &str, asset_path: &str) -> String {
     format!("{PLUGIN_PROTOCOL_SCHEME}://{plugin_id}/{asset_path}")
 }
 
+/// Builds the asset URL for a plugin entry file, rejecting absolute paths and
+/// parent-directory traversal so a manifest cannot point outside its own root.
+pub fn plugin_entry_url(plugin_id: &str, entry: &str) -> Result<String, String> {
+    let entry_path = std::path::Path::new(entry);
+    if entry_path.is_absolute()
+        || entry_path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(format!("invalid plugin entry: {entry}"));
+    }
+
+    Ok(plugin_asset_url(plugin_id, entry))
+}
+
 fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static str), StatusCode> {
     let plugin_id = uri.authority().ok_or(StatusCode::BAD_REQUEST)?.as_str();
     let asset_path = percent_decode(uri.path().trim_start_matches('/'))

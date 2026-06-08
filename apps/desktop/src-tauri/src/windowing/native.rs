@@ -6,6 +6,7 @@ use tauri::{
 };
 
 use crate::{
+    plugin_runtime::model::PluginRuntimeBounds,
     surface::{events, model::SurfaceMetadata},
     view::model::ViewKind,
     windowing::labels::MAIN_WINDOW_LABEL,
@@ -13,6 +14,7 @@ use crate::{
 
 const MANAGEMENT_WINDOW_WIDTH: f64 = 820.0;
 const MANAGEMENT_WINDOW_HEIGHT: f64 = 560.0;
+pub const PLUGIN_RUNTIME_HEADER_HEIGHT: f64 = 68.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct MonitorBounds {
@@ -75,6 +77,138 @@ pub fn create_detached_panel_host(app: &tauri::AppHandle, label: String) -> Resu
         .map_err(|error| error.to_string())?;
     configure_space_behavior(&window);
     Ok(window)
+}
+
+pub fn create_plugin_runtime_detached_host(
+    app: &tauri::AppHandle,
+    window_label: String,
+    title: &str,
+    center_on_show: bool,
+) -> Result<Window, String> {
+    if let Some(window) = app.get_window(&window_label) {
+        configure_space_behavior(&window);
+        maybe_position_on_show(&window, center_on_show);
+        window.show().map_err(|error| error.to_string())?;
+        window.set_focus().map_err(|error| error.to_string())?;
+        return Ok(window);
+    }
+
+    let window = WindowBuilder::new(app, window_label)
+        .title(title)
+        .inner_size(MANAGEMENT_WINDOW_WIDTH, MANAGEMENT_WINDOW_HEIGHT)
+        .resizable(true)
+        .decorations(false)
+        .transparent(false)
+        .visible(false)
+        .visible_on_all_workspaces(true)
+        .build()
+        .map_err(|error| error.to_string())?;
+    configure_space_behavior(&window);
+    maybe_position_on_show(&window, center_on_show);
+    Ok(window)
+}
+
+pub fn add_plugin_runtime_webview(
+    window: &Window,
+    webview_label: String,
+    entry_url: &str,
+    initialization_script: String,
+) -> Result<(Webview, PluginRuntimeBounds), String> {
+    let url = tauri::Url::parse(entry_url).map_err(|error| error.to_string())?;
+    let bounds = plugin_runtime_content_bounds(window)?;
+    let webview = window
+        .add_child(
+            WebviewBuilder::new(webview_label, WebviewUrl::CustomProtocol(url))
+                .initialization_script(initialization_script),
+            LogicalPosition::new(bounds.x, bounds.y),
+            Size::Logical(LogicalSize {
+                width: bounds.width,
+                height: bounds.height,
+            }),
+        )
+        .map_err(|error| error.to_string())?;
+    webview
+        .set_auto_resize(false)
+        .map_err(|error| error.to_string())?;
+    Ok((webview, bounds))
+}
+
+pub fn add_plugin_runtime_header_webview(
+    window: &Window,
+    webview_label: String,
+    route: &str,
+) -> Result<Webview, String> {
+    let width = window_inner_logical_size(window)?.width;
+    let url = format!("index.html#{route}");
+    let webview = window
+        .add_child(
+            WebviewBuilder::new(webview_label, WebviewUrl::App(PathBuf::from(url)))
+                .transparent(true),
+            LogicalPosition::new(0.0, 0.0),
+            Size::Logical(LogicalSize {
+                width,
+                height: PLUGIN_RUNTIME_HEADER_HEIGHT,
+            }),
+        )
+        .map_err(|error| error.to_string())?;
+    webview
+        .set_auto_resize(false)
+        .map_err(|error| error.to_string())?;
+    Ok(webview)
+}
+
+pub fn set_plugin_runtime_content_bounds(
+    window: &Window,
+    webview: &Webview,
+) -> Result<PluginRuntimeBounds, String> {
+    let bounds = plugin_runtime_content_bounds(window)?;
+    webview
+        .set_position(Position::Logical(LogicalPosition::new(bounds.x, bounds.y)))
+        .map_err(|error| error.to_string())?;
+    webview
+        .set_size(Size::Logical(LogicalSize {
+            width: bounds.width,
+            height: bounds.height,
+        }))
+        .map_err(|error| error.to_string())?;
+    Ok(bounds)
+}
+
+pub fn set_plugin_runtime_header_bounds(window: &Window, webview: &Webview) -> Result<(), String> {
+    let width = window_inner_logical_size(window)?.width;
+    webview
+        .set_position(Position::Logical(LogicalPosition::new(0.0, 0.0)))
+        .map_err(|error| error.to_string())?;
+    webview
+        .set_size(Size::Logical(LogicalSize {
+            width,
+            height: PLUGIN_RUNTIME_HEADER_HEIGHT,
+        }))
+        .map_err(|error| error.to_string())
+}
+
+pub fn hide_plugin_runtime_webview(webview: &Webview) -> Result<(), String> {
+    webview.hide().map_err(|error| error.to_string())
+}
+
+pub fn show_plugin_runtime_webview(webview: &Webview) -> Result<(), String> {
+    webview.show().map_err(|error| error.to_string())
+}
+
+pub fn plugin_runtime_content_bounds(window: &Window) -> Result<PluginRuntimeBounds, String> {
+    let size = window_inner_logical_size(window)?;
+    Ok(PluginRuntimeBounds {
+        x: 0.0,
+        y: PLUGIN_RUNTIME_HEADER_HEIGHT,
+        width: size.width,
+        height: (size.height - PLUGIN_RUNTIME_HEADER_HEIGHT).max(0.0),
+    })
+}
+
+fn window_inner_logical_size(window: &Window) -> Result<LogicalSize<f64>, String> {
+    let size = window.inner_size().map_err(|error| error.to_string())?;
+    let scale_factor = window.scale_factor().map_err(|error| error.to_string())?;
+    Ok(size.to_logical::<f64>(scale_factor))
 }
 
 pub fn add_surface_webview(

@@ -20,12 +20,11 @@
       }
 
       main {
-        max-width: 32rem;
+        width: min(38rem, calc(100vw - 3rem));
         border-radius: 1.25rem;
         background: rgb(255 255 255 / 0.86);
         box-shadow: 0 24px 80px rgb(15 23 42 / 0.16);
         padding: 2rem;
-        text-align: center;
       }
 
       h1 {
@@ -38,13 +37,96 @@
         color: #475569;
         line-height: 1.7;
       }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        background: #4f46e5;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        padding: 0.65rem 1rem;
+      }
+
+      pre {
+        margin-top: 1.5rem;
+        max-height: 14rem;
+        overflow: auto;
+        border-radius: 0.75rem;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 1rem;
+        white-space: pre-wrap;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>Hello from a bundled litools plugin</h1>
       <p>This page is loaded through the plugin runtime and served by the litools-plugin protocol.</p>
-      <input type="text" placeholder="Try typing here">
+      <input type="text" placeholder="Try typing here" />
+      <div class="actions">
+        <button id="info">Get info</button>
+        <button id="storage">Storage round trip</button>
+        <button id="title">Set title</button>
+        <button id="toast">Toast</button>
+        <button id="close">Close</button>
+      </div>
+      <pre id="log">Waiting for window.litools...</pre>
     </main>
+    <script>
+      const log = document.querySelector('#log');
+
+      function write(message, value) {
+        log.textContent = `${message}${value === undefined ? '' : `\n${JSON.stringify(value, null, 2)}`}`;
+      }
+
+      async function run(label, action) {
+        try {
+          const value = await action();
+          write(label, value);
+        } catch (error) {
+          write(`${label} failed`, error);
+        }
+      }
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        if (!window.litools) {
+          write('window.litools is not available');
+          return;
+        }
+
+        window.litools.lifecycle.onEnter(() => write('lifecycle.onEnter'));
+        window.litools.lifecycle.onLeave(() => write('lifecycle.onLeave'));
+        await run('runtime.ready', () => window.litools.runtime.ready());
+
+        document.querySelector('#info').addEventListener('click', () => {
+          void run('runtime.getInfo', () => window.litools.runtime.getInfo());
+        });
+        document.querySelector('#storage').addEventListener('click', () => {
+          void run('storage round trip', async () => {
+            const next = { savedAt: new Date().toISOString() };
+            await window.litools.storage.set('hello-world', next);
+            return window.litools.storage.get('hello-world');
+          });
+        });
+        document.querySelector('#title').addEventListener('click', () => {
+          void run('ui.setTitle', () => window.litools.ui.setTitle('Hello World Plugin'));
+        });
+        document.querySelector('#toast').addEventListener('click', () => {
+          void run('ui.toast', () => window.litools.ui.toast('Hello from plugin'));
+        });
+        document.querySelector('#close').addEventListener('click', () => {
+          void run('ui.close', () => window.litools.ui.close());
+        });
+      });
+    </script>
   </body>
 </html>

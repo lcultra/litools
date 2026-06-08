@@ -7,6 +7,7 @@ import type {
     IndexStatus,
     LauncherPanelResponse,
     PluginRuntimeDescriptor,
+    PluginRuntimeInfo,
     PluginSummary,
     SearchResult,
     SurfaceMetadata,
@@ -114,6 +115,30 @@ export function listPlugins(): Promise<PluginSummary[]> {
 
 export function getPluginRuntimeDescriptor(pluginId: string, commandId: string): Promise<PluginRuntimeDescriptor> {
     return invoke<PluginRuntimeDescriptor>('get_plugin_runtime_descriptor', { pluginId, commandId });
+}
+
+export function dockPluginRuntime(pluginId: string, commandId: string): Promise<PluginRuntimeInfo> {
+    return invoke<PluginRuntimeInfo>('dock_plugin_runtime', { pluginId, commandId });
+}
+
+export function hideDockedPluginRuntime(pluginId: string, commandId: string): Promise<PluginRuntimeInfo> {
+    return invoke<PluginRuntimeInfo>('hide_docked_plugin_runtime', { pluginId, commandId });
+}
+
+export function detachPluginRuntime(pluginId: string, commandId: string): Promise<PluginRuntimeInfo> {
+    return invoke<PluginRuntimeInfo>('detach_plugin_runtime', { pluginId, commandId });
+}
+
+export function closePluginRuntime(pluginId: string, commandId: string): Promise<void> {
+    return invoke<void>('close_plugin_runtime', { pluginId, commandId });
+}
+
+export function closePluginRuntimeById(runtimeId: string): Promise<void> {
+    return invoke<void>('close_plugin_runtime_by_id', { runtimeId });
+}
+
+export function getPluginRuntimeInfo(runtimeId: string): Promise<PluginRuntimeInfo> {
+    return invoke<PluginRuntimeInfo>('get_plugin_runtime_info', { runtimeId });
 }
 
 export function getDiagnostics(): Promise<DiagnosticsResponse> {

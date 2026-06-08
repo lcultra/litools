@@ -14,11 +14,13 @@ icns.workspace = true
 image.workspace = true
 litools-core.workspace = true
 litools-index.workspace = true
+litools-plugin.workspace = true
 litools-search.workspace = true
 litools-settings.workspace = true
 litools-system.workspace = true
 lru.workspace = true
 notify.workspace = true
+rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["unstable", "macos-private-api", "tray-icon", "image-png"] }

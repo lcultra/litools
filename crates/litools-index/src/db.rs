@@ -15,6 +15,7 @@ pub struct IndexDatabase {
 impl IndexDatabase {
     pub fn open(path: impl AsRef<Path>) -> rusqlite::Result<Self> {
         let connection = Connection::open(path)?;
+        prepare_connection(&connection)?;
         run_migrations(&connection)?;
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
@@ -23,6 +24,7 @@ impl IndexDatabase {
 
     pub fn in_memory() -> rusqlite::Result<Self> {
         let connection = Connection::open_in_memory()?;
+        prepare_connection(&connection)?;
         run_migrations(&connection)?;
         Ok(Self {
             connection: Arc::new(Mutex::new(connection)),
@@ -32,4 +34,8 @@ impl IndexDatabase {
     pub fn connection(&self) -> MutexGuard<'_, Connection> {
         self.connection.lock().expect("database mutex poisoned")
     }
+}
+
+fn prepare_connection(connection: &Connection) -> rusqlite::Result<()> {
+    connection.execute_batch("PRAGMA foreign_keys = ON;")
 }

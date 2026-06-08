@@ -1,8 +1,7 @@
-use litools_core::plugin_runtime_route;
 use serde::Serialize;
 use tauri::State;
 
-use crate::{plugin_protocol::plugin_asset_url, state::AppState};
+use crate::{plugin_protocol::plugin_entry_url, state::AppState};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -142,22 +141,4 @@ pub fn validate_plugin_runtime_route(
         command_id,
         command.title.clone(),
     ))
-}
-
-fn plugin_entry_url(plugin_id: &str, entry: &str) -> Result<String, String> {
-    let entry_path = std::path::Path::new(entry);
-    if entry_path.is_absolute()
-        || entry_path
-            .components()
-            .any(|component| matches!(component, std::path::Component::ParentDir))
-    {
-        return Err(format!("invalid plugin entry: {entry}"));
-    }
-
-    Ok(plugin_asset_url(plugin_id, entry))
-}
-
-#[allow(dead_code)]
-fn _route_for_descriptor(plugin_id: &str, command_id: &str) -> String {
-    plugin_runtime_route(plugin_id, command_id)
 }

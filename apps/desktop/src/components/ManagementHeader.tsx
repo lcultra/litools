@@ -3,8 +3,8 @@ import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { Ellipsis, X } from 'lucide-solid';
 import { createSignal, For, Show } from 'solid-js';
-import { detachRoute, startWindowDragging } from '../bridge/commands';
-import { canDetachRoute, routeForPath } from '../views/registry';
+import { detachPluginRuntime, detachRoute, startWindowDragging } from '../bridge/commands';
+import { canDetachRoute, pluginRuntimeRouteParts, routeForPath } from '../views/registry';
 
 const MENU_OFFSET_Y = 8;
 
@@ -44,7 +44,14 @@ export function ManagementHeader(props: ManagementHeaderProps) {
             const menu = await Menu.new({
                 items: [
                     {
-                        action: () => void detachRoute(route.path),
+                        action: () => {
+                            const runtimeRoute = pluginRuntimeRouteParts(route.path);
+                            if (runtimeRoute) {
+                                void detachPluginRuntime(runtimeRoute.pluginId, runtimeRoute.commandId);
+                                return;
+                            }
+                            void detachRoute(route.path);
+                        },
                         id: 'detach-panel',
                         text: '分离为独立窗口',
                     },

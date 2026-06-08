@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS plugin_commands (
     keywords TEXT NOT NULL DEFAULT '[]',
     mode TEXT NOT NULL,
     permission_requirements TEXT NOT NULL DEFAULT '[]',
-    FOREIGN KEY(plugin_id) REFERENCES plugins(id)
+    FOREIGN KEY(plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS usage_events (
@@ -79,5 +79,14 @@ CREATE TABLE IF NOT EXISTS permission_grants (
     granted INTEGER NOT NULL,
     updated_at TEXT NOT NULL,
     PRIMARY KEY(plugin_id, permission)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_storage (
+    plugin_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(plugin_id, key),
+    FOREIGN KEY(plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
 );
 "#;
