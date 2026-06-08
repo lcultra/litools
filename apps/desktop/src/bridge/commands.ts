@@ -3,7 +3,6 @@ import type { AppRoutePath, HostKind } from '../views/registry';
 import type {
     AppSettings,
     CommandExecution,
-    DiagnosticsResponse,
     IndexStatus,
     LauncherPanelResponse,
     PluginRuntimeDescriptor,
@@ -81,10 +80,6 @@ export function showMainWindow(): Promise<void> {
     return invoke<void>('show_main_window');
 }
 
-export function openSettings(): Promise<void> {
-    return invoke<void>('open_settings');
-}
-
 export function focusMainWindow(): Promise<void> {
     return invoke<void>('focus_main_window');
 }
@@ -139,8 +134,4 @@ export function closePluginRuntimeById(runtimeId: string): Promise<void> {
 
 export function getPluginRuntimeInfo(runtimeId: string): Promise<PluginRuntimeInfo> {
     return invoke<PluginRuntimeInfo>('get_plugin_runtime_info', { runtimeId });
-}
-
-export function getDiagnostics(): Promise<DiagnosticsResponse> {
-    return invoke<DiagnosticsResponse>('get_diagnostics');
 }

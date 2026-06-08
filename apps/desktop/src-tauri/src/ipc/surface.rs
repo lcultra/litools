@@ -139,12 +139,6 @@ pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn open_settings(app_handle: AppHandle) -> Result<(), String> {
-    let state = app_handle.state::<AppState>();
-    service::open_view_route(&app_handle, &state, "/settings", state.center_on_show())
-}
-
-#[tauri::command]
 pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
     let state = app_handle.state::<AppState>();
     let window = service::ensure_main_launcher_surface(&app_handle, &state)?;

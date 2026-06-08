@@ -1,5 +1,10 @@
+import { useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
-import { openSettings, startWindowDragging } from '../../bridge/commands';
+import { startWindowDragging } from '../../bridge/commands';
+import { pluginRuntimeRoute } from '../../views/registry';
+
+const SETTINGS_PLUGIN_ID = 'dev.litools.settings';
+const SETTINGS_COMMAND_ID = 'settings';
 
 const SEARCH_INPUT_HEIGHT = 68;
 const SEARCH_INPUT_LEFT_PADDING = 16;
@@ -17,6 +22,7 @@ type PaletteSearchInputProps = {
 };
 
 export function PaletteSearchInput(props: PaletteSearchInputProps) {
+    const navigate = useNavigate();
     let rootElement: HTMLFormElement | undefined;
     let measureElement: HTMLSpanElement | undefined;
     let actionPointerStart: { x: number; y: number } | undefined;
@@ -95,7 +101,7 @@ export function PaletteSearchInput(props: PaletteSearchInputProps) {
             return;
         }
 
-        void openSettings();
+        navigate(pluginRuntimeRoute(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID));
     }
 
     createEffect(() => {

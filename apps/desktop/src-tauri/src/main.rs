@@ -129,7 +129,6 @@ fn main() {
             ipc::surface::start_window_dragging,
             ipc::surface::hide_main_window,
             ipc::surface::show_main_window,
-            ipc::surface::open_settings,
             ipc::surface::focus_main_window,
             ipc::surface::start_dragging,
             ipc::surface::resize_main_window_height,
