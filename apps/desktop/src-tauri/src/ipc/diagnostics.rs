@@ -44,6 +44,10 @@ pub struct DiagnosticsResponse {
 
 #[tauri::command]
 pub fn get_diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsResponse, String> {
+    get_diagnostics_inner(&state)
+}
+
+pub fn get_diagnostics_inner(state: &AppState) -> Result<DiagnosticsResponse, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     let recent_usage: Vec<UsageEventResponse> = app
         .recent_usage_events(10)

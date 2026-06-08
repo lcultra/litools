@@ -15,28 +15,10 @@ pub struct BuiltinCommandDefinition {
 
 pub const BUILTIN_COMMANDS: &[BuiltinCommandDefinition] = &[
     BuiltinCommandDefinition {
-        id: "open-settings",
-        title: "打开设置",
-        subtitle: "打开设置窗口",
-        keywords: &["settings", "open", "preferences", "config"],
-    },
-    BuiltinCommandDefinition {
         id: "reload-index",
         title: "重载索引",
         subtitle: "刷新本地搜索索引",
         keywords: &["reload", "index", "refresh", "rebuild"],
-    },
-    BuiltinCommandDefinition {
-        id: "open-diagnostics",
-        title: "打开诊断",
-        subtitle: "打开诊断信息",
-        keywords: &["diagnostics", "debug", "status", "health"],
-    },
-    BuiltinCommandDefinition {
-        id: "open-plugins",
-        title: "打开插件管理",
-        subtitle: "打开插件中心",
-        keywords: &["plugin", "plugins", "extension", "manage", "center"],
     },
     BuiltinCommandDefinition {
         id: "open-logs-directory",
@@ -68,9 +50,6 @@ pub const BUILTIN_COMMANDS: &[BuiltinCommandDefinition] = &[
 #[serde(rename_all = "camelCase")]
 pub enum CommandEffect {
     None,
-    OpenSettings,
-    OpenDiagnostics,
-    OpenPlugins,
     OpenLogsDirectory,
     OpenDataDirectory,
     OpenPluginView {
@@ -241,16 +220,18 @@ mod tests {
 
     #[test]
     fn title_match_returns_title_ranges() {
-        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "设置");
+        // BUILTIN_COMMANDS[0] is "reload-index" with title "重载索引"
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "重载");
 
         assert!(result.score > 0.0);
-        assert_eq!(result.matches.title, [MatchRange { start: 2, end: 4 }]);
+        assert_eq!(result.matches.title, [MatchRange { start: 0, end: 2 }]);
         assert!(result.matches.subtitle.is_empty());
     }
 
     #[test]
     fn subtitle_match_returns_subtitle_ranges() {
-        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "窗口");
+        // BUILTIN_COMMANDS[0] subtitle is "刷新本地搜索索引"
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "搜索");
 
         assert!(result.score > 0.0);
         assert!(result.matches.title.is_empty());
@@ -259,7 +240,8 @@ mod tests {
 
     #[test]
     fn keyword_match_has_no_visible_ranges() {
-        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "settings");
+        // BUILTIN_COMMANDS[0] keyword "reload" matches "reload"
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "reload");
 
         assert!(result.score > 0.0);
         assert!(result.matches.title.is_empty());
@@ -268,7 +250,8 @@ mod tests {
 
     #[test]
     fn fuzzy_keyword_match_finds_command() {
-        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[3], "plg");
+        // BUILTIN_COMMANDS[4] is "toggle-theme" with keyword "toggle"
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[4], "tggl");
 
         assert!(result.score > 0.0);
         assert!(result.matches.title.is_empty());

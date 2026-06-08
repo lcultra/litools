@@ -59,15 +59,6 @@ pub fn execute_result(
 
     match execution.effect {
         CommandEffect::QuitApp => app_handle.exit(0),
-        CommandEffect::OpenSettings => {
-            service::open_view_route(&app_handle, &state, "/settings", state.center_on_show())?;
-        }
-        CommandEffect::OpenDiagnostics => {
-            service::open_view_route(&app_handle, &state, "/diagnostics", state.center_on_show())?;
-        }
-        CommandEffect::OpenPlugins => {
-            service::open_view_route(&app_handle, &state, "/plugins", state.center_on_show())?;
-        }
         CommandEffect::OpenLogsDirectory => {
             open_directory(&log_directory(&app_handle)?)?;
         }

@@ -1,5 +1,6 @@
 use chrono::Utc;
 use litools_index::repository::PluginStorageRepository;
+use litools_settings::AppSettings;
 use serde_json::{Value, json};
 use tauri::{AppHandle, State, Webview, ipc::InvokeError};
 
@@ -8,6 +9,7 @@ use crate::{
         model::{PermissionQueryResult, PluginRuntimeError, PluginRuntimeInfo},
         permissions, service,
     },
+    shortcut,
     state::AppState,
 };
 
@@ -200,6 +202,70 @@ fn route_plugin_runtime_call(
         "storage.clear" => {
             with_storage(state, |repository| repository.clear(&context.plugin_id))?;
             Ok(Value::Null)
+        }
+        "settings.get" => {
+            let app = state
+                .app()
+                .lock()
+                .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+            let settings = app.settings().clone();
+            Ok(json!(settings))
+        }
+        "settings.update" => {
+            let new_settings: AppSettings = serde_json::from_value(params.get("settings").cloned().unwrap_or(Value::Null))
+                .map_err(|error| PluginRuntimeError::invalid_params(error.to_string()))?;
+            let updated_settings = {
+                let mut app = state
+                    .app()
+                    .lock()
+                    .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+                app.update_settings(new_settings)
+                    .map_err(|error| PluginRuntimeError::internal(error.to_string()))?
+            };
+            shortcut::register_global_shortcut(app_handle, &updated_settings.palette.global_hotkey);
+            Ok(json!(updated_settings))
+        }
+        "diagnostics.get" => {
+            Ok(json!(crate::ipc::diagnostics::get_diagnostics_inner(
+                state,
+            )
+            .map_err(|error| PluginRuntimeError::internal(error))?))
+        }
+        "plugins.list" => {
+            let app = state
+                .app()
+                .lock()
+                .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+            let plugins: Vec<litools_plugin::manager::InstalledPlugin> = app
+                .context()
+                .plugins
+                .installed_plugins()
+                .into_iter()
+                .cloned()
+                .collect();
+            Ok(json!(plugins
+                .iter()
+                .map(|plugin| serde_json::json!({
+                    "id": plugin.manifest.id,
+                    "name": plugin.manifest.name,
+                    "version": plugin.manifest.version,
+                    "description": plugin.manifest.description,
+                    "author": plugin.manifest.author,
+                    "icon": plugin.manifest.icon,
+                    "enabled": plugin.enabled,
+                    "trusted": plugin.trusted,
+                    "source": plugin.source.as_str(),
+                    "path": plugin.path.to_string_lossy(),
+                    "permissions": plugin.manifest.permissions,
+                    "commands": plugin.manifest.commands.iter().map(|command| serde_json::json!({
+                        "id": command.id,
+                        "title": command.title,
+                        "subtitle": command.subtitle,
+                        "keywords": command.keywords,
+                        "mode": command.mode.as_str(),
+                    })).collect::<Vec<_>>(),
+                }))
+                .collect::<Vec<_>>()))
         }
         _ => Err(PluginRuntimeError::permission_denied(format!(
             "unknown plugin runtime method: {method}"

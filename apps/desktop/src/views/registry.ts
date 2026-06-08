@@ -1,15 +1,13 @@
-export const viewKinds = ['launcher', 'panel', 'runtime'] as const;
+export const viewKinds = ['launcher', 'runtime'] as const;
 export const hostKinds = ['main', 'detached', 'runtime'] as const;
-export const managementNavGroups = ['general', 'plugins', 'diagnostics'] as const;
 
 export type ViewKind = (typeof viewKinds)[number];
 export type HostKind = (typeof hostKinds)[number];
-export type ManagementNavGroupId = (typeof managementNavGroups)[number];
 
-export const viewIds = ['palette', 'settings', 'diagnostics', 'plugins', 'pluginRuntime', 'pluginRuntimeHeader'] as const;
+export const viewIds = ['palette', 'pluginRuntime', 'pluginRuntimeHeader'] as const;
 
 export type AppViewId = (typeof viewIds)[number];
-export type CoreRoutePath = '/' | '/settings' | '/diagnostics' | '/plugins';
+export type CoreRoutePath = '/';
 export type PluginRuntimeRoutePath = `/plugin-runtime/${string}/${string}`;
 export type PluginRuntimeHeaderRoutePath = `/plugin-runtime-header/${string}`;
 export type AppRoutePath = CoreRoutePath | PluginRuntimeRoutePath | PluginRuntimeHeaderRoutePath;
@@ -21,78 +19,22 @@ type RouteDefinition = {
     id: AppViewId;
     kind: ViewKind;
     label: string;
-    navGroup?: ManagementNavGroupId;
     path: AppRoutePath;
-    showInManagementNav: boolean;
     title: string;
 };
-
-export type ManagementNavGroup = {
-    id: ManagementNavGroupId;
-    label: string;
-};
-
-export type ManagementNavItem = Pick<RouteDefinition, 'description' | 'id' | 'label' | 'navGroup' | 'path' | 'title'>;
 
 export const routeDefinitions: RouteDefinition[] = [
     {
         allowedHosts: ['main'],
         defaultHost: 'main',
-        description: '搜索命令、本地应用和未来插件功能。',
+        description: '搜索命令、本地应用和插件功能。',
         id: 'palette',
         kind: 'launcher',
         label: '启动器',
         path: '/',
-        showInManagementNav: false,
         title: '启动器',
     },
-    {
-        allowedHosts: ['main', 'detached'],
-        defaultHost: 'main',
-        description: '配置命令面板运行参数。',
-        id: 'settings',
-        kind: 'panel',
-        label: '设置',
-        navGroup: 'general',
-        path: '/settings',
-        showInManagementNav: true,
-        title: '设置',
-    },
-    {
-        allowedHosts: ['main', 'detached'],
-        defaultHost: 'main',
-        description: '管理插件和扩展能力。',
-        id: 'plugins',
-        kind: 'panel',
-        label: '插件中心',
-        navGroup: 'plugins',
-        path: '/plugins',
-        showInManagementNav: true,
-        title: '插件中心',
-    },
-    {
-        allowedHosts: ['main', 'detached'],
-        defaultHost: 'main',
-        description: '查看 litools 的运行状态和本地数据。',
-        id: 'diagnostics',
-        kind: 'panel',
-        label: '运行状态',
-        navGroup: 'diagnostics',
-        path: '/diagnostics',
-        showInManagementNav: true,
-        title: '诊断',
-    },
 ];
-
-export const managementNavGroupsById: Record<ManagementNavGroupId, ManagementNavGroup> = {
-    diagnostics: { id: 'diagnostics', label: '诊断' },
-    general: { id: 'general', label: '常规' },
-    plugins: { id: 'plugins', label: '插件' },
-};
-
-export const managementNavGroupList: ManagementNavGroup[] = managementNavGroups.map((id) => managementNavGroupsById[id]);
-
-export const managementNavItems: ManagementNavItem[] = routeDefinitions.filter((route) => route.showInManagementNav);
 
 export const fallbackRoute = routeDefinitions[0];
 
@@ -128,7 +70,6 @@ export function routeForPath(pathname: string): RouteDefinition {
             kind: 'runtime',
             label: '插件运行时',
             path: pathname,
-            showInManagementNav: false,
             title: '插件运行时',
         };
     }
@@ -142,7 +83,6 @@ export function routeForPath(pathname: string): RouteDefinition {
             kind: 'runtime',
             label: '插件标题栏',
             path: pathname,
-            showInManagementNav: false,
             title: '插件标题栏',
         };
     }

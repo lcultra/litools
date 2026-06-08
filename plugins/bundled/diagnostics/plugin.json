@@ -1,0 +1,19 @@
+{
+  "id": "dev.litools.diagnostics",
+  "name": "Diagnostics",
+  "version": "0.1.0",
+  "description": "View litools runtime status, index health, and local data.",
+  "author": "litools contributors",
+  "entry": "dist/index.html",
+  "icon": "dist/icon.svg",
+  "commands": [
+    {
+      "id": "diagnostics",
+      "title": "打开诊断",
+      "subtitle": "查看 litools 的运行状态和本地数据",
+      "keywords": ["diagnostics", "debug", "status", "health", "诊断", "状态"],
+      "mode": "view"
+    }
+  ],
+  "permissions": ["diagnostics:read"]
+}

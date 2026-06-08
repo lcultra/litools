@@ -1,0 +1,19 @@
+{
+  "id": "dev.litools.settings",
+  "name": "Settings",
+  "version": "0.1.0",
+  "description": "Configure litools appearance, shortcuts, search providers, and window behavior.",
+  "author": "litools contributors",
+  "entry": "dist/index.html",
+  "icon": "dist/icon.svg",
+  "commands": [
+    {
+      "id": "settings",
+      "title": "打开设置",
+      "subtitle": "配置命令面板运行参数",
+      "keywords": ["settings", "preferences", "config", "设置", "配置"],
+      "mode": "view"
+    }
+  ],
+  "permissions": ["settings:read", "settings:write"]
+}

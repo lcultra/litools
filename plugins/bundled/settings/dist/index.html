@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>设置</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-muted: #f1f5f9;
+        --fg: #0f172a;
+        --fg-muted: #64748b;
+        --border: #e2e8f0;
+        --accent: #4f46e5;
+        --accent-fg: #ffffff;
+        --success: #16a34a;
+        --danger: #dc2626;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root { --bg: #0f172a; --bg-muted: #1e293b; --fg: #f8fafc; --fg-muted: #94a3b8; --border: #334155; --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4); color-scheme: dark; }
+      }
+
+      :root.theme-light { --bg: #ffffff; --bg-muted: #f1f5f9; --fg: #0f172a; --fg-muted: #64748b; --border: #e2e8f0; --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1); color-scheme: light; }
+      :root.theme-dark { --bg: #0f172a; --bg-muted: #1e293b; --fg: #f8fafc; --fg-muted: #94a3b8; --border: #334155; --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4); color-scheme: dark; }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg); }
+
+      .page { max-width: 40rem; margin: 0 auto; padding: 2rem 1.5rem; }
+      .header { margin-bottom: 1.5rem; }
+      .header h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+      .header p { margin: 0.25rem 0 0; color: var(--fg-muted); font-size: 0.875rem; }
+
+      .actions { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+      .btn { border: 0; border-radius: 0.5rem; cursor: pointer; font: inherit; font-size: 0.875rem; font-weight: 500; padding: 0.5rem 1.25rem; transition: opacity 0.15s; }
+      .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .btn-primary { background: var(--accent); color: var(--accent-fg); }
+      .btn-secondary { background: var(--bg-muted); color: var(--fg); }
+
+      .grid { display: grid; gap: 0.75rem; font-size: 0.875rem; }
+      .card { border-radius: 0.75rem; background: var(--bg-muted); padding: 0.75rem 1rem; box-shadow: var(--shadow); }
+
+      .field-label { display: block; margin-bottom: 0.5rem; color: var(--fg-muted); font-size: 0.8125rem; }
+      .select-wrapper { position: relative; }
+      .select-wrapper select {
+        appearance: none; width: 100%; border-radius: 0.5rem; border: 1px solid var(--border);
+        background: var(--bg); color: var(--fg); font: inherit; font-size: 0.875rem;
+        padding: 0.5rem 2rem 0.5rem 0.75rem; outline: none; cursor: pointer;
+      }
+      .select-wrapper select:focus { border-color: var(--accent); }
+      .select-arrow { position: absolute; right: 0.75rem; top: 50%; translate: 0 -50%; color: var(--fg-muted); pointer-events: none; font-size: 0.75rem; }
+
+      .text-input { width: 100%; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg); color: var(--fg); font: inherit; font-size: 0.875rem; padding: 0.5rem 0.75rem; outline: none; }
+      .text-input:focus { border-color: var(--accent); }
+      .input-hint { margin-top: 0.25rem; color: var(--fg-muted); font-size: 0.75rem; }
+
+      .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+      .toggle-switch { position: relative; width: 2.75rem; height: 1.5rem; border-radius: 999px; background: var(--border); cursor: pointer; transition: background 0.15s; border: 0; padding: 0; flex-shrink: 0; }
+      .toggle-switch.on { background: var(--accent); }
+      .toggle-thumb { position: absolute; top: 0.125rem; left: 0.125rem; width: 1.25rem; height: 1.25rem; border-radius: 999px; background: var(--bg); transition: translate 0.15s; box-shadow: var(--shadow); }
+      .toggle-switch.on .toggle-thumb { translate: 1.25rem; }
+
+      .info-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+      .info-label { color: var(--fg-muted); }
+      .info-value { font-weight: 500; text-align: right; }
+
+      .status { margin-top: 1rem; font-size: 0.875rem; font-weight: 500; }
+      .status-success { color: var(--success); }
+      .status-error { color: var(--danger); }
+      .status-loading { color: var(--fg-muted); }
+
+      .loading { display: flex; align-items: center; justify-content: center; padding: 4rem 0; color: var(--fg-muted); font-size: 0.875rem; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <h1>设置</h1>
+        <p>配置命令面板运行参数。</p>
+      </div>
+
+      <div id="status"></div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="btn-reset" disabled>取消</button>
+        <button class="btn btn-primary" id="btn-save" disabled>保存</button>
+      </div>
+
+      <div class="grid" id="form">
+        <div class="loading">正在加载设置...</div>
+      </div>
+    </div>
+
+    <script>
+      const statusEl = document.getElementById('status');
+      const btnSave = document.getElementById('btn-save');
+      const btnReset = document.getElementById('btn-reset');
+      const formEl = document.getElementById('form');
+
+      let baseline = null;
+      let draft = null;
+
+      function isDirty() {
+        return draft && baseline && JSON.stringify(draft) !== JSON.stringify(baseline);
+      }
+
+      function updateButtons() {
+        const dirty = isDirty();
+        btnSave.disabled = !dirty;
+        btnReset.disabled = !dirty;
+      }
+
+      function showStatus(message, className) {
+        statusEl.className = 'status ' + (className || '');
+        statusEl.textContent = message;
+        setTimeout(() => { statusEl.textContent = ''; }, 3500);
+      }
+
+      function updateDraft(patch) {
+        const next = patch(structuredClone(draft));
+        draft = next;
+        updateButtons();
+        renderForm();
+      }
+
+      async function saveSettings() {
+        if (!isDirty()) return;
+        btnSave.disabled = true;
+        btnSave.textContent = '正在保存...';
+        try {
+          const saved = await window.litools.settings.update(draft);
+          baseline = structuredClone(saved);
+          draft = structuredClone(saved);
+          showStatus('设置已保存', 'status-success');
+        } catch (err) {
+          showStatus('保存失败：' + String(err), 'status-error');
+        } finally {
+          btnSave.textContent = '保存';
+          updateButtons();
+        }
+      }
+
+      function resetDraft() {
+        draft = structuredClone(baseline);
+        updateButtons();
+        renderForm();
+      }
+
+      function applyTheme(theme) {
+        document.documentElement.classList.remove('theme-light', 'theme-dark');
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.classList.add('theme-' + theme);
+        }
+      }
+
+      function providerLabel(providers) {
+        return providers.map(function(p) {
+          if (p === 'apps') return '应用';
+          if (p === 'commands') return '命令';
+          if (p === 'plugins') return '插件';
+          return p;
+        }).join('、');
+      }
+
+      function renderForm() {
+        if (!draft) return;
+
+        var h = '';
+        h += '<label class="card"><span class="field-label">主题</span>';
+        h += '<div class="select-wrapper">';
+        h += '<select id="sel-theme">';
+        h += '<option value="system"' + (draft.theme === 'system' ? ' selected' : '') + '>跟随系统</option>';
+        h += '<option value="light"' + (draft.theme === 'light' ? ' selected' : '') + '>浅色</option>';
+        h += '<option value="dark"' + (draft.theme === 'dark' ? ' selected' : '') + '>深色</option>';
+        h += '</select><span class="select-arrow">&#8964;</span></div></label>';
+
+        h += '<label class="card"><span class="field-label">全局快捷键</span>';
+        h += '<input class="text-input" id="inp-hotkey" type="text" value="' + escapeHtml(draft.palette.global_hotkey) + '" />';
+        h += '<span class="input-hint">当前支持：CommandOrControl+Space、Meta+Space、Cmd+Space、Control+Space。</span></label>';
+
+        h += toggleCard('chk-recent', '显示最近使用', draft.palette.show_recent);
+        h += toggleCard('chk-pinned', '显示已固定', draft.palette.show_pinned);
+
+        h += '<div class="card"><div class="info-row"><span class="info-label">已启用的数据源</span><span class="info-value">' + providerLabel(draft.search.enabled_providers) + '</span></div></div>';
+
+        h += toggleCard('chk-hide-blur', '失焦时隐藏', draft.window.hide_on_blur);
+        h += toggleCard('chk-close-tray', '关闭到托盘', draft.window.close_to_tray);
+        h += toggleCard('chk-center-show', '显示时居中', draft.window.center_on_show);
+
+        formEl.innerHTML = h;
+
+        attachHandlers();
+      }
+
+      function toggleCard(id, label, checked) {
+        return '<div class="card"><div class="toggle-row"><span class="info-label">' + label + '</span>' +
+          '<button class="toggle-switch' + (checked ? ' on' : '') + '" id="' + id + '" role="switch" aria-checked="' + checked + '">' +
+          '<span class="toggle-thumb"></span></button></div></div>';
+      }
+
+      function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function attachHandlers() {
+        var sel = document.getElementById('sel-theme');
+        if (sel) sel.addEventListener('change', function() {
+          updateDraft(function(d) { d.theme = sel.value; return d; });
+          applyTheme(sel.value);
+        });
+
+        var inp = document.getElementById('inp-hotkey');
+        if (inp) inp.addEventListener('input', function() {
+          updateDraft(function(d) { d.palette.global_hotkey = inp.value; return d; });
+        });
+
+        attachToggle('chk-recent', function(d, v) { d.palette.show_recent = v; return d; });
+        attachToggle('chk-pinned', function(d, v) { d.palette.show_pinned = v; return d; });
+        attachToggle('chk-hide-blur', function(d, v) { d.window.hide_on_blur = v; return d; });
+        attachToggle('chk-close-tray', function(d, v) { d.window.close_to_tray = v; return d; });
+        attachToggle('chk-center-show', function(d, v) { d.window.center_on_show = v; return d; });
+      }
+
+      function attachToggle(id, patchFn) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', function() {
+          var next = !(el.classList.contains('on'));
+          updateDraft(function(d) { return patchFn(d, next); });
+        });
+      }
+
+      btnSave.addEventListener('click', function() { saveSettings(); });
+      btnReset.addEventListener('click', function() { resetDraft(); });
+
+      async function init() {
+        try {
+          var settings = await window.litools.settings.get();
+          baseline = structuredClone(settings);
+          draft = structuredClone(settings);
+          applyTheme(settings.theme);
+          renderForm();
+          updateButtons();
+        } catch (err) {
+          formEl.innerHTML = '<div class="card"><span class="info-label">设置加载失败：</span>' + escapeHtml(String(err)) + '</div>';
+        }
+      }
+
+      async function waitForLitools() {
+        if (window.litools && window.litools.runtime) return;
+        return new Promise(function(resolve) {
+          setTimeout(function() { waitForLitools().then(resolve); }, 100);
+        });
+      }
+
+      window.addEventListener('DOMContentLoaded', function() {
+        waitForLitools().then(function() {
+          window.litools.runtime.ready().then(function() {
+            init();
+          }).catch(function() {
+            init();
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -99,7 +99,7 @@ fn run_or_queue_refresh(app_handle: AppHandle, trigger: String) {
 
 fn run_refresh_once(app_handle: &AppHandle, trigger: &str) -> Result<ReloadIndexSummary, String> {
     let state = app_handle.state::<AppState>();
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let mut app = state.app().lock().map_err(|error| error.to_string())?;
     app.reload_index_with_trigger(trigger)
         .map_err(|error| error.to_string())
 }

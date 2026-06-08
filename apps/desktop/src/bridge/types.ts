@@ -29,9 +29,6 @@ export type SearchResult = {
 
 export type CommandEffect =
     | 'none'
-    | 'openSettings'
-    | 'openDiagnostics'
-    | 'openPlugins'
     | 'openLogsDirectory'
     | 'openDataDirectory'
     | { openPluginView: { pluginId: string; commandId: string; route: AppRoutePath } }

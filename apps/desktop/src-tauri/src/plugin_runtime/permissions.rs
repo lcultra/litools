@@ -16,6 +16,10 @@ pub fn required_permission_for_method(method: &str) -> Option<RuntimePermissionR
         "storage.get" | "storage.set" | "storage.remove" | "storage.clear" => {
             Some(RuntimePermissionRequirement::Permission("storage:plugin"))
         }
+        "settings.get" => Some(RuntimePermissionRequirement::Permission("settings:read")),
+        "settings.update" => Some(RuntimePermissionRequirement::Permission("settings:write")),
+        "diagnostics.get" => Some(RuntimePermissionRequirement::Permission("diagnostics:read")),
+        "plugins.list" => Some(RuntimePermissionRequirement::Permission("plugins:list")),
         _ => None,
     }
 }

@@ -75,13 +75,26 @@ pub fn initialization_script() -> String {
     remove: function (key) {{ return invokeRuntime('storage.remove', {{ key: key }}); }},
     clear: function () {{ return invokeRuntime('storage.clear'); }}
   }});
+  var settings = Object.freeze({{
+    get: function () {{ return invokeRuntime('settings.get'); }},
+    update: function (settings) {{ return invokeRuntime('settings.update', {{ settings: settings }}); }}
+  }});
+  var diagnostics = Object.freeze({{
+    get: function () {{ return invokeRuntime('diagnostics.get'); }}
+  }});
+  var plugins = Object.freeze({{
+    list: function () {{ return invokeRuntime('plugins.list'); }}
+  }});
 
   var litools = Object.freeze({{
     runtime: runtime,
     permissions: permissions,
     lifecycle: lifecycle,
     ui: ui,
-    storage: storage
+    storage: storage,
+    settings: settings,
+    diagnostics: diagnostics,
+    plugins: plugins
   }});
 
   Object.defineProperty(window, 'litools', {{

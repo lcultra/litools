@@ -20,11 +20,17 @@ use tauri::Manager;
 use tauri_plugin_global_shortcut::ShortcutState;
 
 fn bundled_plugins_dir(app: &tauri::App) -> Option<std::path::PathBuf> {
+    // In dev mode, prefer the source tree path so that newly created plugins
+    // are picked up without a full Tauri resource rebuild. The resolved
+    // resource path (target/debug/plugins/bundled) is a build-time snapshot.
+    let dev_path = dev_bundled_plugins_dir();
+    if dev_path.is_some() {
+        return dev_path;
+    }
     app.path()
         .resolve("plugins/bundled", tauri::path::BaseDirectory::Resource)
         .ok()
         .filter(|path| path.exists())
-        .or_else(dev_bundled_plugins_dir)
 }
 
 #[cfg(debug_assertions)]

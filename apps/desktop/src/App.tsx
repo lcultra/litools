@@ -4,12 +4,9 @@ import { closePluginRuntime, getCurrentSurfaceMetadata, getSettings, hideSurface
 import { onNavigate, onSurfaceMetadataChanged } from './bridge/events';
 import type { AppSettings, CommandEffect } from './bridge/types';
 import { ManagementLayout } from './components/ManagementLayout';
-import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
 import { CommandPalette } from './features/palette/CommandPalette';
-import { PluginManagerPage } from './features/plugins/PluginManagerPage';
 import { PluginRuntimeHeaderPage } from './features/plugins/PluginRuntimeHeaderPage';
 import { PluginRuntimePage } from './features/plugins/PluginRuntimePage';
-import { SettingsPage } from './features/settings/SettingsPage';
 import { isDarkThemeValue } from './shared/theme';
 import { type AppRoutePath, pluginRuntimeRouteParts, routeForPath } from './views/registry';
 
@@ -110,26 +107,10 @@ export function App() {
         safeNavigate('/');
     }
 
-    function handleSettingsSaved(nextSettings: AppSettings) {
-        setSettings(nextSettings);
-    }
-
     function handleCommandEffect(effect: CommandEffect) {
         if (typeof effect === 'object' && 'openPluginView' in effect) {
             safeNavigate(effect.openPluginView.route);
             return;
-        }
-
-        if (effect === 'openSettings') {
-            safeNavigate('/settings');
-        }
-
-        if (effect === 'openDiagnostics') {
-            safeNavigate('/diagnostics');
-        }
-
-        if (effect === 'openPlugins') {
-            safeNavigate('/plugins');
         }
 
         if (effect === 'toggleTheme') {
@@ -148,19 +129,9 @@ export function App() {
                     <ManagementLayout
                         breadcrumbs={activeRoute().kind === 'runtime' ? (runtimeBreadcrumbs() ?? ['插件', activeRoute().label]) : undefined}
                         isDetached={isDetachedWindow()}
-                        mode={activeRoute().kind === 'runtime' ? 'standalone' : 'center'}
                         ownerReady={Boolean(hostWindowLabel())}
                         onOpenLauncher={closeManagementPanel}
                     >
-                        <Show when={activeRoute().path === '/settings'}>
-                            <SettingsPage onSettingsSaved={handleSettingsSaved} />
-                        </Show>
-                        <Show when={activeRoute().path === '/diagnostics'}>
-                            <DiagnosticsPage />
-                        </Show>
-                        <Show when={activeRoute().path === '/plugins'}>
-                            <PluginManagerPage />
-                        </Show>
                         <Show when={activeRoute().kind === 'runtime'}>
                             <PluginRuntimePage onBreadcrumbsChange={setRuntimeBreadcrumbs} path={activeRoute().path} />
                         </Show>

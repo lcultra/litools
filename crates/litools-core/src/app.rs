@@ -74,6 +74,7 @@ impl AppBootstrapPaths {
 
 pub struct LitoolsApp {
     context: AppContext,
+    paths: AppBootstrapPaths,
 }
 
 impl LitoolsApp {
@@ -88,6 +89,7 @@ impl LitoolsApp {
 
         Ok(Self {
             context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
+            paths,
         })
     }
 
@@ -101,6 +103,7 @@ impl LitoolsApp {
 
         Ok(Self {
             context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
+            paths: AppBootstrapPaths::new(""),
         })
     }
 
@@ -265,15 +268,23 @@ impl LitoolsApp {
         })
     }
 
-    pub fn reload_index(&self) -> LitoolsResult<ReloadIndexSummary> {
+    pub fn reload_index(&mut self) -> LitoolsResult<ReloadIndexSummary> {
         self.reload_index_with_trigger(RELOAD_INDEX_TRIGGER_DIRECT)
     }
 
-    pub fn reload_index_with_trigger(&self, trigger: &str) -> LitoolsResult<ReloadIndexSummary> {
+    pub fn reload_index_with_trigger(&mut self, trigger: &str) -> LitoolsResult<ReloadIndexSummary> {
         let started_at = Utc::now();
         let discovered_apps = NativeSystemAdapter.discover_apps();
         let apps_discovered = discovered_apps.len();
+
+        // Re-sync plugins from disk so newly added/removed plugins are reflected
+        // without requiring a full app restart.
+        self.context.plugins =
+            sync_and_load_plugins(&self.context.database, &self.paths)?;
+
         let connection = self.context.database.connection();
+        // Drop the database lock before writing to avoid deadlock with the mutable
+        // borrow needed to update context.plugins.
         let transaction = connection.unchecked_transaction()?;
         let commands = CommandRepository::new(&transaction);
 
@@ -667,6 +678,14 @@ fn sync_and_load_plugins(
     });
 
     let discovered_plugins = dedupe_discovered_plugins(discover_plugins(roots));
+    eprintln!(
+        "sync_and_load_plugins: discovered {} plugin(s): {:?}",
+        discovered_plugins.len(),
+        discovered_plugins
+            .iter()
+            .map(|p| &p.manifest.id)
+            .collect::<Vec<_>>()
+    );
     let updated_at = Utc::now().to_rfc3339();
 
     {
@@ -823,9 +842,6 @@ fn persist_settings(database: &IndexDatabase, settings: &AppSettings) -> Litools
 
 fn builtin_effect_for_result(result_id: &str) -> LitoolsResult<CommandEffect> {
     match result_id {
-        "open-settings" => Ok(CommandEffect::OpenSettings),
-        "open-diagnostics" => Ok(CommandEffect::OpenDiagnostics),
-        "open-plugins" => Ok(CommandEffect::OpenPlugins),
         "open-logs-directory" => Ok(CommandEffect::OpenLogsDirectory),
         "open-data-directory" => Ok(CommandEffect::OpenDataDirectory),
         "reload-index" => Ok(CommandEffect::ReloadIndex),
@@ -838,9 +854,6 @@ fn builtin_effect_for_result(result_id: &str) -> LitoolsResult<CommandEffect> {
 fn message_for_effect(effect: &CommandEffect) -> &'static str {
     match effect {
         CommandEffect::None => "未执行任何操作",
-        CommandEffect::OpenSettings => "正在打开设置",
-        CommandEffect::OpenDiagnostics => "正在打开诊断",
-        CommandEffect::OpenPlugins => "正在打开插件管理",
         CommandEffect::OpenLogsDirectory => "正在打开日志目录",
         CommandEffect::OpenDataDirectory => "正在打开数据目录",
         CommandEffect::OpenPluginView { .. } => "正在打开插件",
@@ -880,7 +893,7 @@ mod tests {
     fn pin_result_adds_pinned_section_item() {
         let app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
 
-        app.pin_result("open-settings").expect("pin command");
+        app.pin_result("reload-index").expect("pin command");
         let panel = app.launcher_panel("").expect("launcher panel");
 
         let pinned = panel
@@ -888,10 +901,10 @@ mod tests {
             .iter()
             .find(|section| section.id == "pinned")
             .expect("pinned section");
-        assert_eq!(pinned.items[0].result.id, "open-settings");
+        assert_eq!(pinned.items[0].result.id, "reload-index");
         assert!(pinned.items[0].is_pinned);
 
-        app.unpin_result("open-settings").expect("unpin command");
+        app.unpin_result("reload-index").expect("unpin command");
         let panel = app.launcher_panel("").expect("launcher panel");
         assert!(panel.sections.iter().all(|section| section.id != "pinned"));
     }
@@ -900,11 +913,11 @@ mod tests {
     fn reorder_pinned_results_updates_launcher_order() {
         let app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
 
-        app.pin_result("open-settings").expect("pin settings");
         app.pin_result("reload-index").expect("pin reload");
+        app.pin_result("quit-app").expect("pin quit");
         app.reorder_pinned_results(vec![
-            "open-settings".to_string(),
             "reload-index".to_string(),
+            "quit-app".to_string(),
         ])
         .expect("reorder pinned results");
 
@@ -920,22 +933,22 @@ mod tests {
             .map(|item| item.result.id.as_str())
             .collect::<Vec<_>>();
 
-        assert_eq!(ids, vec!["open-settings", "reload-index"]);
+        assert_eq!(ids, vec!["reload-index", "quit-app"]);
     }
 
     #[test]
     fn launcher_panel_keeps_recent_above_pinned_without_deduplication() {
         let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
 
-        app.execute_result("open-settings", "execute")
+        app.execute_result("reload-index", "execute")
             .expect("record recent usage");
-        app.pin_result("open-settings").expect("pin settings");
+        app.pin_result("reload-index").expect("pin settings");
         let panel = app.launcher_panel("").expect("launcher panel");
 
         assert_eq!(panel.sections[0].id, "recent");
         assert_eq!(panel.sections[1].id, "pinned");
-        assert_eq!(panel.sections[0].items[0].result.id, "open-settings");
-        assert_eq!(panel.sections[1].items[0].result.id, "open-settings");
+        assert_eq!(panel.sections[0].items[0].result.id, "reload-index");
+        assert_eq!(panel.sections[1].items[0].result.id, "reload-index");
         assert!(panel.sections[0].items[0].is_pinned);
         assert!(panel.sections[1].items[0].is_pinned);
     }
