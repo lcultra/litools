@@ -25,20 +25,23 @@ export type CommandExecution = {
     effect: BuiltinCommandEffect;
 };
 
-export type ManagedWindowKind = 'main' | 'detachedManagement';
-export type ManagedWindowLifecycle = 'active' | 'hidden' | 'destroyed';
+export type ViewProvider = 'core' | { plugin: { pluginId: string } };
+export type WindowHostKind = 'main' | 'detached' | 'runtime';
+export type SurfaceLifecycle = 'active' | 'hidden' | 'destroyed';
 
 export type ManagedWindowMetadata = {
     id: string;
     webviewLabel: string;
-    ownerWindowLabel: string;
-    kind: ManagedWindowKind;
-    route?: AppRoutePath | null;
+    viewId: string;
+    provider: ViewProvider;
+    route: AppRoutePath;
     title: string;
+    hostWindowLabel: string;
+    hostKind: WindowHostKind;
+    lifecycle: SurfaceLifecycle;
+    focused: boolean;
     createdAt: string;
     updatedAt: string;
-    lifecycle: ManagedWindowLifecycle;
-    focused: boolean;
 };
 
 export type LauncherItem = {

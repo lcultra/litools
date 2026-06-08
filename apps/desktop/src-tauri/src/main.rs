@@ -1,17 +1,19 @@
 mod app_watcher;
-mod commands;
 mod icon_cache;
 mod icon_protocol;
 mod index_refresh;
+mod ipc;
 #[cfg(target_os = "macos")]
 mod macos_icon;
 mod shortcut;
 mod state;
+mod surface;
 mod tray;
-mod window;
+mod view;
+mod windowing;
 
 use state::AppState;
-use tauri::{Manager, WindowEvent};
+use tauri::Manager;
 use tauri_plugin_global_shortcut::ShortcutState;
 
 fn main() {
@@ -37,9 +39,8 @@ fn main() {
 
                     if event.state() == ShortcutState::Pressed
                         && shortcut::matches_palette_shortcut(shortcut, &state)
-                        && let Some(window) = window::main_window(app)
                     {
-                        window::toggle_main_window(&window, state.center_on_show());
+                        let _ = surface::service::toggle_main_launcher(app, &state);
                     }
                 })
                 .build(),
@@ -47,7 +48,7 @@ fn main() {
         .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             app.manage(AppState::bootstrap(data_dir)?);
-            window::create_main_window(app.handle(), &app.state::<AppState>())?;
+            surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
             tray::setup_tray(app)?;
             shortcut::register_global_shortcut(
                 app.handle(),
@@ -61,79 +62,34 @@ fn main() {
             );
             Ok(())
         })
-        .on_window_event(|window, event| {
-            let Some(state) = window.try_state::<AppState>() else {
-                return;
-            };
-
-            match window.label() {
-                window::MAIN_WINDOW_LABEL => match event {
-                    WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
-                        if state.close_to_tray() {
-                            api.prevent_close();
-                            let _ = window.hide();
-                        } else {
-                            state.request_quit();
-                        }
-                    }
-                    WindowEvent::Focused(false) if !state.is_quitting() && state.hide_on_blur() => {
-                        let _ = window.hide();
-                    }
-                    _ => {}
-                },
-                label if window::is_detached_window_label(label) => match event {
-                    WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
-                        api.prevent_close();
-                        let _ = window.hide();
-                        if let Some(metadata) = state.mark_window_lifecycle(label, state::ManagedWindowLifecycle::Hidden) {
-                            window::emit_surface_metadata_changed(window.app_handle(), &metadata);
-                        }
-                    }
-                    WindowEvent::Focused(focused) => {
-                        if let Some(metadata) = state.mark_window_focused(label, *focused) {
-                            window::emit_surface_metadata_changed(window.app_handle(), &metadata);
-                        }
-                        if *focused
-                            && let Some(metadata) = state.mark_window_lifecycle(label, state::ManagedWindowLifecycle::Active)
-                        {
-                            window::emit_surface_metadata_changed(window.app_handle(), &metadata);
-                        }
-                    }
-                    WindowEvent::Destroyed => {
-                        state.remove_window(label);
-                    }
-                    _ => {}
-                }
-                _ => {}
-            }
-        })
+        .on_window_event(windowing::lifecycle::handle_window_event)
         .invoke_handler(tauri::generate_handler![
-            commands::search,
-            commands::launcher_panel,
-            commands::pin_result,
-            commands::unpin_result,
-            commands::reorder_pinned_results,
-            commands::execute_result,
-            commands::detach_route,
-            commands::update_surface_route,
-            commands::open_route,
-            commands::list_windows,
-            commands::get_current_window_metadata,
-            commands::hide_window,
-            commands::focus_window,
-            commands::destroy_window,
-            commands::start_window_dragging,
-            commands::hide_main_window,
-            commands::show_main_window,
-            commands::open_settings,
-            commands::focus_main_window,
-            commands::start_dragging,
-            commands::resize_main_window_height,
-            commands::reload_index,
-            commands::get_settings,
-            commands::update_settings,
-            commands::list_plugins,
-            commands::get_diagnostics
+            ipc::launcher::search,
+            ipc::launcher::launcher_panel,
+            ipc::launcher::pin_result,
+            ipc::launcher::unpin_result,
+            ipc::launcher::reorder_pinned_results,
+            ipc::launcher::execute_result,
+            ipc::surface::detach_route,
+            ipc::surface::update_surface_route,
+            ipc::surface::open_route,
+            ipc::surface::list_windows,
+            ipc::surface::get_current_window_metadata,
+            ipc::surface::hide_window,
+            ipc::surface::focus_window,
+            ipc::surface::destroy_window,
+            ipc::surface::start_window_dragging,
+            ipc::surface::hide_main_window,
+            ipc::surface::show_main_window,
+            ipc::surface::open_settings,
+            ipc::surface::focus_main_window,
+            ipc::surface::start_dragging,
+            ipc::surface::resize_main_window_height,
+            ipc::diagnostics::reload_index,
+            ipc::settings::get_settings,
+            ipc::settings::update_settings,
+            ipc::diagnostics::list_plugins,
+            ipc::diagnostics::get_diagnostics
         ])
         .run(tauri::generate_context!())
         .expect("failed to run litools");

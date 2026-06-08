@@ -17,14 +17,14 @@ export function App() {
     const [settings, setSettings] = createSignal<AppSettings | null>(null);
     const [systemDark, setSystemDark] = createSignal(false);
 
-    const [ownerWindowLabel, setOwnerWindowLabel] = createSignal<string | null>(null);
-    const isDetachedWindow = () => Boolean(ownerWindowLabel() && ownerWindowLabel() !== 'main');
+    const [hostWindowLabel, setHostWindowLabel] = createSignal<string | null>(null);
+    const isDetachedWindow = () => Boolean(hostWindowLabel() && hostWindowLabel() !== 'main');
     const activeRoute = () => routeForPath(location.pathname);
     const isLauncher = () => activeRoute().kind === 'launcher';
 
     onMount(() => {
         void refreshSettings();
-        void restoreSurfaceOwner();
+        void restoreSurfaceHost();
 
         const media = window.matchMedia('(prefers-color-scheme: dark)');
         setSystemDark(media.matches);
@@ -33,7 +33,7 @@ export function App() {
 
         const unsubscribe = onNavigate((path) => safeNavigate(path));
         const unsubscribeSurfaceMetadata = onSurfaceMetadataChanged((metadata) => {
-            setOwnerWindowLabel(metadata.ownerWindowLabel);
+            setHostWindowLabel(metadata.hostWindowLabel);
         });
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key !== 'Escape' || isLauncher()) {
@@ -59,7 +59,7 @@ export function App() {
 
     createEffect(() => {
         const route = activeRoute();
-        if (!ownerWindowLabel() || (route.path === '/' && isDetachedWindow())) {
+        if (!hostWindowLabel() || (route.path === '/' && isDetachedWindow())) {
             return;
         }
 
@@ -70,9 +70,9 @@ export function App() {
         setSettings(await getSettings());
     }
 
-    async function restoreSurfaceOwner() {
+    async function restoreSurfaceHost() {
         const metadata = await getCurrentWindowMetadata();
-        setOwnerWindowLabel(metadata?.ownerWindowLabel ?? 'main');
+        setHostWindowLabel(metadata?.hostWindowLabel ?? 'main');
     }
 
     function isDarkTheme() {
@@ -121,7 +121,7 @@ export function App() {
     return (
         <main class="h-screen overflow-hidden text-fg transition-colors">
             <Show when={!isLauncher()} fallback={<CommandPalette onCommandEffect={handleCommandEffect} />}>
-                <ManagementLayout isDetached={isDetachedWindow()} ownerReady={Boolean(ownerWindowLabel())} onOpenLauncher={closeManagementPanel}>
+                <ManagementLayout isDetached={isDetachedWindow()} ownerReady={Boolean(hostWindowLabel())} onOpenLauncher={closeManagementPanel}>
                     <Show when={activeRoute().path === '/settings'}>
                         <SettingsPage onSettingsSaved={handleSettingsSaved} />
                     </Show>

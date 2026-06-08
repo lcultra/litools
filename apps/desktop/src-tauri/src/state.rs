@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::{
         Mutex,
@@ -7,135 +6,22 @@ use std::{
     },
 };
 
-use chrono::Utc;
 use litools_core::{LitoolsApp, LitoolsResult, ReloadIndexSummary};
 use serde::Serialize;
 
 use crate::{
     app_watcher::{AppWatcherHandle, AppWatcherState, AppWatcherStatus},
     index_refresh::IndexStatus,
-    window::MAIN_WINDOW_LABEL,
+    surface::{
+        model::{SurfaceLifecycle, SurfaceMetadata},
+        registry::SurfaceRegistry,
+    },
+    view::{
+        model::{ViewDefinition, WindowHostKind},
+        registry,
+    },
+    windowing::labels::MAIN_WINDOW_LABEL,
 };
-
-const DETACHED_SURFACE_ID_PREFIX: &str = "dw";
-const MAIN_SURFACE_ID_PREFIX: &str = "main";
-const SURFACE_WEBVIEW_LABEL_PREFIX: &str = "surface-";
-const DETACHED_WINDOW_LABEL_PREFIX: &str = "detached-management-";
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ManagedWindowKind {
-    Main,
-    DetachedManagement,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ManagedWindowLifecycle {
-    Active,
-    Hidden,
-    Destroyed,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ManagedWindowMetadata {
-    pub id: String,
-    pub webview_label: String,
-    pub owner_window_label: String,
-    pub kind: ManagedWindowKind,
-    pub route: Option<String>,
-    pub title: String,
-    pub created_at: String,
-    pub updated_at: String,
-    pub lifecycle: ManagedWindowLifecycle,
-    pub focused: bool,
-}
-
-#[derive(Debug)]
-struct WindowRegistry {
-    next_detached_index: u64,
-    next_main_surface_index: u64,
-    surfaces_by_webview_label: BTreeMap<String, ManagedWindowMetadata>,
-}
-
-impl Default for WindowRegistry {
-    fn default() -> Self {
-        Self {
-            next_detached_index: 1,
-            next_main_surface_index: 1,
-            surfaces_by_webview_label: BTreeMap::new(),
-        }
-    }
-}
-
-impl WindowRegistry {
-    fn now() -> String {
-        Utc::now().to_rfc3339()
-    }
-
-    fn next_main_surface_metadata(&mut self) -> ManagedWindowMetadata {
-        let id = format!("{MAIN_SURFACE_ID_PREFIX}_{:06}", self.next_main_surface_index);
-        self.next_main_surface_index += 1;
-        let webview_label = format!("{SURFACE_WEBVIEW_LABEL_PREFIX}{id}");
-        let now = Self::now();
-        let metadata = ManagedWindowMetadata {
-            id,
-            webview_label: webview_label.clone(),
-            owner_window_label: MAIN_WINDOW_LABEL.to_string(),
-            kind: ManagedWindowKind::Main,
-            route: Some("/".to_string()),
-            title: "litools".to_string(),
-            created_at: now.clone(),
-            updated_at: now,
-            lifecycle: ManagedWindowLifecycle::Active,
-            focused: false,
-        };
-        self.surfaces_by_webview_label
-            .insert(webview_label, metadata.clone());
-        metadata
-    }
-
-    fn next_detached_window_label(&mut self) -> String {
-        let label = format!("{DETACHED_WINDOW_LABEL_PREFIX}{DETACHED_SURFACE_ID_PREFIX}_{:06}", self.next_detached_index);
-        self.next_detached_index += 1;
-        label
-    }
-
-    fn get_by_webview_label_or_id_or_window_label(&self, target: &str) -> Option<ManagedWindowMetadata> {
-        self.surfaces_by_webview_label.get(target).cloned().or_else(|| {
-            self.surfaces_by_webview_label
-                .values()
-                .find(|metadata| metadata.id == target || metadata.owner_window_label == target)
-                .cloned()
-        })
-    }
-
-    fn update_by_webview_label(
-        &mut self,
-        webview_label: &str,
-        update: impl FnOnce(&mut ManagedWindowMetadata),
-    ) -> Option<ManagedWindowMetadata> {
-        let metadata = self.surfaces_by_webview_label.get_mut(webview_label)?;
-        update(metadata);
-        metadata.updated_at = Self::now();
-        Some(metadata.clone())
-    }
-
-    fn remove_by_webview_label_or_id_or_window_label(&mut self, target: &str) -> Option<ManagedWindowMetadata> {
-        if self.surfaces_by_webview_label.contains_key(target) {
-            return self.surfaces_by_webview_label.remove(target);
-        }
-
-        let webview_label = self
-            .surfaces_by_webview_label
-            .iter()
-            .find_map(|(webview_label, metadata)| {
-                (metadata.id == target || metadata.owner_window_label == target).then(|| webview_label.clone())
-            })?;
-        self.surfaces_by_webview_label.remove(&webview_label)
-    }
-}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ShortcutStatus {
@@ -162,7 +48,7 @@ pub struct AppState {
     index_status: Mutex<IndexStatus>,
     app_watcher: AppWatcherState,
     app_watcher_handle: Mutex<Option<AppWatcherHandle>>,
-    windows: Mutex<WindowRegistry>,
+    surfaces: Mutex<SurfaceRegistry>,
 }
 
 impl AppState {
@@ -175,7 +61,7 @@ impl AppState {
             index_status: Mutex::new(IndexStatus::default()),
             app_watcher: AppWatcherState::default(),
             app_watcher_handle: Mutex::new(None),
-            windows: Mutex::new(WindowRegistry::default()),
+            surfaces: Mutex::new(SurfaceRegistry::default()),
         })
     }
 
@@ -223,83 +109,88 @@ impl AppState {
             .unwrap_or_else(|_| "CommandOrControl+Space".to_string())
     }
 
-    pub fn register_main_surface(&self) -> Result<ManagedWindowMetadata, String> {
-        self.windows
+    pub fn register_surface(
+        &self,
+        view: ViewDefinition,
+        host_window_label: String,
+        host_kind: WindowHostKind,
+    ) -> Result<SurfaceMetadata, String> {
+        self.surfaces
             .lock()
             .map_err(|error| error.to_string())
-            .map(|mut registry| registry.next_main_surface_metadata())
+            .map(|mut registry| registry.register_surface(view, host_window_label, host_kind))
     }
 
-    pub fn next_detached_window_label(&self) -> Result<String, String> {
-        self.windows
+    pub fn register_main_launcher_surface(&self) -> Result<SurfaceMetadata, String> {
+        self.register_surface(
+            registry::validate_route("/")?,
+            MAIN_WINDOW_LABEL.to_string(),
+            WindowHostKind::Main,
+        )
+    }
+
+    pub fn next_detached_host_label(&self) -> Result<String, String> {
+        self.surfaces
             .lock()
             .map_err(|error| error.to_string())
-            .map(|mut registry| registry.next_detached_window_label())
+            .map(|mut registry| registry.next_detached_host_label())
     }
 
-    pub fn window_metadata(&self, target: &str) -> Option<ManagedWindowMetadata> {
-        self.windows
+    pub fn surface_metadata(&self, target: &str) -> Option<SurfaceMetadata> {
+        self.surfaces
             .lock()
             .ok()
-            .and_then(|registry| registry.get_by_webview_label_or_id_or_window_label(target))
+            .and_then(|registry| registry.metadata(target))
     }
 
-    pub fn window_metadata_for_webview_label(&self, webview_label: &str) -> Option<ManagedWindowMetadata> {
-        self.window_metadata(webview_label)
-    }
-
-    pub fn list_windows(&self) -> Vec<ManagedWindowMetadata> {
-        self.windows
+    pub fn surface_metadata_for_webview_label(&self, label: &str) -> Option<SurfaceMetadata> {
+        self.surfaces
             .lock()
-            .map(|registry| registry.surfaces_by_webview_label.values().cloned().collect())
+            .ok()
+            .and_then(|registry| registry.metadata_for_webview_label(label))
+    }
+
+    pub fn list_surfaces(&self) -> Vec<SurfaceMetadata> {
+        self.surfaces
+            .lock()
+            .map(|registry| registry.list())
             .unwrap_or_default()
     }
 
-    pub fn move_surface_to_window(
+    pub fn move_surface_to_host(
         &self,
         webview_label: &str,
-        owner_window_label: String,
-        kind: ManagedWindowKind,
-        route: Option<String>,
-    ) -> Option<ManagedWindowMetadata> {
-        self.windows.lock().ok()?.update_by_webview_label(webview_label, |metadata| {
-            metadata.owner_window_label = owner_window_label;
-            metadata.kind = kind;
-            metadata.route = route;
-            metadata.lifecycle = ManagedWindowLifecycle::Active;
-            metadata.focused = true;
-        })
+        host_window_label: String,
+        host_kind: WindowHostKind,
+    ) -> Option<SurfaceMetadata> {
+        self.surfaces
+            .lock()
+            .ok()?
+            .move_to_host(webview_label, host_window_label, host_kind)
     }
 
-    pub fn mark_window_route(&self, webview_label: &str, route: String) -> Option<ManagedWindowMetadata> {
-        self.windows.lock().ok()?.update_by_webview_label(webview_label, |metadata| {
-            metadata.route = Some(route);
-        })
+    pub fn mark_surface_route(
+        &self,
+        webview_label: &str,
+        view: ViewDefinition,
+    ) -> Option<SurfaceMetadata> {
+        self.surfaces.lock().ok()?.mark_route(webview_label, view)
     }
 
-    pub fn mark_window_lifecycle(
+    pub fn mark_surface_lifecycle(
         &self,
         target: &str,
-        lifecycle: ManagedWindowLifecycle,
-    ) -> Option<ManagedWindowMetadata> {
-        let webview_label = self.window_metadata(target)?.webview_label;
-        self.windows.lock().ok()?.update_by_webview_label(&webview_label, |metadata| {
-            metadata.lifecycle = lifecycle;
-        })
+        lifecycle: SurfaceLifecycle,
+    ) -> Option<SurfaceMetadata> {
+        self.surfaces.lock().ok()?.mark_lifecycle(target, lifecycle)
     }
 
-    pub fn mark_window_focused(&self, target: &str, focused: bool) -> Option<ManagedWindowMetadata> {
-        let webview_label = self.window_metadata(target)?.webview_label;
-        self.windows.lock().ok()?.update_by_webview_label(&webview_label, |metadata| {
-            metadata.focused = focused;
-        })
+    pub fn mark_surface_focused(&self, target: &str, focused: bool) -> Option<SurfaceMetadata> {
+        self.surfaces.lock().ok()?.mark_focused(target, focused)
     }
 
-    pub fn remove_window(&self, target: &str) -> Option<ManagedWindowMetadata> {
-        self.windows
-            .lock()
-            .ok()
-            .and_then(|mut registry| registry.remove_by_webview_label_or_id_or_window_label(target))
+    pub fn remove_surface(&self, target: &str) -> Option<SurfaceMetadata> {
+        self.surfaces.lock().ok()?.remove(target)
     }
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {

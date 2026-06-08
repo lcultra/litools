@@ -1,6 +1,6 @@
 use tauri::{App, Manager, image::Image, menu::Menu, menu::MenuItem, tray::TrayIconBuilder};
 
-use crate::{state::AppState, window};
+use crate::{state::AppState, surface::service};
 
 const SHOW_ID: &str = "show";
 const SETTINGS_ID: &str = "settings";
@@ -20,21 +20,16 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id().as_ref() {
             SHOW_ID => {
                 let state = app.state::<AppState>();
-                if let Ok(window) = window::ensure_main_surface(app, &state) {
-                    window::open_route(&window, "/", state.center_on_show());
-                }
+                let _ = service::open_view_route(app, &state, "/", state.center_on_show());
             }
             SETTINGS_ID => {
                 let state = app.state::<AppState>();
-                if let Ok(window) = window::ensure_main_surface(app, &state) {
-                    window::open_route(&window, "/settings", state.center_on_show());
-                }
+                let _ = service::open_view_route(app, &state, "/settings", state.center_on_show());
             }
             DIAGNOSTICS_ID => {
                 let state = app.state::<AppState>();
-                if let Ok(window) = window::ensure_main_surface(app, &state) {
-                    window::open_route(&window, "/diagnostics", state.center_on_show());
-                }
+                let _ =
+                    service::open_view_route(app, &state, "/diagnostics", state.center_on_show());
             }
             QUIT_ID => {
                 if let Some(state) = app.try_state::<AppState>() {

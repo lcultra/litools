@@ -1,0 +1,70 @@
+use litools_core::{BuiltinCommandEffect, CommandExecution, LauncherPanelResponse};
+use litools_search::SearchResult;
+use tauri::{AppHandle, State};
+
+use crate::{state::AppState, surface::service};
+
+#[tauri::command]
+pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    Ok(app.search(query))
+}
+
+#[tauri::command]
+pub fn launcher_panel(
+    query: String,
+    state: State<'_, AppState>,
+) -> Result<LauncherPanelResponse, String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.launcher_panel(query).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn pin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.pin_result(result_id).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn unpin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.unpin_result(result_id)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn reorder_pinned_results(
+    result_ids: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    app.reorder_pinned_results(result_ids)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn execute_result(
+    result_id: String,
+    action_id: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<CommandExecution, String> {
+    let execution = {
+        let mut app = state.app().lock().map_err(|error| error.to_string())?;
+        app.execute_result(result_id, action_id)
+            .map_err(|error| error.to_string())?
+    };
+
+    match execution.effect {
+        BuiltinCommandEffect::QuitApp => app_handle.exit(0),
+        BuiltinCommandEffect::OpenSettings => {
+            service::open_view_route(&app_handle, &state, "/settings", state.center_on_show())?;
+        }
+        BuiltinCommandEffect::OpenLogs => {
+            service::open_view_route(&app_handle, &state, "/diagnostics", state.center_on_show())?;
+        }
+        _ => {}
+    }
+
+    Ok(execution)
+}
