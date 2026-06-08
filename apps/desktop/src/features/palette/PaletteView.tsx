@@ -1,7 +1,8 @@
-import { createSignal, For, onCleanup, Show } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
 import { WindowFrame } from '../../components/WindowFrame';
 import { providerLabel } from '../../shared/labels';
+import { HighlightedText } from './HighlightedText';
 import { PaletteSearchInput } from './PaletteSearchInput';
 import { PinnedSortableGrid } from './PinnedSortableGrid';
 
@@ -48,6 +49,7 @@ type PaletteViewProps = {
 type ResultButtonProps = {
     onClick: () => void;
     onContextMenu: (event: MouseEvent) => void;
+    onSelectedElement?: (element: HTMLElement) => void;
     renderItem: PaletteRenderItem;
     selected: boolean;
 };
@@ -66,8 +68,17 @@ function ResultIcon(props: { result: SearchResult }) {
 }
 
 function ResultButton(props: ResultButtonProps) {
+    let buttonElement: HTMLButtonElement | undefined;
+
+    createEffect(() => {
+        if (props.selected && buttonElement) {
+            props.onSelectedElement?.(buttonElement);
+        }
+    });
+
     return (
         <button
+            ref={buttonElement}
             class="relative grid size-full cursor-pointer grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-colors"
             classList={{
                 'border-accent/40 bg-accent/15 text-fg': props.selected,
@@ -80,7 +91,7 @@ function ResultButton(props: ResultButtonProps) {
             type="button"
         >
             <ResultIcon result={props.renderItem.result} />
-            <span class="w-full truncate text-xs font-medium">{props.renderItem.result.title}</span>
+            <HighlightedText class="w-full truncate text-xs font-medium" ranges={props.renderItem.result.matches?.title} text={props.renderItem.result.title} />
         </button>
     );
 }
@@ -91,8 +102,18 @@ function stopInteractiveEvent(event: Event) {
 }
 
 export function PaletteView(props: PaletteViewProps) {
+    let selectedResultElement: HTMLElement | undefined;
     const totalVisibleItems = () => props.renderSections.reduce((count, section) => count + section.items.length, 0);
     const shouldShowResults = () => props.error || totalVisibleItems() > 0 || props.query.trim();
+
+    createEffect(() => {
+        props.selectedIndex;
+        props.renderSections;
+
+        queueMicrotask(() => {
+            selectedResultElement?.scrollIntoView({ block: 'nearest' });
+        });
+    });
 
     function handlePanelContextMenu(event: MouseEvent) {
         event.preventDefault();
@@ -179,6 +200,11 @@ export function PaletteView(props: PaletteViewProps) {
                                                                     <ResultButton
                                                                         onClick={() => handleResultClick(renderItem)}
                                                                         onContextMenu={(event) => handleResultContextMenu(renderItem, event)}
+                                                                        onSelectedElement={(element) => {
+                                                                            if (props.selectedIndex === renderItem.globalIndex) {
+                                                                                selectedResultElement = element;
+                                                                            }
+                                                                        }}
                                                                         renderItem={renderItem}
                                                                         selected={props.selectedIndex === renderItem.globalIndex}
                                                                     />
@@ -194,6 +220,9 @@ export function PaletteView(props: PaletteViewProps) {
                                                         onReorder={props.onPinnedReorder}
                                                         onResultClick={handleResultClick}
                                                         onResultContextMenu={handleResultContextMenu}
+                                                        onSelectedElement={(element) => {
+                                                            selectedResultElement = element;
+                                                        }}
                                                     />
                                                 </Show>
                                             </section>

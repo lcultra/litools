@@ -98,10 +98,7 @@ impl LitoolsApp {
         self.context.settings.get()
     }
 
-    pub fn launcher_panel(
-        &self,
-        query: impl Into<String>,
-    ) -> LitoolsResult<LauncherPanelResponse> {
+    pub fn launcher_panel(&self, query: impl Into<String>) -> LitoolsResult<LauncherPanelResponse> {
         let query = query.into();
         let trimmed_query = query.trim();
 
@@ -110,7 +107,9 @@ impl LitoolsApp {
 
             for result in self.search_without_limit(trimmed_query) {
                 let is_pinned = match self.target_from_result_id(&result.id) {
-                    Some((target_type, target_id)) => self.is_target_pinned(target_type, &target_id)?,
+                    Some((target_type, target_id)) => {
+                        self.is_target_pinned(target_type, &target_id)?
+                    }
                     None => false,
                 };
                 items.push(LauncherItem { result, is_pinned });
@@ -149,7 +148,11 @@ impl LitoolsApp {
         let result_id = result_id.into();
         let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
         let connection = self.context.database.connection();
-        PinnedRepository::new(&connection).pin(target_type, &target_id, &Utc::now().to_rfc3339())?;
+        PinnedRepository::new(&connection).pin(
+            target_type,
+            &target_id,
+            &Utc::now().to_rfc3339(),
+        )?;
         Ok(())
     }
 
@@ -334,7 +337,8 @@ impl LitoolsApp {
         let mut items = Vec::new();
 
         for record in pinned {
-            if let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)? {
+            if let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)?
+            {
                 items.push(LauncherItem {
                     result,
                     is_pinned: true,
@@ -353,7 +357,8 @@ impl LitoolsApp {
         let mut items = Vec::new();
 
         for record in usage {
-            let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)? else {
+            let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)?
+            else {
                 continue;
             };
             let is_pinned = pinned.is_pinned(&record.target_type, &record.target_id)?;
@@ -372,7 +377,10 @@ impl LitoolsApp {
         Ok(PinnedRepository::new(&connection).is_pinned(target_type, target_id)?)
     }
 
-    fn validated_target_from_result_id(&self, result_id: &str) -> LitoolsResult<(&'static str, String)> {
+    fn validated_target_from_result_id(
+        &self,
+        result_id: &str,
+    ) -> LitoolsResult<(&'static str, String)> {
         let Some((target_type, target_id)) = self.target_from_result_id(result_id) else {
             return Err(LitoolsError::CommandNotFound(result_id.to_string()));
         };
@@ -546,8 +554,11 @@ fn persist_settings(database: &IndexDatabase, settings: &AppSettings) -> Litools
 fn builtin_effect_for_result(result_id: &str) -> LitoolsResult<BuiltinCommandEffect> {
     match result_id {
         "open-settings" => Ok(BuiltinCommandEffect::OpenSettings),
+        "open-diagnostics" => Ok(BuiltinCommandEffect::OpenDiagnostics),
+        "open-plugins" => Ok(BuiltinCommandEffect::OpenPlugins),
+        "open-logs-directory" => Ok(BuiltinCommandEffect::OpenLogsDirectory),
+        "open-data-directory" => Ok(BuiltinCommandEffect::OpenDataDirectory),
         "reload-index" => Ok(BuiltinCommandEffect::ReloadIndex),
-        "open-logs" => Ok(BuiltinCommandEffect::OpenLogs),
         "quit-app" => Ok(BuiltinCommandEffect::QuitApp),
         "toggle-theme" => Ok(BuiltinCommandEffect::ToggleTheme),
         _ => Err(LitoolsError::CommandNotFound(result_id.to_string())),
@@ -558,8 +569,11 @@ fn message_for_effect(effect: &BuiltinCommandEffect) -> &'static str {
     match effect {
         BuiltinCommandEffect::None => "未执行任何操作",
         BuiltinCommandEffect::OpenSettings => "正在打开设置",
+        BuiltinCommandEffect::OpenDiagnostics => "正在打开诊断",
+        BuiltinCommandEffect::OpenPlugins => "正在打开插件管理",
+        BuiltinCommandEffect::OpenLogsDirectory => "正在打开日志目录",
+        BuiltinCommandEffect::OpenDataDirectory => "正在打开数据目录",
         BuiltinCommandEffect::ReloadIndex => "正在重载索引",
-        BuiltinCommandEffect::OpenLogs => "正在打开诊断",
         BuiltinCommandEffect::QuitApp => "正在退出应用",
         BuiltinCommandEffect::ToggleTheme => "正在切换主题",
     }
@@ -617,8 +631,11 @@ mod tests {
 
         app.pin_result("open-settings").expect("pin settings");
         app.pin_result("reload-index").expect("pin reload");
-        app.reorder_pinned_results(vec!["open-settings".to_string(), "reload-index".to_string()])
-            .expect("reorder pinned results");
+        app.reorder_pinned_results(vec![
+            "open-settings".to_string(),
+            "reload-index".to_string(),
+        ])
+        .expect("reorder pinned results");
 
         let panel = app.launcher_panel("").expect("launcher panel");
         let pinned = panel

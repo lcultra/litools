@@ -2,7 +2,10 @@ use litools_index::{
     IndexDatabase,
     repository::{AppRecord, AppRepository},
 };
-use litools_search::{SearchProvider, SearchQuery, SearchResult, SearchResultAction};
+use litools_search::{
+    MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
+    SearchResultMatches, TextMatch, match_text,
+};
 
 pub const APP_PROVIDER_ID: &str = "apps";
 pub const APP_RESULT_PREFIX: &str = "app:";
@@ -27,17 +30,22 @@ impl SearchProvider for AppSearchProvider {
         let connection = self.database.connection();
         let repository = AppRepository::new(&connection);
 
-        repository
-            .search_apps(&query.text, query.limit)
-            .unwrap_or_default()
+        let apps = if query.text.trim().is_empty() {
+            repository.search_apps(&query.text, query.limit)
+        } else {
+            repository.list_apps_for_search()
+        };
+
+        apps.unwrap_or_default()
             .into_iter()
             .map(|app| search_result_for_app(app, &query.text))
+            .filter(|result| query.text.trim().is_empty() || result.score > 0.0)
             .collect()
     }
 }
 
 pub fn search_result_for_app(app: AppRecord, query: &str) -> SearchResult {
-    let score = score_app_result(&app, query);
+    let app_match = match_app_result(&app, query);
 
     SearchResult {
         id: format!("{APP_RESULT_PREFIX}{}", app.id),
@@ -45,7 +53,11 @@ pub fn search_result_for_app(app: AppRecord, query: &str) -> SearchResult {
         subtitle: Some(app.path),
         icon_uri: Some(app_icon_uri(&app.id)),
         provider: APP_PROVIDER_ID.to_string(),
-        score,
+        score: app_match.score,
+        matches: SearchResultMatches {
+            title: app_match.title_ranges,
+            subtitle: app_match.subtitle_ranges,
+        },
         actions: vec![SearchResultAction {
             id: OPEN_APP_ACTION_ID.to_string(),
             label: "打开".to_string(),
@@ -72,70 +84,123 @@ fn percent_encode_uri_path_segment(value: &str) -> String {
         .collect()
 }
 
-fn score_app_result(app: &AppRecord, query: &str) -> f32 {
-    let query = query.trim().to_lowercase();
-    let launch_bonus = (app.launch_count.min(20) as f32) * 0.5;
-
-    if query.is_empty() {
-        return 80.0 + launch_bonus;
-    }
-
-    let name = app.name.to_lowercase();
-    let localized_names = normalized_terms(&app.localized_names);
-    let aliases = normalized_terms(&app.aliases);
-    let id = app.id.to_lowercase();
-    let path = app.path.to_lowercase();
-    let search_text = app.search_text.to_lowercase();
-
-    if name == query {
-        return 130.0 + launch_bonus;
-    }
-
-    if localized_names.iter().any(|term| term == &query) {
-        return 122.0 + launch_bonus;
-    }
-
-    if aliases.iter().any(|term| term == &query) {
-        return 116.0 + launch_bonus;
-    }
-
-    if name.starts_with(&query) {
-        return 108.0 + launch_bonus;
-    }
-
-    if localized_names.iter().any(|term| term.starts_with(&query)) {
-        return 102.0 + launch_bonus;
-    }
-
-    if aliases.iter().any(|term| term.starts_with(&query)) {
-        return 96.0 + launch_bonus;
-    }
-
-    if name.contains(&query) || localized_names.iter().any(|term| term.contains(&query)) {
-        return 82.0 + launch_bonus;
-    }
-
-    if aliases.iter().any(|term| term.contains(&query)) {
-        return 76.0 + launch_bonus;
-    }
-
-    if id.starts_with(&query) {
-        return 68.0 + launch_bonus;
-    }
-
-    if id.contains(&query) || path.contains(&query) || search_text.contains(&query) {
-        return 55.0 + launch_bonus;
-    }
-
-    0.0
+#[derive(Default)]
+struct AppSearchMatch {
+    score: f32,
+    title_ranges: Vec<MatchRange>,
+    subtitle_ranges: Vec<MatchRange>,
 }
 
-fn normalized_terms(terms: &[String]) -> Vec<String> {
-    terms
-        .iter()
-        .map(|term| term.trim().to_lowercase())
-        .filter(|term| !term.is_empty())
-        .collect()
+fn match_app_result(app: &AppRecord, query: &str) -> AppSearchMatch {
+    let launch_bonus = (app.launch_count.min(20) as f32) * 0.5;
+
+    if query.trim().is_empty() {
+        return AppSearchMatch {
+            score: 80.0 + launch_bonus,
+            ..AppSearchMatch::default()
+        };
+    }
+
+    let mut best = AppSearchMatch::default();
+    consider_app_match(
+        &mut best,
+        match_text(&app.name, query),
+        30.0,
+        VisibleAppField::Title,
+        launch_bonus,
+    );
+
+    for localized_name in &app.localized_names {
+        consider_app_match(
+            &mut best,
+            match_text(localized_name, query),
+            22.0,
+            if localized_name == &app.name {
+                VisibleAppField::Title
+            } else {
+                VisibleAppField::Hidden
+            },
+            launch_bonus,
+        );
+    }
+
+    for alias in &app.aliases {
+        consider_app_match(
+            &mut best,
+            match_text(alias, query),
+            16.0,
+            VisibleAppField::Hidden,
+            launch_bonus,
+        );
+    }
+
+    consider_app_match(
+        &mut best,
+        match_text(&app.id, query),
+        -5.0,
+        VisibleAppField::Hidden,
+        launch_bonus,
+    );
+    consider_app_match(
+        &mut best,
+        match_text(&app.path, query),
+        -15.0,
+        VisibleAppField::Subtitle,
+        launch_bonus,
+    );
+    consider_app_match(
+        &mut best,
+        match_text(&app.search_text, query),
+        -15.0,
+        VisibleAppField::Hidden,
+        launch_bonus,
+    );
+
+    best
+}
+
+#[derive(Clone, Copy)]
+enum VisibleAppField {
+    Hidden,
+    Subtitle,
+    Title,
+}
+
+fn consider_app_match(
+    best: &mut AppSearchMatch,
+    text_match: Option<TextMatch>,
+    adjustment: f32,
+    visible_field: VisibleAppField,
+    launch_bonus: f32,
+) {
+    let Some(text_match) = text_match else {
+        return;
+    };
+    let score = app_match_score(&text_match, adjustment) + launch_bonus;
+    if best.score >= score {
+        return;
+    }
+
+    *best = AppSearchMatch {
+        score,
+        title_ranges: matches!(visible_field, VisibleAppField::Title)
+            .then_some(text_match.ranges.clone())
+            .unwrap_or_default(),
+        subtitle_ranges: matches!(visible_field, VisibleAppField::Subtitle)
+            .then_some(text_match.ranges)
+            .unwrap_or_default(),
+    };
+}
+
+fn app_match_score(text_match: &TextMatch, adjustment: f32) -> f32 {
+    let base = match text_match.kind {
+        MatchKind::Exact => 100.0,
+        MatchKind::Prefix => 78.0,
+        MatchKind::Contains => 52.0,
+        MatchKind::Fuzzy => text_match.score.min(44.0),
+    };
+
+    (base + adjustment).max(1.0)
 }
 
 pub fn app_id_from_result_id(result_id: &str) -> Option<&str> {
@@ -166,33 +231,68 @@ mod tests {
     #[test]
     fn exact_app_match_scores_above_prefix_match() {
         assert!(
-            score_app_result(
+            match_app_result(
                 &app_record("com.apple.Safari", "Safari", &[], &[], 0),
                 "safari"
-            ) > score_app_result(
-                &app_record(
-                    "com.apple.SafariTechnologyPreview",
-                    "Safari Technology Preview",
-                    &[],
-                    &[],
-                    0,
-                ),
-                "safari",
             )
+            .score
+                > match_app_result(
+                    &app_record(
+                        "com.apple.SafariTechnologyPreview",
+                        "Safari Technology Preview",
+                        &[],
+                        &[],
+                        0,
+                    ),
+                    "safari",
+                )
+                .score
         );
     }
 
     #[test]
     fn alias_match_scores_above_path_fallback() {
         assert!(
-            score_app_result(
+            match_app_result(
                 &app_record("com.tencent.xin", "微信", &["WeChat"], &["wx", "weixin"], 0),
                 "wx",
-            ) > score_app_result(
-                &app_record("com.example.wxhelper", "Helper", &[], &[], 0),
-                "wx",
             )
+            .score
+                > match_app_result(
+                    &app_record("com.example.wxhelper", "Helper", &[], &[], 0),
+                    "wx",
+                )
+                .score
         );
+    }
+
+    #[test]
+    fn fuzzy_title_match_returns_ranges() {
+        let result = match_app_result(
+            &app_record("com.apple.Safari", "Safari", &[], &[], 0),
+            "sfi",
+        );
+
+        assert!(result.score > 0.0);
+        assert_eq!(
+            result.title_ranges,
+            [
+                MatchRange { start: 0, end: 1 },
+                MatchRange { start: 2, end: 3 },
+                MatchRange { start: 5, end: 6 }
+            ]
+        );
+    }
+
+    #[test]
+    fn hidden_alias_match_does_not_highlight_title() {
+        let result = match_app_result(
+            &app_record("com.tencent.xin", "微信", &["WeChat"], &["wx", "weixin"], 0),
+            "weixin",
+        );
+
+        assert!(result.score > 0.0);
+        assert!(result.title_ranges.is_empty());
     }
 
     fn app_record(

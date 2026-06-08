@@ -6,6 +6,16 @@ export type SearchResultAction = {
     label: string;
 };
 
+export type MatchRange = {
+    start: number;
+    end: number;
+};
+
+export type SearchResultMatches = {
+    title: MatchRange[];
+    subtitle: MatchRange[];
+};
+
 export type SearchResult = {
     id: string;
     title: string;
@@ -13,10 +23,20 @@ export type SearchResult = {
     iconUri?: string | null;
     provider: string;
     score: number;
+    matches?: SearchResultMatches;
     actions: SearchResultAction[];
 };
 
-export type BuiltinCommandEffect = 'none' | 'openSettings' | 'reloadIndex' | 'openLogs' | 'quitApp' | 'toggleTheme';
+export type BuiltinCommandEffect =
+    | 'none'
+    | 'openSettings'
+    | 'openDiagnostics'
+    | 'openPlugins'
+    | 'openLogsDirectory'
+    | 'openDataDirectory'
+    | 'reloadIndex'
+    | 'quitApp'
+    | 'toggleTheme';
 
 export type CommandExecution = {
     resultId: string;

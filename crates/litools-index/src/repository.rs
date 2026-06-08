@@ -132,7 +132,11 @@ impl<'a> AppRepository<'a> {
             .optional()
     }
 
-    pub fn search_apps(&self, query: &str, limit: Option<usize>) -> rusqlite::Result<Vec<AppRecord>> {
+    pub fn search_apps(
+        &self,
+        query: &str,
+        limit: Option<usize>,
+    ) -> rusqlite::Result<Vec<AppRecord>> {
         let query = query.trim().to_lowercase();
 
         if query.is_empty() {
@@ -190,6 +194,25 @@ impl<'a> AppRepository<'a> {
             params![like_query, query, prefix_query],
             app_record_from_row,
         )?;
+        rows.collect()
+    }
+
+    pub fn list_apps_for_search(&self) -> rusqlite::Result<Vec<AppRecord>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,
+                    name,
+                    path,
+                    icon_path,
+                    localized_names_json,
+                    aliases_json,
+                    search_text,
+                    platform,
+                    last_seen_at,
+                    launch_count
+             FROM apps
+             ORDER BY launch_count DESC, name ASC",
+        )?;
+        let rows = statement.query_map([], app_record_from_row)?;
         rows.collect()
     }
 
@@ -370,12 +393,7 @@ impl<'a> PinnedRepository<'a> {
         rows.collect()
     }
 
-    pub fn pin(
-        &self,
-        target_type: &str,
-        target_id: &str,
-        pinned_at: &str,
-    ) -> rusqlite::Result<()> {
+    pub fn pin(&self, target_type: &str, target_id: &str, pinned_at: &str) -> rusqlite::Result<()> {
         self.connection.execute(
             "INSERT INTO pinned_items (target_type, target_id, pinned_at, sort_order)
              VALUES (?1, ?2, ?3, COALESCE((SELECT MAX(sort_order) + 1 FROM pinned_items), 0))
@@ -604,7 +622,9 @@ mod tests {
             })
             .expect("write safari");
 
-        let results = repository.search_apps("term", Some(10)).expect("search apps");
+        let results = repository
+            .search_apps("term", Some(10))
+            .expect("search apps");
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "com.apple.Terminal");
@@ -632,13 +652,43 @@ mod tests {
             })
             .expect("write app");
 
-        let by_alias = repository.search_apps("weixin", Some(10)).expect("search alias");
-        let by_initials = repository.search_apps("wx", Some(10)).expect("search initials");
+        let by_alias = repository
+            .search_apps("weixin", Some(10))
+            .expect("search alias");
+        let by_initials = repository
+            .search_apps("wx", Some(10))
+            .expect("search initials");
 
         assert_eq!(by_alias[0].id, "com.tencent.xin");
         assert_eq!(by_initials[0].id, "com.tencent.xin");
         assert_eq!(by_alias[0].localized_names, localized_names);
         assert_eq!(by_alias[0].aliases, aliases);
+    }
+
+    #[test]
+    fn app_repository_lists_apps_for_search_without_query_filter() {
+        let database = IndexDatabase::in_memory().expect("in-memory database");
+        let connection = database.connection();
+        let repository = AppRepository::new(&connection);
+
+        repository
+            .upsert_app(AppUpsert {
+                id: "com.apple.Safari",
+                name: "Safari",
+                path: "/Applications/Safari.app",
+                icon_path: None,
+                localized_names: &[],
+                aliases: &[],
+                search_text: "Safari com.apple.Safari /Applications/Safari.app",
+                platform: "macos",
+                last_seen_at: "2026-06-04T00:00:00Z",
+            })
+            .expect("write safari");
+
+        let results = repository.list_apps_for_search().expect("list apps");
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "com.apple.Safari");
     }
 
     #[test]

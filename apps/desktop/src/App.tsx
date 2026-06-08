@@ -105,8 +105,12 @@ export function App() {
             safeNavigate('/settings');
         }
 
-        if (effect === 'openLogs') {
+        if (effect === 'openDiagnostics') {
             safeNavigate('/diagnostics');
+        }
+
+        if (effect === 'openPlugins') {
+            safeNavigate('/plugins');
         }
 
         if (effect === 'toggleTheme') {

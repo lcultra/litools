@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/solid/sortable';
 import { createEffect, createSignal, For, Show } from 'solid-js';
 import type { SearchResult } from '../../bridge/types';
 import { providerLabel } from '../../shared/labels';
+import { HighlightedText } from './HighlightedText';
 import type { PaletteRenderItem } from './PaletteView';
 
 type PinnedSortableGridProps = {
@@ -13,6 +14,7 @@ type PinnedSortableGridProps = {
     onReorder: (orderedIds: string[]) => void;
     onResultClick: (item: PaletteRenderItem) => void;
     onResultContextMenu: (item: PaletteRenderItem, event: MouseEvent) => void;
+    onSelectedElement: (element: HTMLElement) => void;
 };
 
 type SortablePinnedItem = PaletteRenderItem & { id: string };
@@ -25,6 +27,7 @@ type SortablePinnedTileProps = {
     suppressClickId: string | null;
     onResultClick: (item: PaletteRenderItem) => void;
     onResultContextMenu: (item: PaletteRenderItem, event: MouseEvent) => void;
+    onSelectedElement: (element: HTMLElement) => void;
     onSuppressedClick: () => void;
 };
 
@@ -59,6 +62,7 @@ function hasSameOrder(left: SortablePinnedItem[], right: SortablePinnedItem[]) {
 }
 
 function SortablePinnedTile(props: SortablePinnedTileProps) {
+    let tileElement: HTMLElement | undefined;
     const sortable = useSortable({
         get id() {
             return props.item.id;
@@ -66,6 +70,12 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
         get index() {
             return props.index;
         },
+    });
+
+    createEffect(() => {
+        if (props.selected && tileElement) {
+            props.onSelectedElement(tileElement);
+        }
     });
 
     function handleClick() {
@@ -80,7 +90,10 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
     return (
         // biome-ignore lint/a11y/useSemanticElements lint/a11y/useFocusableInteractive: dnd-kit sortable must bind directly to this div tile.
         <div
-            ref={sortable.ref}
+            ref={(element) => {
+                tileElement = element;
+                sortable.ref(element);
+            }}
             class="relative grid size-full cursor-pointer grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-[opacity,background-color,border-color] duration-150"
             classList={{
                 'border-accent/40 bg-accent/15 text-fg': props.selected && !sortable.isDragging(),
@@ -101,7 +114,7 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
             tabindex={-1}
         >
             <SortableItemIcon result={props.item.result} />
-            <span class="w-full truncate text-xs font-medium">{props.item.result.title}</span>
+            <HighlightedText class="w-full truncate text-xs font-medium" ranges={props.item.result.matches?.title} text={props.item.result.title} />
         </div>
     );
 }
@@ -149,6 +162,7 @@ export function PinnedSortableGrid(props: PinnedSortableGridProps) {
                             suppressClickId={suppressClickId()}
                             onResultClick={props.onResultClick}
                             onResultContextMenu={props.onResultContextMenu}
+                            onSelectedElement={props.onSelectedElement}
                             onSuppressedClick={() => setSuppressClickId(null)}
                         />
                     )}

@@ -1,6 +1,8 @@
+use std::{path::Path, process::Command};
+
 use litools_core::{BuiltinCommandEffect, CommandExecution, LauncherPanelResponse};
 use litools_search::SearchResult;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::{state::AppState, surface::service};
 
@@ -60,11 +62,61 @@ pub fn execute_result(
         BuiltinCommandEffect::OpenSettings => {
             service::open_view_route(&app_handle, &state, "/settings", state.center_on_show())?;
         }
-        BuiltinCommandEffect::OpenLogs => {
+        BuiltinCommandEffect::OpenDiagnostics => {
             service::open_view_route(&app_handle, &state, "/diagnostics", state.center_on_show())?;
+        }
+        BuiltinCommandEffect::OpenPlugins => {
+            service::open_view_route(&app_handle, &state, "/plugins", state.center_on_show())?;
+        }
+        BuiltinCommandEffect::OpenLogsDirectory => {
+            open_directory(&log_directory(&app_handle)?)?;
+        }
+        BuiltinCommandEffect::OpenDataDirectory => {
+            open_directory(state.data_dir())?;
         }
         _ => {}
     }
 
     Ok(execution)
+}
+
+fn log_directory(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app_handle
+        .path()
+        .app_log_dir()
+        .map_err(|error| error.to_string())
+}
+
+fn open_directory(path: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(path).map_err(|error| error.to_string())?;
+
+    let status = open_directory_command(path)
+        .status()
+        .map_err(|error| error.to_string())?;
+
+    status
+        .success()
+        .then_some(())
+        .ok_or_else(|| format!("打开目录失败：{}", path.display()))
+}
+
+#[cfg(target_os = "macos")]
+fn open_directory_command(path: &Path) -> Command {
+    let mut command = Command::new("open");
+    command.arg(path);
+    command
+}
+
+#[cfg(target_os = "windows")]
+fn open_directory_command(path: &Path) -> Command {
+    let mut command = Command::new("explorer");
+    command.arg(path);
+    command
+}
+
+#[cfg(target_os = "linux")]
+fn open_directory_command(path: &Path) -> Command {
+    let mut command = Command::new("xdg-open");
+    command.arg(path);
+    command
 }

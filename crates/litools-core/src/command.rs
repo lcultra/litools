@@ -1,6 +1,9 @@
 use serde::Serialize;
 
-use litools_search::{SearchProvider, SearchQuery, SearchResult, SearchResultAction};
+use litools_search::{
+    MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
+    SearchResultMatches, TextMatch, match_text,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub struct BuiltinCommandDefinition {
@@ -24,10 +27,28 @@ pub const BUILTIN_COMMANDS: &[BuiltinCommandDefinition] = &[
         keywords: &["reload", "index", "refresh", "rebuild"],
     },
     BuiltinCommandDefinition {
-        id: "open-logs",
+        id: "open-diagnostics",
         title: "打开诊断",
         subtitle: "打开诊断信息",
-        keywords: &["logs", "diagnostics", "debug", "status"],
+        keywords: &["diagnostics", "debug", "status", "health"],
+    },
+    BuiltinCommandDefinition {
+        id: "open-plugins",
+        title: "打开插件管理",
+        subtitle: "打开插件中心",
+        keywords: &["plugin", "plugins", "extension", "manage", "center"],
+    },
+    BuiltinCommandDefinition {
+        id: "open-logs-directory",
+        title: "打开日志目录",
+        subtitle: "在系统文件管理器中打开日志目录",
+        keywords: &["logs", "log", "directory", "folder", "debug"],
+    },
+    BuiltinCommandDefinition {
+        id: "open-data-directory",
+        title: "打开数据目录",
+        subtitle: "在系统文件管理器中打开本地数据目录",
+        keywords: &["data", "directory", "folder", "storage", "database"],
     },
     BuiltinCommandDefinition {
         id: "quit-app",
@@ -48,8 +69,11 @@ pub const BUILTIN_COMMANDS: &[BuiltinCommandDefinition] = &[
 pub enum BuiltinCommandEffect {
     None,
     OpenSettings,
+    OpenDiagnostics,
+    OpenPlugins,
+    OpenLogsDirectory,
+    OpenDataDirectory,
     ReloadIndex,
-    OpenLogs,
     QuitApp,
     ToggleTheme,
 }
@@ -72,10 +96,11 @@ impl SearchProvider for BuiltinCommandProvider {
     }
 
     fn search(&self, query: &SearchQuery) -> Vec<SearchResult> {
-        let needle = query.text.to_lowercase();
         BUILTIN_COMMANDS
             .iter()
-            .filter(|command| command.matches(&needle))
+            .filter(|command| {
+                query.text.trim().is_empty() || command.search_match(&query.text).is_some()
+            })
             .map(|command| search_result_for_builtin_command(command, &query.text))
             .collect()
     }
@@ -91,7 +116,7 @@ pub fn search_result_for_builtin_command(
     command: &BuiltinCommandDefinition,
     query: &str,
 ) -> SearchResult {
-    let needle = query.to_lowercase();
+    let command_match = command.search_match(query).unwrap_or_default();
 
     SearchResult {
         id: command.id.to_string(),
@@ -99,7 +124,11 @@ pub fn search_result_for_builtin_command(
         subtitle: Some(command.subtitle.to_string()),
         icon_uri: None,
         provider: "commands".to_string(),
-        score: command.score(&needle),
+        score: command_match.score,
+        matches: SearchResultMatches {
+            title: command_match.title_ranges,
+            subtitle: command_match.subtitle_ranges,
+        },
         actions: vec![SearchResultAction {
             id: "execute".to_string(),
             label: "执行".to_string(),
@@ -107,27 +136,136 @@ pub fn search_result_for_builtin_command(
     }
 }
 
+#[derive(Default)]
+struct CommandSearchMatch {
+    score: f32,
+    title_ranges: Vec<MatchRange>,
+    subtitle_ranges: Vec<MatchRange>,
+}
+
 impl BuiltinCommandDefinition {
-    fn matches(&self, needle: &str) -> bool {
-        needle.is_empty()
-            || self.title.to_lowercase().contains(needle)
-            || self.subtitle.to_lowercase().contains(needle)
-            || self.keywords.iter().any(|keyword| keyword.contains(needle))
+    fn search_match(&self, query: &str) -> Option<CommandSearchMatch> {
+        if query.trim().is_empty() {
+            return Some(CommandSearchMatch {
+                score: 100.0,
+                ..CommandSearchMatch::default()
+            });
+        }
+
+        let mut best: Option<CommandSearchMatch> = None;
+        consider_command_match(
+            &mut best,
+            match_text(self.title, query),
+            0.0,
+            VisibleCommandField::Title,
+        );
+        consider_command_match(
+            &mut best,
+            match_text(self.subtitle, query),
+            -8.0,
+            VisibleCommandField::Subtitle,
+        );
+
+        for keyword in self.keywords {
+            consider_command_match(
+                &mut best,
+                match_text(keyword, query),
+                keyword_score_adjustment(keyword, query),
+                VisibleCommandField::Hidden,
+            );
+        }
+
+        best
+    }
+}
+
+#[derive(Clone, Copy)]
+enum VisibleCommandField {
+    Hidden,
+    Subtitle,
+    Title,
+}
+
+fn consider_command_match(
+    best: &mut Option<CommandSearchMatch>,
+    text_match: Option<TextMatch>,
+    adjustment: f32,
+    visible_field: VisibleCommandField,
+) {
+    let Some(text_match) = text_match else {
+        return;
+    };
+    let score = command_match_score(&text_match, adjustment);
+    if best.as_ref().is_some_and(|current| current.score >= score) {
+        return;
     }
 
-    fn score(&self, needle: &str) -> f32 {
-        if needle.is_empty() || self.title.to_lowercase().starts_with(needle) {
-            return 100.0;
-        }
+    *best = Some(CommandSearchMatch {
+        score,
+        title_ranges: matches!(visible_field, VisibleCommandField::Title)
+            .then_some(text_match.ranges.clone())
+            .unwrap_or_default(),
+        subtitle_ranges: matches!(visible_field, VisibleCommandField::Subtitle)
+            .then_some(text_match.ranges)
+            .unwrap_or_default(),
+    });
+}
 
-        if self
-            .keywords
-            .iter()
-            .any(|keyword| keyword.starts_with(needle))
-        {
-            return 90.0;
-        }
+fn command_match_score(text_match: &TextMatch, adjustment: f32) -> f32 {
+    let base = match text_match.kind {
+        MatchKind::Exact => 112.0,
+        MatchKind::Prefix => 100.0,
+        MatchKind::Contains => 72.0,
+        MatchKind::Fuzzy => text_match.score.min(68.0),
+    };
 
-        50.0
+    (base + adjustment).max(1.0)
+}
+
+fn keyword_score_adjustment(keyword: &str, query: &str) -> f32 {
+    if keyword.starts_with(&query.trim().to_lowercase()) {
+        -10.0
+    } else {
+        -18.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn title_match_returns_title_ranges() {
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "设置");
+
+        assert!(result.score > 0.0);
+        assert_eq!(result.matches.title, [MatchRange { start: 2, end: 4 }]);
+        assert!(result.matches.subtitle.is_empty());
+    }
+
+    #[test]
+    fn subtitle_match_returns_subtitle_ranges() {
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "窗口");
+
+        assert!(result.score > 0.0);
+        assert!(result.matches.title.is_empty());
+        assert_eq!(result.matches.subtitle, [MatchRange { start: 4, end: 6 }]);
+    }
+
+    #[test]
+    fn keyword_match_has_no_visible_ranges() {
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[0], "settings");
+
+        assert!(result.score > 0.0);
+        assert!(result.matches.title.is_empty());
+        assert!(result.matches.subtitle.is_empty());
+    }
+
+    #[test]
+    fn fuzzy_keyword_match_finds_command() {
+        let result = search_result_for_builtin_command(&BUILTIN_COMMANDS[3], "plg");
+
+        assert!(result.score > 0.0);
+        assert!(result.matches.title.is_empty());
     }
 }
