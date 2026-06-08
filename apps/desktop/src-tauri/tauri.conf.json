@@ -14,17 +14,7 @@
     "security": {
       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost litools-icon:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
     },
-    "windows": [
-      {
-        "title": "litools",
-        "width": 820,
-        "height": 560,
-        "resizable": false,
-        "fullscreen": false,
-        "decorations": false,
-        "transparent": true
-      }
-    ]
+    "windows": []
   },
   "bundle": {
     "active": false,

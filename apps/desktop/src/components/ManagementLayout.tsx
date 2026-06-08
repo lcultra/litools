@@ -8,7 +8,9 @@ type ManagementLayoutMode = 'center' | 'standalone';
 
 type ManagementLayoutProps = {
     children: JSX.Element;
+    isDetached?: boolean;
     mode?: ManagementLayoutMode;
+    ownerReady?: boolean;
     onOpenLauncher: () => void;
 };
 
@@ -17,7 +19,7 @@ export function ManagementLayout(props: ManagementLayoutProps) {
 
     return (
         <WindowFrame class="flex h-[calc(100vh-2px)] flex-col">
-            <ManagementHeader onClose={props.onOpenLauncher} />
+            <ManagementHeader isDetached={props.isDetached} ownerReady={props.ownerReady} onClose={props.onOpenLauncher} />
             <div class="flex min-h-0 flex-1">
                 <Show when={mode() === 'center'}>
                     <ManagementNav />

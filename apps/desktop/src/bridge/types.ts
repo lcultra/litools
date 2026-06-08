@@ -1,4 +1,5 @@
 import type { ThemeValue } from '../shared/theme';
+import type { AppRoutePath } from '../views/registry';
 
 export type SearchResultAction = {
     id: string;
@@ -22,6 +23,22 @@ export type CommandExecution = {
     actionId: string;
     message: string;
     effect: BuiltinCommandEffect;
+};
+
+export type ManagedWindowKind = 'main' | 'detachedManagement';
+export type ManagedWindowLifecycle = 'active' | 'hidden' | 'destroyed';
+
+export type ManagedWindowMetadata = {
+    id: string;
+    webviewLabel: string;
+    ownerWindowLabel: string;
+    kind: ManagedWindowKind;
+    route?: AppRoutePath | null;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+    lifecycle: ManagedWindowLifecycle;
+    focused: boolean;
 };
 
 export type LauncherItem = {

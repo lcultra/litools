@@ -19,18 +19,21 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             SHOW_ID => {
-                if let Some(window) = window::main_window(app) {
-                    window::open_route(&window, "/", app.state::<AppState>().center_on_show());
+                let state = app.state::<AppState>();
+                if let Ok(window) = window::ensure_main_surface(app, &state) {
+                    window::open_route(&window, "/", state.center_on_show());
                 }
             }
             SETTINGS_ID => {
-                if let Some(window) = window::main_window(app) {
-                    window::open_route(&window, "/settings", app.state::<AppState>().center_on_show());
+                let state = app.state::<AppState>();
+                if let Ok(window) = window::ensure_main_surface(app, &state) {
+                    window::open_route(&window, "/settings", state.center_on_show());
                 }
             }
             DIAGNOSTICS_ID => {
-                if let Some(window) = window::main_window(app) {
-                    window::open_route(&window, "/diagnostics", app.state::<AppState>().center_on_show());
+                let state = app.state::<AppState>();
+                if let Ok(window) = window::ensure_main_surface(app, &state) {
+                    window::open_route(&window, "/diagnostics", state.center_on_show());
                 }
             }
             QUIT_ID => {

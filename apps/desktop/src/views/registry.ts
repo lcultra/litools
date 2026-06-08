@@ -48,7 +48,7 @@ export const routeDefinitions: RouteDefinition[] = [
         windowProfile: 'launcher',
     },
     {
-        allowedWindowTargets: ['main', 'management'],
+        allowedWindowTargets: ['main', 'management', 'detached'],
         defaultWindowTarget: 'main',
         description: '配置命令面板运行参数。',
         id: 'settings',
@@ -61,7 +61,7 @@ export const routeDefinitions: RouteDefinition[] = [
         windowProfile: 'management',
     },
     {
-        allowedWindowTargets: ['main', 'management'],
+        allowedWindowTargets: ['main', 'management', 'detached'],
         defaultWindowTarget: 'main',
         description: '管理插件和扩展能力。',
         id: 'plugins',
@@ -74,7 +74,7 @@ export const routeDefinitions: RouteDefinition[] = [
         windowProfile: 'management',
     },
     {
-        allowedWindowTargets: ['main', 'management'],
+        allowedWindowTargets: ['main', 'management', 'detached'],
         defaultWindowTarget: 'main',
         description: '查看 litools 的运行状态和本地数据。',
         id: 'diagnostics',
@@ -114,6 +114,19 @@ export function routeForViewId(viewId: AppViewId) {
 
 export function routeForPath(pathname: string) {
     return routeDefinitions.find((route) => route.path === pathname) ?? fallbackRoute;
+}
+
+export function isRouteAllowedInTarget(path: AppRoutePath, target: WindowTarget) {
+    return routeForPath(path).allowedWindowTargets.includes(target);
+}
+
+export function targetForRoute(path: AppRoutePath) {
+    return routeForPath(path).defaultWindowTarget;
+}
+
+export function canDetachRoute(path: AppRoutePath) {
+    const route = routeForPath(path);
+    return route.kind !== 'launcher' && route.allowedWindowTargets.includes('detached');
 }
 
 export function pathForNavigationPayload(payload: string): AppRoutePath | null {

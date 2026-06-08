@@ -47,6 +47,7 @@ fn main() {
         .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             app.manage(AppState::bootstrap(data_dir)?);
+            window::create_main_window(app.handle(), &app.state::<AppState>())?;
             tray::setup_tray(app)?;
             shortcut::register_global_shortcut(
                 app.handle(),
@@ -61,25 +62,47 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if window.label() != window::MAIN_WINDOW_LABEL {
-                return;
-            }
-
             let Some(state) = window.try_state::<AppState>() else {
                 return;
             };
 
-            match event {
-                WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
-                    if state.close_to_tray() {
+            match window.label() {
+                window::MAIN_WINDOW_LABEL => match event {
+                    WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
+                        if state.close_to_tray() {
+                            api.prevent_close();
+                            let _ = window.hide();
+                        } else {
+                            state.request_quit();
+                        }
+                    }
+                    WindowEvent::Focused(false) if !state.is_quitting() && state.hide_on_blur() => {
+                        let _ = window.hide();
+                    }
+                    _ => {}
+                },
+                label if window::is_detached_window_label(label) => match event {
+                    WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
                         api.prevent_close();
                         let _ = window.hide();
-                    } else {
-                        state.request_quit();
+                        if let Some(metadata) = state.mark_window_lifecycle(label, state::ManagedWindowLifecycle::Hidden) {
+                            window::emit_surface_metadata_changed(window.app_handle(), &metadata);
+                        }
                     }
-                }
-                WindowEvent::Focused(false) if !state.is_quitting() && state.hide_on_blur() => {
-                    let _ = window.hide();
+                    WindowEvent::Focused(focused) => {
+                        if let Some(metadata) = state.mark_window_focused(label, *focused) {
+                            window::emit_surface_metadata_changed(window.app_handle(), &metadata);
+                        }
+                        if *focused
+                            && let Some(metadata) = state.mark_window_lifecycle(label, state::ManagedWindowLifecycle::Active)
+                        {
+                            window::emit_surface_metadata_changed(window.app_handle(), &metadata);
+                        }
+                    }
+                    WindowEvent::Destroyed => {
+                        state.remove_window(label);
+                    }
+                    _ => {}
                 }
                 _ => {}
             }
@@ -91,6 +114,15 @@ fn main() {
             commands::unpin_result,
             commands::reorder_pinned_results,
             commands::execute_result,
+            commands::detach_route,
+            commands::update_surface_route,
+            commands::open_route,
+            commands::list_windows,
+            commands::get_current_window_metadata,
+            commands::hide_window,
+            commands::focus_window,
+            commands::destroy_window,
+            commands::start_window_dragging,
             commands::hide_main_window,
             commands::show_main_window,
             commands::open_settings,

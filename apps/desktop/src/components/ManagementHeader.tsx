@@ -1,22 +1,58 @@
 import { useLocation } from '@solidjs/router';
-import { X } from 'lucide-solid';
-import { startDragging } from '../bridge/commands';
-import { routeForPath } from '../views/registry';
+import { LogicalPosition } from '@tauri-apps/api/dpi';
+import { Menu } from '@tauri-apps/api/menu';
+import { Ellipsis, X } from 'lucide-solid';
+import { createSignal, Show } from 'solid-js';
+import { detachRoute, startWindowDragging } from '../bridge/commands';
+import { canDetachRoute, routeForPath } from '../views/registry';
+
+const MENU_OFFSET_Y = 8;
 
 type ManagementHeaderProps = {
+    ownerReady?: boolean;
+    isDetached?: boolean;
     onClose: () => void;
 };
 
 export function ManagementHeader(props: ManagementHeaderProps) {
     const location = useLocation();
+    const [menuError, setMenuError] = createSignal<string | null>(null);
     const currentRoute = () => routeForPath(location.pathname);
+    const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && canDetachRoute(currentRoute().path);
 
     function handleDragPointerDown(event: PointerEvent) {
         if (event.button !== 0) {
             return;
         }
 
-        void startDragging();
+        void startWindowDragging();
+    }
+
+    async function showPanelMenu(event: MouseEvent) {
+        const route = currentRoute();
+
+        if (!canDetachRoute(route.path)) {
+            return;
+        }
+
+        const rect = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+        setMenuError(null);
+
+        try {
+            const menu = await Menu.new({
+                items: [
+                    {
+                        action: () => void detachRoute(route.path),
+                        id: 'detach-panel',
+                        text: '分离为独立窗口',
+                    },
+                ],
+            });
+
+            await menu.popup(new LogicalPosition(rect.left, rect.bottom + MENU_OFFSET_Y));
+        } catch (error) {
+            setMenuError(`打开面板菜单失败：${String(error)}`);
+        }
     }
 
     return (
@@ -37,6 +73,17 @@ export function ManagementHeader(props: ManagementHeaderProps) {
                 </button>
             </div>
             <div aria-hidden="true" class="min-w-0 flex-1 self-stretch cursor-grab active:cursor-grabbing" onPointerDown={handleDragPointerDown} />
+            <Show when={canDetach()}>
+                <button
+                    aria-label="打开面板菜单"
+                    class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+                    onClick={showPanelMenu}
+                    title={menuError() ?? '面板操作'}
+                    type="button"
+                >
+                    <Ellipsis size={16} strokeWidth={2} />
+                </button>
+            </Show>
         </header>
     );
 }

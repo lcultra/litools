@@ -1,6 +1,6 @@
 import { listen } from '@tauri-apps/api/event';
 import { type AppRoutePath, pathForNavigationPayload } from '../views/registry';
-import type { IndexStatus } from './types';
+import type { IndexStatus, ManagedWindowMetadata } from './types';
 
 export function onFocusSearch(handler: () => void): Promise<() => void> {
     return listen('focus-search', handler);
@@ -18,4 +18,8 @@ export function onNavigate(handler: (path: AppRoutePath) => void): Promise<() =>
 
 export function onIndexStatusChanged(handler: (status: IndexStatus) => void): Promise<() => void> {
     return listen<IndexStatus>('index-status-changed', (event) => handler(event.payload));
+}
+
+export function onSurfaceMetadataChanged(handler: (metadata: ManagedWindowMetadata) => void): Promise<() => void> {
+    return listen<ManagedWindowMetadata>('surface-metadata-changed', (event) => handler(event.payload));
 }

@@ -1,5 +1,5 @@
 import { createEffect, createSignal, onCleanup } from 'solid-js';
-import { openSettings, startDragging } from '../../bridge/commands';
+import { openSettings, startWindowDragging } from '../../bridge/commands';
 
 const SEARCH_INPUT_HEIGHT = 68;
 const SEARCH_INPUT_LEFT_PADDING = 16;
@@ -54,7 +54,7 @@ export function PaletteSearchInput(props: PaletteSearchInputProps) {
             return;
         }
 
-        void startDragging();
+        void startWindowDragging();
     }
 
     function handleActionPointerDown(event: PointerEvent) {
@@ -81,7 +81,7 @@ export function PaletteSearchInput(props: PaletteSearchInputProps) {
         }
 
         actionDragStarted = true;
-        void startDragging();
+        void startWindowDragging();
     }
 
     function handleActionPointerUp() {

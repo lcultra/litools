@@ -4,14 +4,14 @@ use litools_core::{
 use litools_search::SearchResult;
 use litools_settings::AppSettings;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, State};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, Size, State, Webview};
 
 use crate::{
     app_watcher::AppWatcherStatus,
     icon_cache::{IconCacheSummary, icon_cache_summary},
     index_refresh::{IndexRefreshTrigger, IndexStatus, request_index_refresh},
     shortcut,
-    state::AppState,
+    state::{AppState, ManagedWindowLifecycle, ManagedWindowMetadata},
     window,
 };
 
@@ -69,19 +69,138 @@ pub fn execute_result(
     match execution.effect {
         BuiltinCommandEffect::QuitApp => app_handle.exit(0),
         BuiltinCommandEffect::OpenSettings => {
-            if let Some(window) = window::main_window(&app_handle) {
-                window::open_route(&window, "/settings", state.center_on_show());
-            }
+            let window = window::ensure_main_surface(&app_handle, &state)?;
+            window::open_route(&window, "/settings", state.center_on_show());
         }
         BuiltinCommandEffect::OpenLogs => {
-            if let Some(window) = window::main_window(&app_handle) {
-                window::open_route(&window, "/diagnostics", state.center_on_show());
-            }
+            let window = window::ensure_main_surface(&app_handle, &state)?;
+            window::open_route(&window, "/diagnostics", state.center_on_show());
         }
         _ => {}
     }
 
     Ok(execution)
+}
+
+#[tauri::command]
+pub fn detach_route(
+    route: String,
+    webview: Webview,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<ManagedWindowMetadata, String> {
+    window::detach_route(&app_handle, &state, &webview, &route, state.center_on_show())
+}
+
+#[tauri::command]
+pub fn update_surface_route(
+    route: String,
+    webview: Webview,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<ManagedWindowMetadata, String> {
+    let current_metadata = state
+        .window_metadata_for_webview_label(webview.label())
+        .ok_or_else(|| format!("surface metadata not found: {}", webview.label()))?;
+    window::validate_surface_route(&route, &current_metadata.owner_window_label)?;
+    if current_metadata.route.as_deref() == Some(route.as_str()) {
+        return Ok(current_metadata);
+    }
+
+    let metadata = state
+        .mark_window_route(webview.label(), route)
+        .ok_or_else(|| format!("surface metadata not found: {}", webview.label()))?;
+    window::emit_surface_metadata_changed(&app_handle, &metadata);
+    Ok(metadata)
+}
+
+#[tauri::command]
+pub fn open_route(
+    route: String,
+    target: Option<String>,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    if target.as_deref() == Some("detached") {
+        return Err("open_route with detached target does not move the current page; use detach_route from the current surface".to_string());
+    }
+
+    let window = window::ensure_main_surface(&app_handle, &state)?;
+    window::open_route(&window, &route, state.center_on_show());
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_windows(state: State<'_, AppState>) -> Result<Vec<ManagedWindowMetadata>, String> {
+    Ok(state.list_windows())
+}
+
+#[tauri::command]
+pub fn get_current_window_metadata(
+    webview: Webview,
+    state: State<'_, AppState>,
+) -> Result<Option<ManagedWindowMetadata>, String> {
+    Ok(state.window_metadata_for_webview_label(webview.label()))
+}
+
+#[tauri::command]
+pub fn hide_window(
+    target: Option<String>,
+    webview: Webview,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let target = target.unwrap_or_else(|| webview.label().to_string());
+
+    if target == window::MAIN_WINDOW_LABEL {
+        if let Some(window) = window::main_window(&app_handle) {
+            window::hide_window(&window);
+        }
+        return Ok(());
+    }
+
+    window::hide_managed_window(&app_handle, &state, &target)
+}
+
+#[tauri::command]
+pub fn focus_window(
+    target: Option<String>,
+    webview: Webview,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let target_window = match target.as_deref() {
+        Some("main") => window::main_window(&app_handle),
+        Some(target) => window::window_by_id_or_label(&app_handle, &state, target),
+        None => Some(webview.window()),
+    };
+
+    if let Some(target_window) = target_window {
+        window::focus_window(&target_window)?;
+        if let Some(metadata) = state.mark_window_lifecycle(target_window.label(), ManagedWindowLifecycle::Active) {
+            window::emit_surface_metadata_changed(&app_handle, &metadata);
+        }
+        if let Some(metadata) = state.mark_window_focused(target_window.label(), true) {
+            window::emit_surface_metadata_changed(&app_handle, &metadata);
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn destroy_window(
+    target: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    window::destroy_managed_window(&app_handle, &state, &target)
+}
+
+#[tauri::command]
+pub fn start_window_dragging(webview: Webview) -> Result<(), String> {
+    webview.window().start_dragging().map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -95,27 +214,30 @@ pub fn hide_main_window(app_handle: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
-    if let Some(window) = window::main_window(&app_handle) {
-        window::show_main_window(&window, app_handle.state::<AppState>().center_on_show());
-    }
+    let state = app_handle.state::<AppState>();
+    let window = window::ensure_main_surface(&app_handle, &state)?;
+    window::show_main_window(&window, state.center_on_show());
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn open_settings(app_handle: AppHandle) -> Result<(), String> {
-    if let Some(window) = window::main_window(&app_handle) {
-        window::open_route(&window, "/settings", app_handle.state::<AppState>().center_on_show());
-    }
+    let state = app_handle.state::<AppState>();
+    let window = window::ensure_main_surface(&app_handle, &state)?;
+    window::open_route(&window, "/settings", state.center_on_show());
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
-    if let Some(window) = window::main_window(&app_handle) {
-        window.set_focus().map_err(|error| error.to_string())?;
-        window.emit(window::FOCUS_SEARCH_EVENT, ())
+    let state = app_handle.state::<AppState>();
+    let window = window::ensure_main_surface(&app_handle, &state)?;
+    window.set_focus().map_err(|error| error.to_string())?;
+    for webview in window.webviews() {
+        webview
+            .emit(window::FOCUS_SEARCH_EVENT, ())
             .map_err(|error| error.to_string())?;
     }
 
@@ -123,12 +245,8 @@ pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn start_dragging(app_handle: AppHandle) -> Result<(), String> {
-    if let Some(window) = window::main_window(&app_handle) {
-        window.start_dragging().map_err(|error| error.to_string())?;
-    }
-
-    Ok(())
+pub fn start_dragging(webview: Webview) -> Result<(), String> {
+    start_window_dragging(webview)
 }
 
 #[tauri::command]
