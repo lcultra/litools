@@ -1,8 +1,8 @@
 import type { JSX } from 'solid-js';
-import { ManagementHeader } from './ManagementHeader';
+import { RuntimeHeader } from './RuntimeHeader';
 import { WindowFrame } from './WindowFrame';
 
-type ManagementLayoutProps = {
+type RuntimeLayoutProps = {
     breadcrumbs?: string[];
     children: JSX.Element;
     isDetached?: boolean;
@@ -10,10 +10,10 @@ type ManagementLayoutProps = {
     onOpenLauncher: () => void;
 };
 
-export function ManagementLayout(props: ManagementLayoutProps) {
+export function RuntimeLayout(props: RuntimeLayoutProps) {
     return (
         <WindowFrame class="flex h-[calc(100vh-2px)] flex-col">
-            <ManagementHeader breadcrumbs={props.breadcrumbs} isDetached={props.isDetached} ownerReady={props.ownerReady} onClose={props.onOpenLauncher} />
+            <RuntimeHeader breadcrumbs={props.breadcrumbs} isDetached={props.isDetached} ownerReady={props.ownerReady} onClose={props.onOpenLauncher} />
             <div class="flex min-h-0 flex-1">
                 <section class="min-w-0 flex-1 overflow-y-auto">{props.children}</section>
             </div>

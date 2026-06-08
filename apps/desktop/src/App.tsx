@@ -3,7 +3,7 @@ import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { closePluginRuntime, getCurrentSurfaceMetadata, getSettings, hideSurface, updateSurfaceRoute } from './bridge/commands';
 import { onNavigate, onSurfaceMetadataChanged } from './bridge/events';
 import type { AppSettings, CommandEffect } from './bridge/types';
-import { ManagementLayout } from './components/ManagementLayout';
+import { RuntimeLayout } from './components/RuntimeLayout';
 import { CommandPalette } from './features/palette/CommandPalette';
 import { PluginRuntimeHeaderPage } from './features/plugins/PluginRuntimeHeaderPage';
 import { PluginRuntimePage } from './features/plugins/PluginRuntimePage';
@@ -41,7 +41,7 @@ export function App() {
             }
 
             event.preventDefault();
-            closeManagementPanel();
+            closeRuntimeView();
         };
         window.addEventListener('keydown', handleKeyDown);
 
@@ -91,7 +91,7 @@ export function App() {
         navigate(path);
     }
 
-    function closeManagementPanel() {
+    function closeRuntimeView() {
         const runtimeRoute = pluginRuntimeRouteParts(activeRoute().path);
         if (runtimeRoute) {
             void closePluginRuntime(runtimeRoute.pluginId, runtimeRoute.commandId);
@@ -126,16 +126,16 @@ export function App() {
         <main class="h-screen overflow-hidden text-fg transition-colors">
             <Show when={activeRoute().id !== 'pluginRuntimeHeader'} fallback={<PluginRuntimeHeaderPage path={activeRoute().path} />}>
                 <Show when={!isLauncher()} fallback={<CommandPalette onCommandEffect={handleCommandEffect} />}>
-                    <ManagementLayout
+                    <RuntimeLayout
                         breadcrumbs={activeRoute().kind === 'runtime' ? (runtimeBreadcrumbs() ?? ['插件', activeRoute().label]) : undefined}
                         isDetached={isDetachedWindow()}
                         ownerReady={Boolean(hostWindowLabel())}
-                        onOpenLauncher={closeManagementPanel}
+                        onOpenLauncher={closeRuntimeView}
                     >
                         <Show when={activeRoute().kind === 'runtime'}>
                             <PluginRuntimePage onBreadcrumbsChange={setRuntimeBreadcrumbs} path={activeRoute().path} />
                         </Show>
-                    </ManagementLayout>
+                    </RuntimeLayout>
                 </Show>
             </Show>
         </main>

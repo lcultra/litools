@@ -8,18 +8,18 @@ import { canDetachRoute, pluginRuntimeRouteParts, routeForPath } from '../views/
 
 const MENU_OFFSET_Y = 8;
 
-type ManagementHeaderProps = {
+type RuntimeHeaderProps = {
     breadcrumbs?: string[];
     ownerReady?: boolean;
     isDetached?: boolean;
     onClose: () => void;
 };
 
-export function ManagementHeader(props: ManagementHeaderProps) {
+export function RuntimeHeader(props: RuntimeHeaderProps) {
     const location = useLocation();
     const [menuError, setMenuError] = createSignal<string | null>(null);
     const currentRoute = () => routeForPath(location.pathname);
-    const breadcrumbs = () => props.breadcrumbs ?? ['管理', currentRoute().label];
+    const breadcrumbs = () => props.breadcrumbs ?? ['插件', currentRoute().label];
     const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && canDetachRoute(currentRoute().path);
 
     function handleDragPointerDown(event: PointerEvent) {
@@ -60,7 +60,7 @@ export function ManagementHeader(props: ManagementHeaderProps) {
 
             await menu.popup(new LogicalPosition(rect.left, rect.bottom + MENU_OFFSET_Y));
         } catch (error) {
-            setMenuError(`打开面板菜单失败：${String(error)}`);
+            setMenuError(`打开菜单失败：${String(error)}`);
         }
     }
 
@@ -80,7 +80,7 @@ export function ManagementHeader(props: ManagementHeaderProps) {
                     </For>
                 </div>
                 <button
-                    aria-label="关闭管理面板"
+                    aria-label="关闭插件视图"
                     class="grid size-8 cursor-pointer place-items-center border-border border-l text-muted outline-none transition-colors hover:bg-danger/10 hover:text-danger focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
                     onClick={props.onClose}
                     type="button"
@@ -91,10 +91,10 @@ export function ManagementHeader(props: ManagementHeaderProps) {
             <div aria-hidden="true" class="min-w-0 flex-1 self-stretch cursor-grab active:cursor-grabbing" onPointerDown={handleDragPointerDown} />
             <Show when={canDetach()}>
                 <button
-                    aria-label="打开面板菜单"
+                    aria-label="打开菜单"
                     class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
                     onClick={showPanelMenu}
-                    title={menuError() ?? '面板操作'}
+                    title={menuError() ?? '更多操作'}
                     type="button"
                 >
                     <Ellipsis size={16} strokeWidth={2} />
