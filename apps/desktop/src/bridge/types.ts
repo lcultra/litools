@@ -27,13 +27,14 @@ export type SearchResult = {
     actions: SearchResultAction[];
 };
 
-export type BuiltinCommandEffect =
+export type CommandEffect =
     | 'none'
     | 'openSettings'
     | 'openDiagnostics'
     | 'openPlugins'
     | 'openLogsDirectory'
     | 'openDataDirectory'
+    | { openPluginView: { pluginId: string; commandId: string; route: AppRoutePath } }
     | 'reloadIndex'
     | 'quitApp'
     | 'toggleTheme';
@@ -42,7 +43,42 @@ export type CommandExecution = {
     resultId: string;
     actionId: string;
     message: string;
-    effect: BuiltinCommandEffect;
+    effect: CommandEffect;
+};
+
+export type PluginCommandMode = 'instant' | 'view' | 'searchProvider';
+export type PluginSource = 'bundled' | 'user';
+
+export type PluginCommandSummary = {
+    id: string;
+    title: string;
+    subtitle?: string | null;
+    keywords: string[];
+    mode: PluginCommandMode;
+};
+
+export type PluginSummary = {
+    id: string;
+    name: string;
+    version: string;
+    description?: string | null;
+    author?: string | null;
+    icon: string;
+    enabled: boolean;
+    trusted: boolean;
+    source: PluginSource;
+    path: string;
+    permissions: string[];
+    commands: PluginCommandSummary[];
+};
+
+export type PluginRuntimeDescriptor = {
+    pluginId: string;
+    commandId: string;
+    pluginName: string;
+    title: string;
+    entryUrl: string;
+    permissions: string[];
 };
 
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };

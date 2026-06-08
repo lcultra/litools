@@ -1,12 +1,13 @@
 import { useLocation, useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { getCurrentSurfaceMetadata, getSettings, hideSurface, updateSurfaceRoute } from './bridge/commands';
+import { getCurrentSurfaceMetadata, getSettings, hideSurface, openRoute, updateSurfaceRoute } from './bridge/commands';
 import { onNavigate, onSurfaceMetadataChanged } from './bridge/events';
-import type { AppSettings, BuiltinCommandEffect } from './bridge/types';
+import type { AppSettings, CommandEffect } from './bridge/types';
 import { ManagementLayout } from './components/ManagementLayout';
 import { DiagnosticsPage } from './features/diagnostics/DiagnosticsPage';
 import { CommandPalette } from './features/palette/CommandPalette';
 import { PluginManagerPage } from './features/plugins/PluginManagerPage';
+import { PluginRuntimePage } from './features/plugins/PluginRuntimePage';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { isDarkThemeValue } from './shared/theme';
 import { type AppRoutePath, routeForPath } from './views/registry';
@@ -18,6 +19,7 @@ export function App() {
     const [systemDark, setSystemDark] = createSignal(false);
 
     const [hostWindowLabel, setHostWindowLabel] = createSignal<string | null>(null);
+    const [runtimeBreadcrumbs, setRuntimeBreadcrumbs] = createSignal<string[] | null>(null);
     const isDetachedWindow = () => Boolean(hostWindowLabel() && hostWindowLabel() !== 'main');
     const activeRoute = () => routeForPath(location.pathname);
     const isLauncher = () => activeRoute().kind === 'launcher';
@@ -100,7 +102,12 @@ export function App() {
         setSettings(nextSettings);
     }
 
-    function handleCommandEffect(effect: BuiltinCommandEffect) {
+    function handleCommandEffect(effect: CommandEffect) {
+        if (typeof effect === 'object' && 'openPluginView' in effect) {
+            void openRoute(effect.openPluginView.route, 'runtime');
+            return;
+        }
+
         if (effect === 'openSettings') {
             safeNavigate('/settings');
         }
@@ -125,7 +132,13 @@ export function App() {
     return (
         <main class="h-screen overflow-hidden text-fg transition-colors">
             <Show when={!isLauncher()} fallback={<CommandPalette onCommandEffect={handleCommandEffect} />}>
-                <ManagementLayout isDetached={isDetachedWindow()} ownerReady={Boolean(hostWindowLabel())} onOpenLauncher={closeManagementPanel}>
+                <ManagementLayout
+                    breadcrumbs={activeRoute().kind === 'runtime' ? (runtimeBreadcrumbs() ?? ['插件', activeRoute().label]) : undefined}
+                    isDetached={isDetachedWindow()}
+                    mode={activeRoute().kind === 'runtime' ? 'standalone' : 'center'}
+                    ownerReady={Boolean(hostWindowLabel())}
+                    onOpenLauncher={closeManagementPanel}
+                >
                     <Show when={activeRoute().path === '/settings'}>
                         <SettingsPage onSettingsSaved={handleSettingsSaved} />
                     </Show>
@@ -134,6 +147,9 @@ export function App() {
                     </Show>
                     <Show when={activeRoute().path === '/plugins'}>
                         <PluginManagerPage />
+                    </Show>
+                    <Show when={activeRoute().kind === 'runtime'}>
+                        <PluginRuntimePage onBreadcrumbsChange={setRuntimeBreadcrumbs} path={activeRoute().path} />
                     </Show>
                 </ManagementLayout>
             </Show>

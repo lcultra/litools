@@ -1,4 +1,4 @@
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, ToSql, params, params_from_iter};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IndexMetadataRecord {
@@ -287,6 +287,356 @@ impl<'a> CommandRepository<'a> {
         )?;
         Ok(())
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PluginRecord {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub path: String,
+    pub manifest_json: String,
+    pub source: String,
+    pub enabled: bool,
+    pub trusted: bool,
+    pub installed_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct PluginUpsert<'a> {
+    pub id: &'a str,
+    pub name: &'a str,
+    pub version: &'a str,
+    pub path: &'a str,
+    pub manifest_json: &'a str,
+    pub source: &'a str,
+    pub enabled: bool,
+    pub trusted: bool,
+    pub installed_at: &'a str,
+    pub updated_at: &'a str,
+}
+
+pub struct PluginRepository<'a> {
+    connection: &'a Connection,
+}
+
+impl<'a> PluginRepository<'a> {
+    pub fn new(connection: &'a Connection) -> Self {
+        Self { connection }
+    }
+
+    pub fn count_plugins(&self) -> rusqlite::Result<usize> {
+        self.connection
+            .query_row("SELECT COUNT(*) FROM plugins", [], |row| row.get(0))
+    }
+
+    pub fn upsert_plugin(&self, plugin: PluginUpsert<'_>) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "INSERT INTO plugins (
+                id,
+                name,
+                version,
+                path,
+                manifest_json,
+                source,
+                enabled,
+                trusted,
+                installed_at,
+                updated_at
+             )
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+             ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                version = excluded.version,
+                path = excluded.path,
+                manifest_json = excluded.manifest_json,
+                source = excluded.source,
+                updated_at = excluded.updated_at",
+            params![
+                plugin.id,
+                plugin.name,
+                plugin.version,
+                plugin.path,
+                plugin.manifest_json,
+                plugin.source,
+                plugin.enabled,
+                plugin.trusted,
+                plugin.installed_at,
+                plugin.updated_at,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_plugins(&self) -> rusqlite::Result<Vec<PluginRecord>> {
+        let mut statement = self.connection.prepare(
+            "SELECT id,
+                    name,
+                    version,
+                    path,
+                    manifest_json,
+                    source,
+                    enabled,
+                    trusted,
+                    installed_at,
+                    updated_at
+             FROM plugins
+             ORDER BY name ASC, id ASC",
+        )?;
+        let rows = statement.query_map([], plugin_record_from_row)?;
+        rows.collect()
+    }
+
+    pub fn find_plugin(&self, id: &str) -> rusqlite::Result<Option<PluginRecord>> {
+        self.connection
+            .query_row(
+                "SELECT id,
+                        name,
+                        version,
+                        path,
+                        manifest_json,
+                        source,
+                        enabled,
+                        trusted,
+                        installed_at,
+                        updated_at
+                 FROM plugins
+                 WHERE id = ?1",
+                params![id],
+                plugin_record_from_row,
+            )
+            .optional()
+    }
+
+    pub fn delete_plugins_not_in_source_ids(
+        &self,
+        source: &str,
+        seen_ids: &[String],
+    ) -> rusqlite::Result<usize> {
+        if seen_ids.is_empty() {
+            let removed_commands = self.connection.execute(
+                "DELETE FROM plugin_commands
+                 WHERE plugin_id IN (SELECT id FROM plugins WHERE source = ?1)",
+                params![source],
+            )?;
+            let removed_plugins = self
+                .connection
+                .execute("DELETE FROM plugins WHERE source = ?1", params![source])?;
+            return Ok(removed_plugins + removed_commands);
+        }
+
+        let placeholders = std::iter::repeat_n("?", seen_ids.len())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let command_sql = format!(
+            "DELETE FROM plugin_commands
+             WHERE plugin_id IN (
+                SELECT id FROM plugins WHERE source = ? AND id NOT IN ({placeholders})
+             )"
+        );
+        let plugin_sql =
+            format!("DELETE FROM plugins WHERE source = ? AND id NOT IN ({placeholders})");
+        let mut values: Vec<&dyn ToSql> = Vec::with_capacity(seen_ids.len() + 1);
+        values.push(&source);
+        for id in seen_ids {
+            values.push(id);
+        }
+
+        let removed_commands = self
+            .connection
+            .execute(&command_sql, params_from_iter(values.iter().copied()))?;
+        let removed_plugins = self
+            .connection
+            .execute(&plugin_sql, params_from_iter(values.iter().copied()))?;
+        Ok(removed_plugins + removed_commands)
+    }
+
+    pub fn set_enabled(&self, id: &str, enabled: bool, updated_at: &str) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "UPDATE plugins SET enabled = ?1, updated_at = ?2 WHERE id = ?3",
+            params![enabled, updated_at, id],
+        )?;
+        Ok(())
+    }
+}
+
+fn plugin_record_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PluginRecord> {
+    Ok(PluginRecord {
+        id: row.get(0)?,
+        name: row.get(1)?,
+        version: row.get(2)?,
+        path: row.get(3)?,
+        manifest_json: row.get(4)?,
+        source: row.get(5)?,
+        enabled: row.get(6)?,
+        trusted: row.get(7)?,
+        installed_at: row.get(8)?,
+        updated_at: row.get(9)?,
+    })
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PluginCommandRecord {
+    pub id: String,
+    pub plugin_id: String,
+    pub plugin_name: String,
+    pub plugin_path: String,
+    pub plugin_icon: String,
+    pub command_id: String,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub keywords: Vec<String>,
+    pub mode: String,
+    pub permission_requirements: Vec<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PluginCommandUpsert {
+    pub id: String,
+    pub plugin_id: String,
+    pub command_id: String,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub keywords: Vec<String>,
+    pub mode: String,
+    pub permission_requirements: Vec<String>,
+}
+
+pub struct PluginCommandRepository<'a> {
+    connection: &'a Connection,
+}
+
+impl<'a> PluginCommandRepository<'a> {
+    pub fn new(connection: &'a Connection) -> Self {
+        Self { connection }
+    }
+
+    pub fn replace_commands_for_plugin(
+        &self,
+        plugin_id: &str,
+        commands: &[PluginCommandUpsert],
+    ) -> rusqlite::Result<()> {
+        self.connection.execute(
+            "DELETE FROM plugin_commands WHERE plugin_id = ?1",
+            params![plugin_id],
+        )?;
+
+        for command in commands {
+            self.upsert_command(command)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn upsert_command(&self, command: &PluginCommandUpsert) -> rusqlite::Result<()> {
+        let keywords_json = serde_json::to_string(&command.keywords)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+        let permission_requirements_json = serde_json::to_string(&command.permission_requirements)
+            .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
+
+        self.connection.execute(
+            "INSERT INTO plugin_commands (
+                id,
+                plugin_id,
+                command_id,
+                title,
+                subtitle,
+                keywords,
+                mode,
+                permission_requirements
+             )
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+             ON CONFLICT(id) DO UPDATE SET
+                plugin_id = excluded.plugin_id,
+                command_id = excluded.command_id,
+                title = excluded.title,
+                subtitle = excluded.subtitle,
+                keywords = excluded.keywords,
+                mode = excluded.mode,
+                permission_requirements = excluded.permission_requirements",
+            params![
+                &command.id,
+                &command.plugin_id,
+                &command.command_id,
+                &command.title,
+                command.subtitle.as_deref(),
+                keywords_json,
+                &command.mode,
+                permission_requirements_json,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_enabled_plugin_commands(&self) -> rusqlite::Result<Vec<PluginCommandRecord>> {
+        let mut statement = self.connection.prepare(
+            "SELECT plugin_commands.id,
+                    plugin_commands.plugin_id,
+                    plugins.name,
+                    plugins.path,
+                    json_extract(plugins.manifest_json, '$.icon'),
+                    plugin_commands.command_id,
+                    plugin_commands.title,
+                    plugin_commands.subtitle,
+                    plugin_commands.keywords,
+                    plugin_commands.mode,
+                    plugin_commands.permission_requirements
+             FROM plugin_commands
+             JOIN plugins ON plugins.id = plugin_commands.plugin_id
+             WHERE plugins.enabled = 1
+             ORDER BY plugins.name ASC, plugin_commands.title ASC",
+        )?;
+        let rows = statement.query_map([], plugin_command_record_from_row)?;
+        rows.collect()
+    }
+
+    pub fn find_plugin_command(
+        &self,
+        plugin_id: &str,
+        command_id: &str,
+    ) -> rusqlite::Result<Option<PluginCommandRecord>> {
+        self.connection
+            .query_row(
+                "SELECT plugin_commands.id,
+                        plugin_commands.plugin_id,
+                        plugins.name,
+                        plugins.path,
+                        json_extract(plugins.manifest_json, '$.icon'),
+                        plugin_commands.command_id,
+                        plugin_commands.title,
+                        plugin_commands.subtitle,
+                        plugin_commands.keywords,
+                        plugin_commands.mode,
+                        plugin_commands.permission_requirements
+                 FROM plugin_commands
+                 JOIN plugins ON plugins.id = plugin_commands.plugin_id
+                 WHERE plugin_commands.plugin_id = ?1
+                   AND plugin_commands.command_id = ?2
+                   AND plugins.enabled = 1",
+                params![plugin_id, command_id],
+                plugin_command_record_from_row,
+            )
+            .optional()
+    }
+}
+
+fn plugin_command_record_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<PluginCommandRecord> {
+    Ok(PluginCommandRecord {
+        id: row.get(0)?,
+        plugin_id: row.get(1)?,
+        plugin_name: row.get(2)?,
+        plugin_path: row.get(3)?,
+        plugin_icon: row.get(4)?,
+        command_id: row.get(5)?,
+        title: row.get(6)?,
+        subtitle: row.get(7)?,
+        keywords: json_string_array(row.get::<_, String>(8)?)?,
+        mode: row.get(9)?,
+        permission_requirements: json_string_array(row.get::<_, String>(10)?)?,
+    })
 }
 
 pub struct IndexMetadataRepository<'a> {

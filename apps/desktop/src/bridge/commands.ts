@@ -1,6 +1,16 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { AppRoutePath, HostKind } from '../views/registry';
-import type { AppSettings, CommandExecution, DiagnosticsResponse, IndexStatus, LauncherPanelResponse, SearchResult, SurfaceMetadata } from './types';
+import type {
+    AppSettings,
+    CommandExecution,
+    DiagnosticsResponse,
+    IndexStatus,
+    LauncherPanelResponse,
+    PluginRuntimeDescriptor,
+    PluginSummary,
+    SearchResult,
+    SurfaceMetadata,
+} from './types';
 
 export function search(query: string): Promise<SearchResult[]> {
     return invoke<SearchResult[]>('search', { query });
@@ -96,6 +106,14 @@ export function getSettings(): Promise<AppSettings> {
 
 export function updateSettings(settings: AppSettings): Promise<AppSettings> {
     return invoke<AppSettings>('update_settings', { settings });
+}
+
+export function listPlugins(): Promise<PluginSummary[]> {
+    return invoke<PluginSummary[]>('list_plugins');
+}
+
+export function getPluginRuntimeDescriptor(pluginId: string, commandId: string): Promise<PluginRuntimeDescriptor> {
+    return invoke<PluginRuntimeDescriptor>('get_plugin_runtime_descriptor', { pluginId, commandId });
 }
 
 export function getDiagnostics(): Promise<DiagnosticsResponse> {

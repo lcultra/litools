@@ -66,13 +66,18 @@ pub const BUILTIN_COMMANDS: &[BuiltinCommandDefinition] = &[
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum BuiltinCommandEffect {
+pub enum CommandEffect {
     None,
     OpenSettings,
     OpenDiagnostics,
     OpenPlugins,
     OpenLogsDirectory,
     OpenDataDirectory,
+    OpenPluginView {
+        plugin_id: String,
+        command_id: String,
+        route: String,
+    },
     ReloadIndex,
     QuitApp,
     ToggleTheme,
@@ -84,7 +89,7 @@ pub struct CommandExecution {
     pub result_id: String,
     pub action_id: String,
     pub message: String,
-    pub effect: BuiltinCommandEffect,
+    pub effect: CommandEffect,
 }
 
 #[derive(Default)]

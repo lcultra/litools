@@ -50,7 +50,7 @@ pub fn open_view_route(
     route: &str,
     center_on_show: bool,
 ) -> Result<(), String> {
-    let view = registry::validate_route(route)?;
+    let view = resolve_view_route(state, route)?;
     registry::validate_host_allowed(&view, &WindowHostKind::Main)?;
     let window = ensure_main_launcher_surface(app, state)?;
     native::show_host_for_view(&window, &view.kind, center_on_show);
@@ -78,7 +78,7 @@ pub fn detach_current_surface(
     route: &str,
     center_on_show: bool,
 ) -> Result<SurfaceMetadata, String> {
-    let view = registry::validate_route(route)?;
+    let view = resolve_view_route(state, route)?;
     registry::validate_detachable(&view)?;
 
     let current_metadata = state
@@ -143,7 +143,7 @@ pub fn update_surface_route(
     webview_label: &str,
     route: &str,
 ) -> Result<SurfaceMetadata, String> {
-    let view = registry::validate_route(route)?;
+    let view = resolve_view_route(state, route)?;
     let current_metadata = state
         .surface_metadata_for_webview_label(webview_label)
         .ok_or_else(|| format!("surface metadata not found: {webview_label}"))?;
@@ -157,6 +157,21 @@ pub fn update_surface_route(
         .ok_or_else(|| format!("surface metadata not found: {webview_label}"))?;
     events::emit_metadata_changed(app, &metadata);
     Ok(metadata)
+}
+
+fn resolve_view_route(
+    state: &AppState,
+    route: &str,
+) -> Result<crate::view::model::ViewDefinition, String> {
+    if let Some(view) = registry::view_for_route(route) {
+        return Ok(view);
+    }
+
+    if registry::plugin_runtime_route_parts(route).is_some() {
+        return crate::ipc::plugins::validate_plugin_runtime_route(state, route);
+    }
+
+    registry::validate_route(route)
 }
 
 pub fn list_surfaces(state: &AppState) -> Vec<SurfaceMetadata> {

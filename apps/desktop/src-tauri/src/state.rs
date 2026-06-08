@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use litools_core::{LitoolsApp, LitoolsResult, ReloadIndexSummary};
+use litools_core::{AppBootstrapPaths, LitoolsApp, LitoolsResult, ReloadIndexSummary};
 use serde::Serialize;
 
 use crate::{
@@ -52,10 +52,11 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn bootstrap(data_dir: impl AsRef<Path>) -> LitoolsResult<Self> {
+    pub fn bootstrap(paths: AppBootstrapPaths) -> LitoolsResult<Self> {
+        let data_dir = paths.data_dir.clone();
         Ok(Self {
-            app: Mutex::new(LitoolsApp::bootstrap(data_dir.as_ref())?),
-            data_dir: data_dir.as_ref().to_path_buf(),
+            app: Mutex::new(LitoolsApp::bootstrap(paths)?),
+            data_dir,
             quitting: AtomicBool::new(false),
             shortcut_status: Mutex::new(ShortcutStatus::default()),
             index_status: Mutex::new(IndexStatus::default()),

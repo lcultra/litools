@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_GLOBAL_HOTKEY: &str = "CommandOrControl+Space";
-pub const DEFAULT_ENABLED_PROVIDERS: &[&str] = &["apps", "commands"];
-pub const SUPPORTED_SEARCH_PROVIDERS: &[&str] = &["apps", "commands"];
+pub const DEFAULT_ENABLED_PROVIDERS: &[&str] = &["apps", "commands", "plugins"];
+pub const SUPPORTED_SEARCH_PROVIDERS: &[&str] = &["apps", "commands", "plugins"];
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AppSettings {
@@ -95,7 +95,10 @@ mod tests {
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
         assert!(settings.palette.show_recent);
         assert!(settings.palette.show_pinned);
-        assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
+        assert_eq!(
+            settings.search.enabled_providers,
+            ["apps", "commands", "plugins"]
+        );
         assert!(settings.window.hide_on_blur);
         assert!(settings.window.close_to_tray);
         assert!(settings.window.center_on_show);
@@ -127,7 +130,10 @@ mod tests {
 
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.palette.global_hotkey, DEFAULT_GLOBAL_HOTKEY);
-        assert_eq!(settings.search.enabled_providers, ["apps", "commands"]);
+        assert_eq!(
+            settings.search.enabled_providers,
+            ["apps", "commands", "plugins"]
+        );
         assert!(!settings.palette.show_recent);
         assert!(!settings.palette.show_pinned);
         assert!(!settings.window.hide_on_blur);

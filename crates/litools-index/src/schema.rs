@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS plugins (
     version TEXT NOT NULL,
     path TEXT NOT NULL,
     manifest_json TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'user',
     enabled INTEGER NOT NULL DEFAULT 1,
     trusted INTEGER NOT NULL DEFAULT 0,
     installed_at TEXT NOT NULL,
@@ -39,7 +40,8 @@ CREATE TABLE IF NOT EXISTS plugin_commands (
     command_id TEXT NOT NULL,
     title TEXT NOT NULL,
     subtitle TEXT,
-    keywords TEXT,
+    keywords TEXT NOT NULL DEFAULT '[]',
+    mode TEXT NOT NULL,
     permission_requirements TEXT NOT NULL DEFAULT '[]',
     FOREIGN KEY(plugin_id) REFERENCES plugins(id)
 );

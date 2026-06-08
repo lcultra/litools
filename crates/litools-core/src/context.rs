@@ -11,11 +11,16 @@ pub struct AppContext {
 }
 
 impl AppContext {
-    pub fn new(database: IndexDatabase, search: SearchEngine, settings: SettingsStore) -> Self {
+    pub fn new(
+        database: IndexDatabase,
+        search: SearchEngine,
+        plugins: PluginManager,
+        settings: SettingsStore,
+    ) -> Self {
         Self {
             database,
             search,
-            plugins: PluginManager::new(),
+            plugins,
             settings,
         }
     }

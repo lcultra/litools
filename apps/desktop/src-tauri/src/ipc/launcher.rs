@@ -1,6 +1,6 @@
 use std::{path::Path, process::Command};
 
-use litools_core::{BuiltinCommandEffect, CommandExecution, LauncherPanelResponse};
+use litools_core::{CommandEffect, CommandExecution, LauncherPanelResponse};
 use litools_search::SearchResult;
 use tauri::{AppHandle, Manager, State};
 
@@ -58,21 +58,24 @@ pub fn execute_result(
     };
 
     match execution.effect {
-        BuiltinCommandEffect::QuitApp => app_handle.exit(0),
-        BuiltinCommandEffect::OpenSettings => {
+        CommandEffect::QuitApp => app_handle.exit(0),
+        CommandEffect::OpenSettings => {
             service::open_view_route(&app_handle, &state, "/settings", state.center_on_show())?;
         }
-        BuiltinCommandEffect::OpenDiagnostics => {
+        CommandEffect::OpenDiagnostics => {
             service::open_view_route(&app_handle, &state, "/diagnostics", state.center_on_show())?;
         }
-        BuiltinCommandEffect::OpenPlugins => {
+        CommandEffect::OpenPlugins => {
             service::open_view_route(&app_handle, &state, "/plugins", state.center_on_show())?;
         }
-        BuiltinCommandEffect::OpenLogsDirectory => {
+        CommandEffect::OpenLogsDirectory => {
             open_directory(&log_directory(&app_handle)?)?;
         }
-        BuiltinCommandEffect::OpenDataDirectory => {
+        CommandEffect::OpenDataDirectory => {
             open_directory(state.data_dir())?;
+        }
+        CommandEffect::OpenPluginView { ref route, .. } => {
+            service::open_view_route(&app_handle, &state, route, state.center_on_show())?;
         }
         _ => {}
     }

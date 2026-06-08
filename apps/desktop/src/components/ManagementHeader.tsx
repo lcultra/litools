@@ -2,13 +2,14 @@ import { useLocation } from '@solidjs/router';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { Ellipsis, X } from 'lucide-solid';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import { detachRoute, startWindowDragging } from '../bridge/commands';
 import { canDetachRoute, routeForPath } from '../views/registry';
 
 const MENU_OFFSET_Y = 8;
 
 type ManagementHeaderProps = {
+    breadcrumbs?: string[];
     ownerReady?: boolean;
     isDetached?: boolean;
     onClose: () => void;
@@ -18,6 +19,7 @@ export function ManagementHeader(props: ManagementHeaderProps) {
     const location = useLocation();
     const [menuError, setMenuError] = createSignal<string | null>(null);
     const currentRoute = () => routeForPath(location.pathname);
+    const breadcrumbs = () => props.breadcrumbs ?? ['管理', currentRoute().label];
     const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && canDetachRoute(currentRoute().path);
 
     function handleDragPointerDown(event: PointerEvent) {
@@ -59,9 +61,16 @@ export function ManagementHeader(props: ManagementHeaderProps) {
         <header class="flex h-[68px] shrink-0 items-center gap-2 border-border border-b px-3">
             <div class="flex items-center overflow-hidden rounded-full border border-border bg-surface-muted text-sm">
                 <div class="flex items-center gap-2 py-1.5 pl-3 pr-2" onPointerDown={handleDragPointerDown}>
-                    <span class="font-semibold text-fg">管理</span>
-                    <span class="text-muted">/</span>
-                    <span class="text-muted">{currentRoute().label}</span>
+                    <For each={breadcrumbs()}>
+                        {(breadcrumb, index) => (
+                            <>
+                                <Show when={index() > 0}>
+                                    <span class="text-muted">/</span>
+                                </Show>
+                                <span class={index() === 0 ? 'font-semibold text-fg' : 'text-muted'}>{breadcrumb}</span>
+                            </>
+                        )}
+                    </For>
                 </div>
                 <button
                     aria-label="关闭管理面板"

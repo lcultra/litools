@@ -1,12 +1,17 @@
-use std::{path::Path, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use chrono::{DateTime, Utc};
 use litools_index::{
     IndexDatabase,
     repository::{
         AppRecord, AppRepository, AppUpsert, CommandRepository, IndexMetadataRepository,
-        PinnedRepository, SettingsRepository, UsageEventRecord, UsageRepository,
+        PinnedRepository, PluginCommandRepository, PluginCommandUpsert, PluginRepository,
+        PluginUpsert, SettingsRepository, UsageEventRecord, UsageRepository,
     },
+};
+use litools_plugin::{
+    InstalledPlugin, PluginCommandMode, PluginDiscoveryRoot, PluginManager, PluginSource,
+    discover_plugins,
 };
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 use litools_settings::{AppSettings, storage::SettingsStore};
@@ -40,29 +45,49 @@ use crate::{
         AppSearchProvider, OPEN_APP_ACTION_ID, app_id_from_result_id, search_result_for_app,
     },
     command::{
-        BUILTIN_COMMANDS, BuiltinCommandEffect, BuiltinCommandProvider, CommandExecution,
+        BUILTIN_COMMANDS, BuiltinCommandProvider, CommandEffect, CommandExecution,
         find_builtin_command, search_result_for_builtin_command,
     },
     context::AppContext,
     error::{LitoolsError, LitoolsResult},
     launcher::{LauncherItem, LauncherPanelResponse, LauncherSection},
+    plugin_provider::{
+        OPEN_PLUGIN_ACTION_ID, PLUGIN_TARGET_TYPE, PluginCommandProvider,
+        plugin_command_from_result_id, plugin_command_from_target_id, plugin_result_id,
+        plugin_target_id, search_result_for_plugin_command_record,
+    },
 };
+
+pub struct AppBootstrapPaths {
+    pub data_dir: PathBuf,
+    pub bundled_plugins_dir: Option<PathBuf>,
+}
+
+impl AppBootstrapPaths {
+    pub fn new(data_dir: impl Into<PathBuf>) -> Self {
+        Self {
+            data_dir: data_dir.into(),
+            bundled_plugins_dir: None,
+        }
+    }
+}
 
 pub struct LitoolsApp {
     context: AppContext,
 }
 
 impl LitoolsApp {
-    pub fn bootstrap(data_dir: impl AsRef<Path>) -> LitoolsResult<Self> {
+    pub fn bootstrap(paths: AppBootstrapPaths) -> LitoolsResult<Self> {
         init_logging();
 
-        std::fs::create_dir_all(data_dir.as_ref())?;
-        let database = IndexDatabase::open(data_dir.as_ref().join("database.sqlite"))?;
+        std::fs::create_dir_all(&paths.data_dir)?;
+        let database = IndexDatabase::open(paths.data_dir.join("database.sqlite"))?;
         let settings = load_settings(&database)?;
+        let plugins = sync_and_load_plugins(&database, &paths)?;
         let search = default_search_engine(database.clone());
 
         Ok(Self {
-            context: AppContext::new(database, search, SettingsStore::new(settings)),
+            context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
         })
     }
 
@@ -71,10 +96,11 @@ impl LitoolsApp {
 
         let database = IndexDatabase::in_memory()?;
         let settings = load_settings(&database)?;
+        let plugins = load_plugins_from_database(&database)?;
         let search = default_search_engine(database.clone());
 
         Ok(Self {
-            context: AppContext::new(database, search, SettingsStore::new(settings)),
+            context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
         })
     }
 
@@ -207,13 +233,18 @@ impl LitoolsApp {
             return self.execute_app_result(&result_id, app_id, &action_id);
         }
 
+        if let Some((plugin_id, command_id)) = plugin_command_from_result_id(&result_id) {
+            return self
+                .execute_plugin_command_result(&result_id, plugin_id, command_id, &action_id);
+        }
+
         let effect = builtin_effect_for_result(&result_id)?;
 
         match effect {
-            BuiltinCommandEffect::ReloadIndex => {
+            CommandEffect::ReloadIndex => {
                 let _ = self.reload_index()?;
             }
-            BuiltinCommandEffect::ToggleTheme => self.toggle_theme()?,
+            CommandEffect::ToggleTheme => self.toggle_theme()?,
             _ => {}
         }
 
@@ -334,11 +365,16 @@ impl LitoolsApp {
         let connection = self.context.database.connection();
         let pinned = PinnedRepository::new(&connection).list_pinned(limit)?;
         let apps = AppRepository::new(&connection);
+        let plugin_commands = PluginCommandRepository::new(&connection);
         let mut items = Vec::new();
 
         for record in pinned {
-            if let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)?
-            {
+            if let Some(result) = result_for_target(
+                &apps,
+                &plugin_commands,
+                &record.target_type,
+                &record.target_id,
+            )? {
                 items.push(LauncherItem {
                     result,
                     is_pinned: true,
@@ -353,11 +389,17 @@ impl LitoolsApp {
         let connection = self.context.database.connection();
         let usage = UsageRepository::new(&connection).recent_unique_targets(limit)?;
         let apps = AppRepository::new(&connection);
+        let plugin_commands = PluginCommandRepository::new(&connection);
         let pinned = PinnedRepository::new(&connection);
         let mut items = Vec::new();
 
         for record in usage {
-            let Some(result) = result_for_target(&apps, &record.target_type, &record.target_id)?
+            let Some(result) = result_for_target(
+                &apps,
+                &plugin_commands,
+                &record.target_type,
+                &record.target_id,
+            )?
             else {
                 continue;
             };
@@ -400,6 +442,16 @@ impl LitoolsApp {
                 find_builtin_command(&target_id)
                     .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
             }
+            PLUGIN_TARGET_TYPE => {
+                let Some((plugin_id, command_id)) = plugin_command_from_target_id(&target_id)
+                else {
+                    return Err(LitoolsError::CommandNotFound(result_id.to_string()));
+                };
+                let connection = self.context.database.connection();
+                PluginCommandRepository::new(&connection)
+                    .find_plugin_command(plugin_id, command_id)?
+                    .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
+            }
             _ => return Err(LitoolsError::CommandNotFound(result_id.to_string())),
         }
 
@@ -411,7 +463,64 @@ impl LitoolsApp {
             return Some(("app", app_id.to_string()));
         }
 
+        if let Some((plugin_id, command_id)) = plugin_command_from_result_id(result_id) {
+            return Some((PLUGIN_TARGET_TYPE, plugin_target_id(plugin_id, command_id)));
+        }
+
         find_builtin_command(result_id).map(|command| ("command", command.id.to_string()))
+    }
+
+    fn execute_plugin_command_result(
+        &self,
+        result_id: &str,
+        plugin_id: &str,
+        command_id: &str,
+        action_id: &str,
+    ) -> LitoolsResult<CommandExecution> {
+        if action_id != OPEN_PLUGIN_ACTION_ID {
+            return Err(LitoolsError::CommandNotFound(format!(
+                "{result_id}:{action_id}"
+            )));
+        }
+
+        let plugin = self
+            .context
+            .plugins
+            .find_plugin(plugin_id)
+            .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
+        if !plugin.enabled {
+            return Err(LitoolsError::CommandNotFound(result_id.to_string()));
+        }
+        let command = plugin
+            .manifest
+            .commands
+            .iter()
+            .find(|command| command.id == command_id)
+            .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
+        if command.mode != PluginCommandMode::View {
+            return Err(LitoolsError::CommandNotFound(result_id.to_string()));
+        }
+
+        let route = plugin_runtime_route(plugin_id, command_id);
+        let connection = self.context.database.connection();
+        UsageRepository::new(&connection).record_selection(
+            &Uuid::new_v4().to_string(),
+            PLUGIN_TARGET_TYPE,
+            &plugin_target_id(plugin_id, command_id),
+            None,
+            &Utc::now().to_rfc3339(),
+        )?;
+
+        Ok(CommandExecution {
+            message: format!("正在打开 {}", command.title),
+            result_id: result_id.to_string(),
+            action_id: action_id.to_string(),
+            effect: CommandEffect::OpenPluginView {
+                plugin_id: plugin_id.to_string(),
+                command_id: command_id.to_string(),
+                route,
+            },
+        })
     }
 
     fn execute_app_result(
@@ -449,7 +558,7 @@ impl LitoolsApp {
             message: format!("正在打开 {}", app.name),
             result_id: result_id.to_string(),
             action_id: action_id.to_string(),
-            effect: BuiltinCommandEffect::None,
+            effect: CommandEffect::None,
         })
     }
 
@@ -487,6 +596,7 @@ fn section_if_not_empty(
 
 fn result_for_target(
     apps: &AppRepository<'_>,
+    plugin_commands: &PluginCommandRepository<'_>,
     target_type: &str,
     target_id: &str,
 ) -> LitoolsResult<Option<SearchResult>> {
@@ -496,6 +606,14 @@ fn result_for_target(
             .map(|app| search_result_for_app(app, ""))),
         "command" => Ok(find_builtin_command(target_id)
             .map(|command| search_result_for_builtin_command(command, ""))),
+        PLUGIN_TARGET_TYPE => {
+            let Some((plugin_id, command_id)) = plugin_command_from_target_id(target_id) else {
+                return Ok(None);
+            };
+            Ok(plugin_commands
+                .find_plugin_command(plugin_id, command_id)?
+                .map(|command| search_result_for_plugin_command_record(command, "")))
+        }
         _ => Ok(None),
     }
 }
@@ -527,8 +645,160 @@ fn reload_index_summary(
 fn default_search_engine(database: IndexDatabase) -> SearchEngine {
     let mut search = SearchEngine::new();
     search.register_provider(Arc::new(BuiltinCommandProvider));
-    search.register_provider(Arc::new(AppSearchProvider::new(database)));
+    search.register_provider(Arc::new(AppSearchProvider::new(database.clone())));
+    search.register_provider(Arc::new(PluginCommandProvider::new(database)));
     search
+}
+
+fn sync_and_load_plugins(
+    database: &IndexDatabase,
+    paths: &AppBootstrapPaths,
+) -> LitoolsResult<PluginManager> {
+    let mut roots = Vec::new();
+    if let Some(bundled_plugins_dir) = &paths.bundled_plugins_dir {
+        roots.push(PluginDiscoveryRoot {
+            path: bundled_plugins_dir.clone(),
+            source: PluginSource::Bundled,
+        });
+    }
+    roots.push(PluginDiscoveryRoot {
+        path: paths.data_dir.join("plugins"),
+        source: PluginSource::User,
+    });
+
+    let discovered_plugins = dedupe_discovered_plugins(discover_plugins(roots));
+    let updated_at = Utc::now().to_rfc3339();
+
+    {
+        let connection = database.connection();
+        let plugins = PluginRepository::new(&connection);
+        let plugin_commands = PluginCommandRepository::new(&connection);
+        let mut seen_by_source: HashMap<&'static str, Vec<String>> = HashMap::new();
+
+        for discovered in discovered_plugins {
+            let manifest_json = serde_json::to_string(&discovered.manifest)?;
+            let existing = plugins.find_plugin(&discovered.manifest.id)?;
+            let installed_at = existing
+                .as_ref()
+                .map(|plugin| plugin.installed_at.as_str())
+                .unwrap_or(&updated_at);
+            let enabled = existing
+                .as_ref()
+                .map(|plugin| plugin.enabled)
+                .unwrap_or_else(|| discovered.source.default_enabled());
+            let trusted = existing
+                .as_ref()
+                .map(|plugin| plugin.trusted)
+                .unwrap_or_else(|| discovered.source.default_trusted());
+            let root_dir = discovered.root_dir.to_string_lossy().to_string();
+            let source = discovered.source.as_str();
+            seen_by_source
+                .entry(source)
+                .or_default()
+                .push(discovered.manifest.id.clone());
+
+            plugins.upsert_plugin(PluginUpsert {
+                id: &discovered.manifest.id,
+                name: &discovered.manifest.name,
+                version: &discovered.manifest.version,
+                path: &root_dir,
+                manifest_json: &manifest_json,
+                source,
+                enabled,
+                trusted,
+                installed_at,
+                updated_at: &updated_at,
+            })?;
+
+            let command_upserts = discovered
+                .manifest
+                .commands
+                .iter()
+                .map(|command| PluginCommandUpsert {
+                    id: plugin_result_id(&discovered.manifest.id, &command.id),
+                    plugin_id: discovered.manifest.id.clone(),
+                    command_id: command.id.clone(),
+                    title: command.title.clone(),
+                    subtitle: command.subtitle.clone(),
+                    keywords: command.keywords.clone(),
+                    mode: command.mode.as_str().to_string(),
+                    permission_requirements: discovered.manifest.permissions.clone(),
+                })
+                .collect::<Vec<_>>();
+            plugin_commands
+                .replace_commands_for_plugin(&discovered.manifest.id, &command_upserts)?;
+        }
+
+        for source in [PluginSource::Bundled, PluginSource::User] {
+            let seen_ids = seen_by_source.remove(source.as_str()).unwrap_or_default();
+            plugins.delete_plugins_not_in_source_ids(source.as_str(), &seen_ids)?;
+        }
+    }
+
+    load_plugins_from_database(database)
+}
+
+fn dedupe_discovered_plugins(
+    discovered_plugins: Vec<litools_plugin::DiscoveredPlugin>,
+) -> Vec<litools_plugin::DiscoveredPlugin> {
+    let mut plugins_by_id: HashMap<String, litools_plugin::DiscoveredPlugin> = HashMap::new();
+
+    for plugin in discovered_plugins {
+        let id = plugin.manifest.id.clone();
+        match plugins_by_id.get(&id) {
+            Some(existing)
+                if plugin_source_priority(&existing.source)
+                    <= plugin_source_priority(&plugin.source) =>
+            {
+                eprintln!("plugin discovery: ignoring duplicate plugin id {id}");
+            }
+            _ => {
+                if plugins_by_id.contains_key(&id) {
+                    eprintln!(
+                        "plugin discovery: replacing duplicate plugin id {id} with higher-priority source"
+                    );
+                }
+                plugins_by_id.insert(id, plugin);
+            }
+        }
+    }
+
+    let mut plugins = plugins_by_id.into_values().collect::<Vec<_>>();
+    plugins.sort_by(|left, right| left.manifest.id.cmp(&right.manifest.id));
+    plugins
+}
+
+fn plugin_source_priority(source: &PluginSource) -> u8 {
+    match source {
+        PluginSource::Bundled => 0,
+        PluginSource::User => 1,
+    }
+}
+
+fn load_plugins_from_database(database: &IndexDatabase) -> LitoolsResult<PluginManager> {
+    let connection = database.connection();
+    let plugins = PluginRepository::new(&connection)
+        .list_plugins()?
+        .into_iter()
+        .filter_map(|record| {
+            let manifest = serde_json::from_str(&record.manifest_json).ok()?;
+            Some(InstalledPlugin {
+                manifest,
+                path: record.path.into(),
+                source: PluginSource::from_str(&record.source).unwrap_or(PluginSource::User),
+                enabled: record.enabled,
+                trusted: record.trusted,
+                installed_at: record.installed_at,
+                updated_at: record.updated_at,
+            })
+        })
+        .collect();
+
+    Ok(PluginManager::hydrate(plugins))
+}
+
+pub fn plugin_runtime_route(plugin_id: &str, command_id: &str) -> String {
+    format!("/plugin-runtime/{plugin_id}/{command_id}")
 }
 
 fn load_settings(database: &IndexDatabase) -> LitoolsResult<AppSettings> {
@@ -551,31 +821,32 @@ fn persist_settings(database: &IndexDatabase, settings: &AppSettings) -> Litools
     Ok(())
 }
 
-fn builtin_effect_for_result(result_id: &str) -> LitoolsResult<BuiltinCommandEffect> {
+fn builtin_effect_for_result(result_id: &str) -> LitoolsResult<CommandEffect> {
     match result_id {
-        "open-settings" => Ok(BuiltinCommandEffect::OpenSettings),
-        "open-diagnostics" => Ok(BuiltinCommandEffect::OpenDiagnostics),
-        "open-plugins" => Ok(BuiltinCommandEffect::OpenPlugins),
-        "open-logs-directory" => Ok(BuiltinCommandEffect::OpenLogsDirectory),
-        "open-data-directory" => Ok(BuiltinCommandEffect::OpenDataDirectory),
-        "reload-index" => Ok(BuiltinCommandEffect::ReloadIndex),
-        "quit-app" => Ok(BuiltinCommandEffect::QuitApp),
-        "toggle-theme" => Ok(BuiltinCommandEffect::ToggleTheme),
+        "open-settings" => Ok(CommandEffect::OpenSettings),
+        "open-diagnostics" => Ok(CommandEffect::OpenDiagnostics),
+        "open-plugins" => Ok(CommandEffect::OpenPlugins),
+        "open-logs-directory" => Ok(CommandEffect::OpenLogsDirectory),
+        "open-data-directory" => Ok(CommandEffect::OpenDataDirectory),
+        "reload-index" => Ok(CommandEffect::ReloadIndex),
+        "quit-app" => Ok(CommandEffect::QuitApp),
+        "toggle-theme" => Ok(CommandEffect::ToggleTheme),
         _ => Err(LitoolsError::CommandNotFound(result_id.to_string())),
     }
 }
 
-fn message_for_effect(effect: &BuiltinCommandEffect) -> &'static str {
+fn message_for_effect(effect: &CommandEffect) -> &'static str {
     match effect {
-        BuiltinCommandEffect::None => "未执行任何操作",
-        BuiltinCommandEffect::OpenSettings => "正在打开设置",
-        BuiltinCommandEffect::OpenDiagnostics => "正在打开诊断",
-        BuiltinCommandEffect::OpenPlugins => "正在打开插件管理",
-        BuiltinCommandEffect::OpenLogsDirectory => "正在打开日志目录",
-        BuiltinCommandEffect::OpenDataDirectory => "正在打开数据目录",
-        BuiltinCommandEffect::ReloadIndex => "正在重载索引",
-        BuiltinCommandEffect::QuitApp => "正在退出应用",
-        BuiltinCommandEffect::ToggleTheme => "正在切换主题",
+        CommandEffect::None => "未执行任何操作",
+        CommandEffect::OpenSettings => "正在打开设置",
+        CommandEffect::OpenDiagnostics => "正在打开诊断",
+        CommandEffect::OpenPlugins => "正在打开插件管理",
+        CommandEffect::OpenLogsDirectory => "正在打开日志目录",
+        CommandEffect::OpenDataDirectory => "正在打开数据目录",
+        CommandEffect::OpenPluginView { .. } => "正在打开插件",
+        CommandEffect::ReloadIndex => "正在重载索引",
+        CommandEffect::QuitApp => "正在退出应用",
+        CommandEffect::ToggleTheme => "正在切换主题",
     }
 }
 
@@ -692,7 +963,10 @@ mod tests {
         let updated = app.update_settings(settings).expect("update settings");
 
         assert_eq!(updated.theme, "system");
-        assert_eq!(updated.search.enabled_providers, ["apps", "commands"]);
+        assert_eq!(
+            updated.search.enabled_providers,
+            ["apps", "commands", "plugins"]
+        );
         assert_eq!(app.settings(), &updated);
     }
 

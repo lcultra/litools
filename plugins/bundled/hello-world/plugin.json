@@ -1,0 +1,19 @@
+{
+  "id": "dev.litools.hello-world",
+  "name": "Hello World",
+  "version": "0.1.0",
+  "description": "Built-in litools plugin used to verify plugin runtime capabilities",
+  "author": "litools contributors",
+  "entry": "dist/index.html",
+  "icon": "dist/icon.svg",
+  "commands": [
+    {
+      "id": "hello",
+      "title": "Hello World",
+      "subtitle": "Open the built-in example plugin view",
+      "keywords": ["hello", "example", "builtin", "plugin"],
+      "mode": "view"
+    }
+  ],
+  "permissions": ["ui:window"]
+}

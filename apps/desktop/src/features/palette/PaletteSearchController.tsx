@@ -3,7 +3,7 @@ import { Menu } from '@tauri-apps/api/menu';
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { executeResult, focusMainWindow, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
-import type { BuiltinCommandEffect, LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
+import type { CommandEffect, LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
 import { type PaletteRenderSection, PaletteView } from './PaletteView';
 
 const MIN_LAUNCHER_HEIGHT = 96;
@@ -14,7 +14,7 @@ const DEFAULT_VISIBLE_ROWS = 2;
 let cachedIdleSections: LauncherSection[] = [];
 
 type PaletteSearchControllerProps = {
-    onCommandEffect: (effect: BuiltinCommandEffect) => void;
+    onCommandEffect: (effect: CommandEffect) => void;
 };
 
 export type VisiblePaletteItem = {

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "litools plugin manifest",
   "type": "object",
-  "required": ["id", "name", "version", "entry"],
+  "required": ["id", "name", "version", "entry", "icon"],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
     "name": { "type": "string" },

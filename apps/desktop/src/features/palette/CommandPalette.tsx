@@ -1,8 +1,8 @@
-import type { BuiltinCommandEffect } from '../../bridge/types';
+import type { CommandEffect } from '../../bridge/types';
 import { PaletteSearchController } from './PaletteSearchController';
 
 type CommandPaletteProps = {
-    onCommandEffect: (effect: BuiltinCommandEffect) => void;
+    onCommandEffect: (effect: CommandEffect) => void;
 };
 
 export function CommandPalette(props: CommandPaletteProps) {

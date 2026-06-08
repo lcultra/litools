@@ -5,6 +5,7 @@
   "description": "Example litools plugin",
   "author": "litools contributors",
   "entry": "dist/index.html",
+  "icon": "dist/icon.svg",
   "commands": [
     {
       "id": "hello",

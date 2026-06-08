@@ -5,8 +5,9 @@ pub mod context;
 pub mod error;
 pub mod event;
 pub mod launcher;
+pub mod plugin_provider;
 
-pub use app::{LitoolsApp, ReloadIndexSummary};
-pub use command::{BuiltinCommandEffect, BuiltinCommandProvider, CommandExecution};
+pub use app::{AppBootstrapPaths, LitoolsApp, ReloadIndexSummary, plugin_runtime_route};
+pub use command::{BuiltinCommandProvider, CommandEffect, CommandExecution};
 pub use error::{LitoolsError, LitoolsResult};
 pub use launcher::{LauncherItem, LauncherPanelResponse, LauncherSection};

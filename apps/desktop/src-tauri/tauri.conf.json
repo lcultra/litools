@@ -12,12 +12,15 @@
   "app": {
     "macOSPrivateApi": true,
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost litools-icon:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; frame-src 'self' litools-plugin:; child-src 'self' litools-plugin:; img-src 'self' asset: http://asset.localhost litools-icon: litools-plugin:; style-src 'self' 'unsafe-inline' litools-plugin:; script-src 'self' litools-plugin:; connect-src ipc: http://ipc.localhost"
     },
     "windows": []
   },
   "bundle": {
     "active": false,
-    "targets": "all"
+    "targets": "all",
+    "resources": {
+      "../../../plugins/bundled": "plugins/bundled"
+    }
   }
 }

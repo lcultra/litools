@@ -6,10 +6,12 @@ export type ViewKind = (typeof viewKinds)[number];
 export type HostKind = (typeof hostKinds)[number];
 export type ManagementNavGroupId = (typeof managementNavGroups)[number];
 
-export const viewIds = ['palette', 'settings', 'diagnostics', 'plugins'] as const;
+export const viewIds = ['palette', 'settings', 'diagnostics', 'plugins', 'pluginRuntime'] as const;
 
 export type AppViewId = (typeof viewIds)[number];
-export type AppRoutePath = '/' | '/settings' | '/diagnostics' | '/plugins';
+export type CoreRoutePath = '/' | '/settings' | '/diagnostics' | '/plugins';
+export type PluginRuntimeRoutePath = `/plugin-runtime/${string}/${string}`;
+export type AppRoutePath = CoreRoutePath | PluginRuntimeRoutePath;
 
 type RouteDefinition = {
     allowedHosts: HostKind[];
@@ -97,15 +99,34 @@ export function isAppViewId(value: string): value is AppViewId {
     return viewIds.includes(value as AppViewId);
 }
 
+export function isPluginRuntimeRoutePath(value: string): value is PluginRuntimeRoutePath {
+    const parts = value.split('/');
+    return parts.length === 4 && parts[0] === '' && parts[1] === 'plugin-runtime' && Boolean(parts[2]) && Boolean(parts[3]);
+}
+
 export function isAppRoutePath(value: string): value is AppRoutePath {
-    return routeDefinitions.some((route) => route.path === value);
+    return routeDefinitions.some((route) => route.path === value) || isPluginRuntimeRoutePath(value);
 }
 
 export function routeForViewId(viewId: AppViewId) {
     return routeDefinitions.find((route) => route.id === viewId) ?? fallbackRoute;
 }
 
-export function routeForPath(pathname: string) {
+export function routeForPath(pathname: string): RouteDefinition {
+    if (isPluginRuntimeRoutePath(pathname)) {
+        return {
+            allowedHosts: ['main', 'detached', 'runtime'],
+            defaultHost: 'runtime',
+            description: '运行插件视图。',
+            id: 'pluginRuntime',
+            kind: 'runtime',
+            label: '插件运行时',
+            path: pathname,
+            showInManagementNav: false,
+            title: '插件运行时',
+        };
+    }
+
     return routeDefinitions.find((route) => route.path === pathname) ?? fallbackRoute;
 }
 
@@ -124,4 +145,17 @@ export function canDetachRoute(path: AppRoutePath) {
 
 export function pathForNavigationPayload(payload: string): AppRoutePath | null {
     return isAppRoutePath(payload) ? payload : null;
+}
+
+export function pluginRuntimeRoute(pluginId: string, commandId: string): PluginRuntimeRoutePath {
+    return `/plugin-runtime/${pluginId}/${commandId}`;
+}
+
+export function pluginRuntimeRouteParts(path: AppRoutePath): { pluginId: string; commandId: string } | null {
+    if (!isPluginRuntimeRoutePath(path)) {
+        return null;
+    }
+
+    const [, , pluginId, commandId] = path.split('/');
+    return { pluginId, commandId };
 }

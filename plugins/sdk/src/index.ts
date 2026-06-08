@@ -14,7 +14,7 @@ export type PluginManifest = {
   entry: string;
   description?: string;
   author?: string;
-  icon?: string;
+  icon: string;
   commands?: PluginCommand[];
   permissions?: PluginPermission[];
 };

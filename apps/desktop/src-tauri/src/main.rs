@@ -5,6 +5,7 @@ mod index_refresh;
 mod ipc;
 #[cfg(target_os = "macos")]
 mod macos_icon;
+mod plugin_protocol;
 mod shortcut;
 mod state;
 mod surface;
@@ -12,12 +13,35 @@ mod tray;
 mod view;
 mod windowing;
 
+use litools_core::AppBootstrapPaths;
 use state::AppState;
 use tauri::Manager;
 use tauri_plugin_global_shortcut::ShortcutState;
 
+fn bundled_plugins_dir(app: &tauri::App) -> Option<std::path::PathBuf> {
+    app.path()
+        .resolve("plugins/bundled", tauri::path::BaseDirectory::Resource)
+        .ok()
+        .filter(|path| path.exists())
+        .or_else(dev_bundled_plugins_dir)
+}
+
+#[cfg(debug_assertions)]
+fn dev_bundled_plugins_dir() -> Option<std::path::PathBuf> {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../..")
+        .join("plugins/bundled");
+    path.exists().then_some(path)
+}
+
+#[cfg(not(debug_assertions))]
+fn dev_bundled_plugins_dir() -> Option<std::path::PathBuf> {
+    None
+}
+
 fn main() {
     let icon_protocol = icon_protocol::IconProtocol::default();
+    let plugin_protocol = plugin_protocol::PluginProtocol;
 
     tauri::Builder::default()
         .register_uri_scheme_protocol("litools-icon", move |context, request| {
@@ -30,6 +54,19 @@ fn main() {
 
             icon_protocol.handle(&state, request.uri())
         })
+        .register_uri_scheme_protocol(
+            plugin_protocol::PLUGIN_PROTOCOL_SCHEME,
+            move |context, request| {
+                let Some(state) = context.app_handle().try_state::<AppState>() else {
+                    return tauri::http::Response::builder()
+                        .status(tauri::http::StatusCode::INTERNAL_SERVER_ERROR)
+                        .body(Vec::new())
+                        .expect("valid plugin protocol error response");
+                };
+
+                plugin_protocol.handle(&state, request.uri())
+            },
+        )
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(move |app, shortcut, event| {
@@ -47,7 +84,11 @@ fn main() {
         )
         .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
-            app.manage(AppState::bootstrap(data_dir)?);
+            let bundled_plugins_dir = bundled_plugins_dir(app);
+            app.manage(AppState::bootstrap(AppBootstrapPaths {
+                data_dir,
+                bundled_plugins_dir,
+            })?);
             surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
             tray::setup_tray(app)?;
             shortcut::register_global_shortcut(
@@ -88,7 +129,8 @@ fn main() {
             ipc::diagnostics::reload_index,
             ipc::settings::get_settings,
             ipc::settings::update_settings,
-            ipc::diagnostics::list_plugins,
+            ipc::plugins::list_plugins,
+            ipc::plugins::get_plugin_runtime_descriptor,
             ipc::diagnostics::get_diagnostics
         ])
         .run(tauri::generate_context!())

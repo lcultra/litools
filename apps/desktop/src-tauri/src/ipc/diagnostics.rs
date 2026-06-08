@@ -17,31 +17,6 @@ pub fn reload_index(app_handle: tauri::AppHandle) -> Result<IndexStatus, String>
 }
 
 #[derive(Serialize)]
-pub struct PluginSummary {
-    id: String,
-    name: String,
-    version: String,
-    enabled: bool,
-}
-
-#[tauri::command]
-pub fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
-    Ok(app
-        .context()
-        .plugins
-        .installed_plugins()
-        .iter()
-        .map(|plugin| PluginSummary {
-            id: plugin.manifest.id.clone(),
-            name: plugin.manifest.name.clone(),
-            version: plugin.manifest.version.clone(),
-            enabled: plugin.enabled,
-        })
-        .collect())
-}
-
-#[derive(Serialize)]
 pub struct UsageEventResponse {
     target_type: String,
     target_id: String,
@@ -88,7 +63,7 @@ pub fn get_diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsResponse
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         app_data_dir: state.data_dir().display().to_string(),
         platform: std::env::consts::OS.to_string(),
-        plugin_count: app.context().plugins.installed_plugins().len(),
+        plugin_count: app.context().plugins.len(),
         command_count: app.command_count().map_err(|error| error.to_string())?,
         app_count: app.app_count().map_err(|error| error.to_string())?,
         index_status: state.index_status(),
