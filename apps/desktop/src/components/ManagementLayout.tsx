@@ -25,7 +25,14 @@ export function ManagementLayout(props: ManagementLayoutProps) {
                 <Show when={mode() === 'center'}>
                     <ManagementNav />
                 </Show>
-                <section class="min-w-0 flex-1 overflow-y-auto p-6">{props.children}</section>
+                <section
+                    class="min-w-0 flex-1 overflow-y-auto"
+                    classList={{
+                        'p-6': mode() === 'center',
+                    }}
+                >
+                    {props.children}
+                </section>
             </div>
         </WindowFrame>
     );

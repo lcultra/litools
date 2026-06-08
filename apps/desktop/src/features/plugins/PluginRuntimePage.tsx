@@ -34,7 +34,7 @@ export function PluginRuntimePage(props: { onBreadcrumbsChange?: (breadcrumbs: s
                         </div>
                     }
                 >
-                    {(runtime) => <iframe class="min-h-0 flex-1 rounded-xl border border-border bg-white" src={runtime().entryUrl} title={runtime().title} />}
+                    {(runtime) => <iframe class="min-h-0 flex-1 border-0 bg-white" src={runtime().entryUrl} title={runtime().title} />}
                 </Show>
             </Show>
         </div>
