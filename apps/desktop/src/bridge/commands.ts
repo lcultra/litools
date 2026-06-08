@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AppRoutePath, WindowTarget } from '../views/registry';
-import type { AppSettings, CommandExecution, DiagnosticsResponse, IndexStatus, LauncherPanelResponse, ManagedWindowMetadata, SearchResult } from './types';
+import type { AppRoutePath, HostKind } from '../views/registry';
+import type { AppSettings, CommandExecution, DiagnosticsResponse, IndexStatus, LauncherPanelResponse, SearchResult, SurfaceMetadata } from './types';
 
 export function search(query: string): Promise<SearchResult[]> {
     return invoke<SearchResult[]>('search', { query });
@@ -26,35 +26,35 @@ export function executeResult(resultId: string, actionId: string): Promise<Comma
     return invoke<CommandExecution>('execute_result', { resultId, actionId });
 }
 
-export function detachRoute(route: AppRoutePath): Promise<ManagedWindowMetadata> {
-    return invoke<ManagedWindowMetadata>('detach_route', { route });
+export function detachRoute(route: AppRoutePath): Promise<SurfaceMetadata> {
+    return invoke<SurfaceMetadata>('detach_route', { route });
 }
 
-export function updateSurfaceRoute(route: AppRoutePath): Promise<ManagedWindowMetadata> {
-    return invoke<ManagedWindowMetadata>('update_surface_route', { route });
+export function updateSurfaceRoute(route: AppRoutePath): Promise<SurfaceMetadata> {
+    return invoke<SurfaceMetadata>('update_surface_route', { route });
 }
 
-export function openRoute(route: AppRoutePath, target?: WindowTarget): Promise<void> {
+export function openRoute(route: AppRoutePath, target?: HostKind): Promise<void> {
     return invoke<void>('open_route', { route, target });
 }
 
-export function hideWindow(target?: WindowTarget | string): Promise<void> {
+export function hideSurface(target?: HostKind | string): Promise<void> {
     return invoke<void>('hide_window', { target });
 }
 
-export function focusWindow(target?: WindowTarget | string): Promise<void> {
+export function focusSurface(target?: HostKind | string): Promise<void> {
     return invoke<void>('focus_window', { target });
 }
 
-export function listWindows(): Promise<ManagedWindowMetadata[]> {
-    return invoke<ManagedWindowMetadata[]>('list_windows');
+export function listSurfaces(): Promise<SurfaceMetadata[]> {
+    return invoke<SurfaceMetadata[]>('list_windows');
 }
 
-export function getCurrentWindowMetadata(): Promise<ManagedWindowMetadata | null> {
-    return invoke<ManagedWindowMetadata | null>('get_current_window_metadata');
+export function getCurrentSurfaceMetadata(): Promise<SurfaceMetadata | null> {
+    return invoke<SurfaceMetadata | null>('get_current_window_metadata');
 }
 
-export function destroyWindow(target: string): Promise<void> {
+export function destroySurface(target: string): Promise<void> {
     return invoke<void>('destroy_window', { target });
 }
 

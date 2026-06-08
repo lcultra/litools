@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { getCurrentWindowMetadata, getSettings, hideWindow, updateSurfaceRoute } from './bridge/commands';
+import { getCurrentSurfaceMetadata, getSettings, hideSurface, updateSurfaceRoute } from './bridge/commands';
 import { onNavigate, onSurfaceMetadataChanged } from './bridge/events';
 import type { AppSettings, BuiltinCommandEffect } from './bridge/types';
 import { ManagementLayout } from './components/ManagementLayout';
@@ -71,7 +71,7 @@ export function App() {
     }
 
     async function restoreSurfaceHost() {
-        const metadata = await getCurrentWindowMetadata();
+        const metadata = await getCurrentSurfaceMetadata();
         setHostWindowLabel(metadata?.hostWindowLabel ?? 'main');
     }
 
@@ -89,7 +89,7 @@ export function App() {
 
     function closeManagementPanel() {
         if (isDetachedWindow()) {
-            void hideWindow();
+            void hideSurface();
             return;
         }
 

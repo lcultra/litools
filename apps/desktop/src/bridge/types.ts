@@ -29,7 +29,7 @@ export type ViewProvider = 'core' | { plugin: { pluginId: string } };
 export type WindowHostKind = 'main' | 'detached' | 'runtime';
 export type SurfaceLifecycle = 'active' | 'hidden' | 'destroyed';
 
-export type ManagedWindowMetadata = {
+export type SurfaceMetadata = {
     id: string;
     webviewLabel: string;
     viewId: string;
