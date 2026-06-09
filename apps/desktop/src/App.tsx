@@ -45,9 +45,15 @@ export function App() {
         };
         window.addEventListener('keydown', handleKeyDown);
 
+        function preventContextMenu(event: MouseEvent) {
+            event.preventDefault();
+        }
+        window.addEventListener('contextmenu', preventContextMenu);
+
         onCleanup(() => {
             media.removeEventListener('change', handleSystemTheme);
             window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('contextmenu', preventContextMenu);
             void unsubscribe.then((dispose) => dispose());
             void unsubscribeSurfaceMetadata.then((dispose) => dispose());
         });

@@ -18,6 +18,11 @@ pub fn initialization_script() -> String {
     document.head.appendChild(cornerStyle);
   }});
 
+  // Disable native context menu on all plugin webviews.
+  window.addEventListener('contextmenu', function (event) {{
+    event.preventDefault();
+  }});
+
   function invokeRuntime(method, params) {{
     var internals = window.__TAURI_INTERNALS__;
     if (!internals || typeof internals.invoke !== 'function') {{
