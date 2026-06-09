@@ -3,10 +3,10 @@ import type { LauncherItem, SearchResult } from '../../bridge/types';
 import { WindowFrame } from '../../components/WindowFrame';
 import { providerLabel } from '../../shared/labels';
 import { HighlightedText } from './HighlightedText';
-import { PaletteSearchInput } from './PaletteSearchInput';
+import { LauncherInput } from './LauncherInput';
 import { PinnedSortableGrid } from './PinnedSortableGrid';
 
-export type PaletteRenderItem = {
+export type LauncherRenderItem = {
     item: LauncherItem;
     result: SearchResult;
     sectionId: string;
@@ -18,17 +18,17 @@ export type PaletteRenderItem = {
     isPinned: boolean;
 };
 
-export type PaletteRenderSection = {
+export type LauncherRenderSection = {
     id: string;
     title: string;
-    items: PaletteRenderItem[];
+    items: LauncherRenderItem[];
     shownCount: number;
     totalCount: number;
     expanded: boolean;
     canExpand: boolean;
 };
 
-type PaletteViewProps = {
+type LauncherViewProps = {
     error: string | null;
     inputRef: (element: HTMLInputElement) => void;
     onContentElement: (element: HTMLElement) => void;
@@ -37,12 +37,12 @@ type PaletteViewProps = {
     onKeyDown: (event: KeyboardEvent) => void;
     onPinnedDragEnd: () => void;
     onPinnedReorder: (orderedIds: string[]) => void;
-    onResultContextMenu: (renderItem: PaletteRenderItem, position: { x: number; y: number }) => void;
+    onResultContextMenu: (renderItem: LauncherRenderItem, position: { x: number; y: number }) => void;
     onResultRun: (result: SearchResult) => void;
     onSectionExpandedToggle: (sectionId: string) => void;
     onSubmit: (event: SubmitEvent) => void;
     query: string;
-    renderSections: PaletteRenderSection[];
+    renderSections: LauncherRenderSection[];
     selectedIndex: number;
 };
 
@@ -50,7 +50,7 @@ type ResultButtonProps = {
     onClick: () => void;
     onContextMenu: (event: MouseEvent) => void;
     onSelectedElement?: (element: HTMLElement) => void;
-    renderItem: PaletteRenderItem;
+    renderItem: LauncherRenderItem;
     selected: boolean;
 };
 
@@ -101,7 +101,7 @@ function stopInteractiveEvent(event: Event) {
     event.stopPropagation();
 }
 
-export function PaletteView(props: PaletteViewProps) {
+export function LauncherView(props: LauncherViewProps) {
     let selectedResultElement: HTMLElement | undefined;
     const totalVisibleItems = () => props.renderSections.reduce((count, section) => count + section.items.length, 0);
     const shouldShowResults = () => props.error || totalVisibleItems() > 0 || props.query.trim();
@@ -129,11 +129,11 @@ export function PaletteView(props: PaletteViewProps) {
         event.preventDefault();
     }
 
-    function handleResultClick(renderItem: PaletteRenderItem) {
+    function handleResultClick(renderItem: LauncherRenderItem) {
         props.onResultRun(renderItem.result);
     }
 
-    function handleResultContextMenu(renderItem: PaletteRenderItem, event: MouseEvent) {
+    function handleResultContextMenu(renderItem: LauncherRenderItem, event: MouseEvent) {
         event.preventDefault();
         event.stopPropagation();
         props.onResultContextMenu(renderItem, { x: event.clientX, y: event.clientY });
@@ -148,7 +148,7 @@ export function PaletteView(props: PaletteViewProps) {
     return (
         <div on:contextmenu={handlePanelContextMenu}>
             <WindowFrame ref={handleContentElement} class="grid grid-rows-[auto_auto]">
-                <PaletteSearchInput
+                <LauncherInput
                     inputRef={props.inputRef}
                     onInput={props.onInput}
                     onInputBlur={props.onInputBlur}

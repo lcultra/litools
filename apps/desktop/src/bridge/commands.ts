@@ -5,9 +5,9 @@ import type {
     CommandExecution,
     IndexStatus,
     LauncherPanelResponse,
-    PluginRuntimeDescriptor,
-    PluginRuntimeInfo,
     PluginSummary,
+    PluginViewDescriptor,
+    PluginViewInfo,
     SearchResult,
     SurfaceMetadata,
 } from './types';
@@ -108,30 +108,30 @@ export function listPlugins(): Promise<PluginSummary[]> {
     return invoke<PluginSummary[]>('list_plugins');
 }
 
-export function getPluginRuntimeDescriptor(pluginId: string, commandId: string): Promise<PluginRuntimeDescriptor> {
-    return invoke<PluginRuntimeDescriptor>('get_plugin_runtime_descriptor', { pluginId, commandId });
+export function getPluginViewDescriptor(pluginId: string, commandId: string): Promise<PluginViewDescriptor> {
+    return invoke<PluginViewDescriptor>('get_plugin_view_descriptor', { pluginId, commandId });
 }
 
-export function dockPluginRuntime(pluginId: string, commandId: string): Promise<PluginRuntimeInfo> {
-    return invoke<PluginRuntimeInfo>('dock_plugin_runtime', { pluginId, commandId });
+export function openPluginView(pluginId: string, commandId: string): Promise<PluginViewInfo> {
+    return invoke<PluginViewInfo>('open_plugin_view', { pluginId, commandId });
 }
 
-export function hideDockedPluginRuntime(pluginId: string, commandId: string): Promise<PluginRuntimeInfo> {
-    return invoke<PluginRuntimeInfo>('hide_docked_plugin_runtime', { pluginId, commandId });
+export function hidePluginView(pluginId: string, commandId: string): Promise<PluginViewInfo> {
+    return invoke<PluginViewInfo>('hide_plugin_view', { pluginId, commandId });
 }
 
-export function detachPluginRuntime(pluginId: string, commandId: string): Promise<PluginRuntimeInfo> {
-    return invoke<PluginRuntimeInfo>('detach_plugin_runtime', { pluginId, commandId });
+export function detachPluginView(pluginId: string, commandId: string): Promise<PluginViewInfo> {
+    return invoke<PluginViewInfo>('detach_plugin_view', { pluginId, commandId });
 }
 
-export function closePluginRuntime(pluginId: string, commandId: string): Promise<void> {
-    return invoke<void>('close_plugin_runtime', { pluginId, commandId });
+export function closePluginView(pluginId: string, commandId: string): Promise<void> {
+    return invoke<void>('close_plugin_view', { pluginId, commandId });
 }
 
-export function closePluginRuntimeById(runtimeId: string): Promise<void> {
-    return invoke<void>('close_plugin_runtime_by_id', { runtimeId });
+export function closePluginViewById(runtimeId: string): Promise<void> {
+    return invoke<void>('close_plugin_view_by_id', { runtimeId });
 }
 
-export function getPluginRuntimeInfo(runtimeId: string): Promise<PluginRuntimeInfo> {
-    return invoke<PluginRuntimeInfo>('get_plugin_runtime_info', { runtimeId });
+export function getPluginViewInfo(runtimeId: string): Promise<PluginViewInfo> {
+    return invoke<PluginViewInfo>('get_plugin_view_info', { runtimeId });
 }

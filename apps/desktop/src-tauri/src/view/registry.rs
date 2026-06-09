@@ -3,26 +3,24 @@ use crate::view::model::{ViewDefinition, ViewKind, ViewProvider, WindowHostKind}
 pub const CORE_LAUNCHER_VIEW_ID: &str = "core.launcher";
 
 pub fn core_views() -> Vec<ViewDefinition> {
-    vec![
-        ViewDefinition {
-            id: CORE_LAUNCHER_VIEW_ID.to_string(),
-            provider: ViewProvider::Core,
-            kind: ViewKind::Launcher,
-            route: "/".to_string(),
-            title: "启动器".to_string(),
-            default_host: WindowHostKind::Main,
-            allowed_hosts: vec![WindowHostKind::Main],
-            detachable: false,
-        },
-    ]
+    vec![ViewDefinition {
+        id: CORE_LAUNCHER_VIEW_ID.to_string(),
+        provider: ViewProvider::Core,
+        kind: ViewKind::Launcher,
+        route: "/".to_string(),
+        title: "启动器".to_string(),
+        default_host: WindowHostKind::Main,
+        allowed_hosts: vec![WindowHostKind::Main],
+        detachable: false,
+    }]
 }
 
 pub fn view_for_route(route: &str) -> Option<ViewDefinition> {
     core_views().into_iter().find(|view| view.route == route)
 }
 
-pub fn plugin_runtime_route_parts(route: &str) -> Option<(&str, &str)> {
-    let rest = route.strip_prefix("/plugin-runtime/")?;
+pub fn plugin_route_parts(route: &str) -> Option<(&str, &str)> {
+    let rest = route.strip_prefix("/plugin/")?;
     let (plugin_id, command_id) = rest.split_once('/')?;
     if plugin_id.is_empty() || command_id.is_empty() || command_id.contains('/') {
         return None;
@@ -30,7 +28,7 @@ pub fn plugin_runtime_route_parts(route: &str) -> Option<(&str, &str)> {
     Some((plugin_id, command_id))
 }
 
-pub fn plugin_runtime_view(
+pub fn plugin_view_definition(
     plugin_id: &str,
     command_id: &str,
     title: impl Into<String>,
@@ -40,8 +38,8 @@ pub fn plugin_runtime_view(
         provider: ViewProvider::Plugin {
             plugin_id: plugin_id.to_string(),
         },
-        kind: ViewKind::Runtime,
-        route: format!("/plugin-runtime/{plugin_id}/{command_id}"),
+        kind: ViewKind::Plugin,
+        route: format!("/plugin/{plugin_id}/{command_id}"),
         title: title.into(),
         default_host: WindowHostKind::Runtime,
         allowed_hosts: vec![

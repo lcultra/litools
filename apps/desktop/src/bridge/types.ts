@@ -69,7 +69,7 @@ export type PluginSummary = {
     commands: PluginCommandSummary[];
 };
 
-export type PluginRuntimeDescriptor = {
+export type PluginViewDescriptor = {
     pluginId: string;
     commandId: string;
     pluginName: string;
@@ -78,17 +78,17 @@ export type PluginRuntimeDescriptor = {
     permissions: string[];
 };
 
-export type PluginRuntimePlacement = 'docked' | 'detached';
-export type PluginRuntimeLifecycle = 'created' | 'ready' | 'active' | 'closed' | 'failed';
+export type PluginViewPlacement = 'docked' | 'detached';
+export type PluginViewLifecycle = 'created' | 'ready' | 'active' | 'closed' | 'failed';
 
-export type PluginRuntimeBounds = {
+export type PluginViewBounds = {
     x: number;
     y: number;
     width: number;
     height: number;
 };
 
-export type PluginRuntimeInfo = {
+export type PluginViewInfo = {
     runtimeId: string;
     pluginId: string;
     commandId: string;
@@ -98,10 +98,21 @@ export type PluginRuntimeInfo = {
     detachedWindowLabel?: string | null;
     headerWebviewLabel?: string | null;
     webviewLabel: string;
-    placement: PluginRuntimePlacement;
-    bounds?: PluginRuntimeBounds | null;
-    lifecycle: PluginRuntimeLifecycle;
+    placement: PluginViewPlacement;
+    bounds?: PluginViewBounds | null;
+    lifecycle: PluginViewLifecycle;
     permissions: string[];
+};
+
+/** WorkspaceHeader 和 PluginView 之间共享的状态 */
+export type PluginViewState = {
+    pluginId: string;
+    commandId: string;
+    pluginName: string;
+    title: string;
+    lifecycle: PluginViewLifecycle;
+    placement: PluginViewPlacement;
+    runtimeId: string | null;
 };
 
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };

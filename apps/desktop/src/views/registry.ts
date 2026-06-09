@@ -1,16 +1,16 @@
-export const viewKinds = ['launcher', 'runtime'] as const;
+export const viewKinds = ['launcher', 'plugin'] as const;
 export const hostKinds = ['main', 'detached', 'runtime'] as const;
 
 export type ViewKind = (typeof viewKinds)[number];
 export type HostKind = (typeof hostKinds)[number];
 
-export const viewIds = ['palette', 'pluginRuntime', 'pluginRuntimeHeader'] as const;
+export const viewIds = ['palette', 'plugin', 'titlebar'] as const;
 
 export type AppViewId = (typeof viewIds)[number];
 export type CoreRoutePath = '/';
-export type PluginRuntimeRoutePath = `/plugin-runtime/${string}/${string}`;
-export type PluginRuntimeHeaderRoutePath = `/plugin-runtime-header/${string}`;
-export type AppRoutePath = CoreRoutePath | PluginRuntimeRoutePath | PluginRuntimeHeaderRoutePath;
+export type PluginRoutePath = `/plugin/${string}/${string}`;
+export type TitlebarRoutePath = `/titlebar/${string}`;
+export type AppRoutePath = CoreRoutePath | PluginRoutePath | TitlebarRoutePath;
 
 type RouteDefinition = {
     allowedHosts: HostKind[];
@@ -42,18 +42,18 @@ export function isAppViewId(value: string): value is AppViewId {
     return viewIds.includes(value as AppViewId);
 }
 
-export function isPluginRuntimeRoutePath(value: string): value is PluginRuntimeRoutePath {
+export function isPluginRoutePath(value: string): value is PluginRoutePath {
     const parts = value.split('/');
-    return parts.length === 4 && parts[0] === '' && parts[1] === 'plugin-runtime' && Boolean(parts[2]) && Boolean(parts[3]);
+    return parts.length === 4 && parts[0] === '' && parts[1] === 'plugin' && Boolean(parts[2]) && Boolean(parts[3]);
 }
 
-export function isPluginRuntimeHeaderRoutePath(value: string): value is PluginRuntimeHeaderRoutePath {
+export function isTitlebarRoutePath(value: string): value is TitlebarRoutePath {
     const parts = value.split('/');
-    return parts.length === 3 && parts[0] === '' && parts[1] === 'plugin-runtime-header' && Boolean(parts[2]);
+    return parts.length === 3 && parts[0] === '' && parts[1] === 'titlebar' && Boolean(parts[2]);
 }
 
 export function isAppRoutePath(value: string): value is AppRoutePath {
-    return routeDefinitions.some((route) => route.path === value) || isPluginRuntimeRoutePath(value) || isPluginRuntimeHeaderRoutePath(value);
+    return routeDefinitions.some((route) => route.path === value) || isPluginRoutePath(value) || isTitlebarRoutePath(value);
 }
 
 export function routeForViewId(viewId: AppViewId) {
@@ -61,29 +61,29 @@ export function routeForViewId(viewId: AppViewId) {
 }
 
 export function routeForPath(pathname: string): RouteDefinition {
-    if (isPluginRuntimeRoutePath(pathname)) {
+    if (isPluginRoutePath(pathname)) {
         return {
             allowedHosts: ['main', 'detached', 'runtime'],
             defaultHost: 'runtime',
             description: '运行插件视图。',
-            id: 'pluginRuntime',
-            kind: 'runtime',
-            label: '插件运行时',
+            id: 'plugin',
+            kind: 'plugin',
+            label: '插件',
             path: pathname,
-            title: '插件运行时',
+            title: '插件',
         };
     }
 
-    if (isPluginRuntimeHeaderRoutePath(pathname)) {
+    if (isTitlebarRoutePath(pathname)) {
         return {
             allowedHosts: ['runtime'],
             defaultHost: 'runtime',
-            description: '插件运行时标题栏。',
-            id: 'pluginRuntimeHeader',
-            kind: 'runtime',
-            label: '插件标题栏',
+            description: '分离窗口标题栏。',
+            id: 'titlebar',
+            kind: 'plugin',
+            label: '标题栏',
             path: pathname,
-            title: '插件标题栏',
+            title: '标题栏',
         };
     }
 
@@ -100,19 +100,19 @@ export function hostForRoute(path: AppRoutePath) {
 
 export function canDetachRoute(path: AppRoutePath) {
     const route = routeForPath(path);
-    return route.kind !== 'launcher' && route.id !== 'pluginRuntimeHeader' && route.allowedHosts.includes('detached');
+    return route.kind !== 'launcher' && route.id !== 'titlebar' && route.allowedHosts.includes('detached');
 }
 
 export function pathForNavigationPayload(payload: string): AppRoutePath | null {
     return isAppRoutePath(payload) ? payload : null;
 }
 
-export function pluginRuntimeRoute(pluginId: string, commandId: string): PluginRuntimeRoutePath {
-    return `/plugin-runtime/${pluginId}/${commandId}`;
+export function pluginRoute(pluginId: string, commandId: string): PluginRoutePath {
+    return `/plugin/${pluginId}/${commandId}`;
 }
 
-export function pluginRuntimeRouteParts(path: AppRoutePath): { pluginId: string; commandId: string } | null {
-    if (!isPluginRuntimeRoutePath(path)) {
+export function pluginRouteParts(path: AppRoutePath): { pluginId: string; commandId: string } | null {
+    if (!isPluginRoutePath(path)) {
         return null;
     }
 
@@ -120,8 +120,8 @@ export function pluginRuntimeRouteParts(path: AppRoutePath): { pluginId: string;
     return { pluginId, commandId };
 }
 
-export function pluginRuntimeHeaderRouteParts(path: AppRoutePath): { runtimeId: string } | null {
-    if (!isPluginRuntimeHeaderRoutePath(path)) {
+export function titlebarRouteParts(path: AppRoutePath): { runtimeId: string } | null {
+    if (!isTitlebarRoutePath(path)) {
         return null;
     }
 

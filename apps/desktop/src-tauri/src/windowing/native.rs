@@ -254,7 +254,7 @@ pub fn show_panel_host(window: &Window, center_on_show: bool) {
 pub fn show_host_for_view(window: &Window, view_kind: &ViewKind, center_on_show: bool) {
     match view_kind {
         ViewKind::Launcher => show_launcher_host(window, center_on_show),
-        ViewKind::Panel | ViewKind::Runtime => show_panel_host(window, center_on_show),
+        ViewKind::Plugin => show_panel_host(window, center_on_show),
     }
 }
 

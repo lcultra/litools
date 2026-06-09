@@ -1,14 +1,14 @@
 import { useLocation, useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { closePluginRuntime, getCurrentSurfaceMetadata, getSettings, hideSurface, updateSurfaceRoute } from './bridge/commands';
+import { closePluginView, getCurrentSurfaceMetadata, getSettings, hideSurface, updateSurfaceRoute } from './bridge/commands';
 import { onNavigate, onSurfaceMetadataChanged } from './bridge/events';
-import type { AppSettings, CommandEffect } from './bridge/types';
-import { RuntimeLayout } from './components/RuntimeLayout';
-import { CommandPalette } from './features/palette/CommandPalette';
-import { PluginRuntimeHeaderPage } from './features/plugins/PluginRuntimeHeaderPage';
-import { PluginRuntimePage } from './features/plugins/PluginRuntimePage';
+import type { AppSettings, CommandEffect, PluginViewState } from './bridge/types';
+import { WorkspaceView } from './components/WorkspaceView';
+import { Launcher } from './features/launcher/Launcher';
+import { TitlebarPage } from './features/titlebar/TitlebarPage';
+import { PluginView } from './features/workspace/PluginView';
 import { isDarkThemeValue } from './shared/theme';
-import { type AppRoutePath, pluginRuntimeRouteParts, routeForPath } from './views/registry';
+import { type AppRoutePath, pluginRouteParts, routeForPath } from './views/registry';
 
 export function App() {
     const location = useLocation();
@@ -17,7 +17,7 @@ export function App() {
     const [systemDark, setSystemDark] = createSignal(false);
 
     const [hostWindowLabel, setHostWindowLabel] = createSignal<string | null>(null);
-    const [runtimeBreadcrumbs, setRuntimeBreadcrumbs] = createSignal<string[] | null>(null);
+    const [pluginView, setPluginView] = createSignal<PluginViewState | null>(null);
     const isDetachedWindow = () => Boolean(hostWindowLabel() && hostWindowLabel() !== 'main');
     const activeRoute = () => routeForPath(location.pathname);
     const isLauncher = () => activeRoute().kind === 'launcher';
@@ -41,7 +41,7 @@ export function App() {
             }
 
             event.preventDefault();
-            closeRuntimeView();
+            closeCurrentView();
         };
         window.addEventListener('keydown', handleKeyDown);
 
@@ -59,7 +59,7 @@ export function App() {
 
     createEffect(() => {
         const route = activeRoute();
-        if (!hostWindowLabel() || route.id === 'pluginRuntimeHeader' || (route.path === '/' && isDetachedWindow())) {
+        if (!hostWindowLabel() || route.id === 'titlebar' || (route.path === '/' && isDetachedWindow())) {
             return;
         }
 
@@ -80,7 +80,7 @@ export function App() {
     }
 
     function safeNavigate(path: AppRoutePath) {
-        if (activeRoute().id === 'pluginRuntimeHeader') {
+        if (activeRoute().id === 'titlebar') {
             return;
         }
 
@@ -91,10 +91,10 @@ export function App() {
         navigate(path);
     }
 
-    function closeRuntimeView() {
-        const runtimeRoute = pluginRuntimeRouteParts(activeRoute().path);
-        if (runtimeRoute) {
-            void closePluginRuntime(runtimeRoute.pluginId, runtimeRoute.commandId);
+    function closeCurrentView() {
+        const parts = pluginRouteParts(activeRoute().path);
+        if (parts) {
+            void closePluginView(parts.pluginId, parts.commandId);
             safeNavigate('/');
             return;
         }
@@ -124,18 +124,13 @@ export function App() {
 
     return (
         <main class="h-screen overflow-hidden text-fg transition-colors">
-            <Show when={activeRoute().id !== 'pluginRuntimeHeader'} fallback={<PluginRuntimeHeaderPage path={activeRoute().path} />}>
-                <Show when={!isLauncher()} fallback={<CommandPalette onCommandEffect={handleCommandEffect} />}>
-                    <RuntimeLayout
-                        breadcrumbs={activeRoute().kind === 'runtime' ? (runtimeBreadcrumbs() ?? ['插件', activeRoute().label]) : undefined}
-                        isDetached={isDetachedWindow()}
-                        ownerReady={Boolean(hostWindowLabel())}
-                        onOpenLauncher={closeRuntimeView}
-                    >
-                        <Show when={activeRoute().kind === 'runtime'}>
-                            <PluginRuntimePage onBreadcrumbsChange={setRuntimeBreadcrumbs} path={activeRoute().path} />
+            <Show when={activeRoute().id !== 'titlebar'} fallback={<TitlebarPage path={activeRoute().path} />}>
+                <Show when={!isLauncher()} fallback={<Launcher onCommandEffect={handleCommandEffect} />}>
+                    <WorkspaceView isDetached={isDetachedWindow()} onClose={closeCurrentView} ownerReady={Boolean(hostWindowLabel())} pluginView={pluginView()}>
+                        <Show when={activeRoute().kind === 'plugin'}>
+                            <PluginView onStateChange={setPluginView} path={activeRoute().path} />
                         </Show>
-                    </RuntimeLayout>
+                    </WorkspaceView>
                 </Show>
             </Show>
         </main>

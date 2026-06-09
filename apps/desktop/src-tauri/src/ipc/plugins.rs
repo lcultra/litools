@@ -32,7 +32,7 @@ pub struct PluginSummary {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginRuntimeDescriptor {
+pub struct PluginViewDescriptor {
     plugin_id: String,
     command_id: String,
     plugin_name: String,
@@ -78,11 +78,11 @@ pub fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, St
 }
 
 #[tauri::command]
-pub fn get_plugin_runtime_descriptor(
+pub fn get_plugin_view_descriptor(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
-) -> Result<PluginRuntimeDescriptor, String> {
+) -> Result<PluginViewDescriptor, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     let plugin = app
         .context()
@@ -101,7 +101,7 @@ pub fn get_plugin_runtime_descriptor(
 
     let entry_url = plugin_entry_url(&plugin.manifest.id, &plugin.manifest.entry)?;
 
-    Ok(PluginRuntimeDescriptor {
+    Ok(PluginViewDescriptor {
         plugin_id,
         command_id,
         plugin_name: plugin.manifest.name.clone(),
@@ -111,11 +111,11 @@ pub fn get_plugin_runtime_descriptor(
     })
 }
 
-pub fn validate_plugin_runtime_route(
+pub fn validate_plugin_view_route(
     state: &AppState,
     route: &str,
 ) -> Result<crate::view::model::ViewDefinition, String> {
-    let Some((plugin_id, command_id)) = crate::view::registry::plugin_runtime_route_parts(route)
+    let Some((plugin_id, command_id)) = crate::view::registry::plugin_route_parts(route)
     else {
         return Err(format!("unknown route: {route}"));
     };
@@ -136,7 +136,7 @@ pub fn validate_plugin_runtime_route(
         .find(|command| command.id == command_id)
         .ok_or_else(|| format!("unknown plugin command route: {route}"))?;
 
-    Ok(crate::view::registry::plugin_runtime_view(
+    Ok(crate::view::registry::plugin_view_definition(
         plugin_id,
         command_id,
         command.title.clone(),

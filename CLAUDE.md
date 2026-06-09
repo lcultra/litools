@@ -106,6 +106,7 @@ apps/desktop/src-tauri  →  litools-core  →  litools-{index,search,plugin,set
 
 - `pnpm --dir apps/desktop format`
 - `pnpm --dir apps/desktop check`
+- `pnpm --dir apps/desktop exec tsc --noEmit`
 
 ## 文档参考入口
 

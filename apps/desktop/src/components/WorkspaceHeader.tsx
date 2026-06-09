@@ -3,23 +3,24 @@ import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { Ellipsis, X } from 'lucide-solid';
 import { createSignal, For, Show } from 'solid-js';
-import { detachPluginRuntime, detachRoute, startWindowDragging } from '../bridge/commands';
-import { canDetachRoute, pluginRuntimeRouteParts, routeForPath } from '../views/registry';
+import { detachPluginView, detachRoute, startWindowDragging } from '../bridge/commands';
+import type { PluginViewState } from '../bridge/types';
+import { canDetachRoute, pluginRouteParts, routeForPath } from '../views/registry';
 
 const MENU_OFFSET_Y = 8;
 
-type RuntimeHeaderProps = {
-    breadcrumbs?: string[];
-    ownerReady?: boolean;
+type WorkspaceHeaderProps = {
     isDetached?: boolean;
     onClose: () => void;
+    ownerReady?: boolean;
+    pluginView: PluginViewState | null;
 };
 
-export function RuntimeHeader(props: RuntimeHeaderProps) {
+export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     const location = useLocation();
     const [menuError, setMenuError] = createSignal<string | null>(null);
     const currentRoute = () => routeForPath(location.pathname);
-    const breadcrumbs = () => props.breadcrumbs ?? ['插件', currentRoute().label];
+    const breadcrumbs = () => (props.pluginView ? [props.pluginView.pluginName, props.pluginView.title] : ['插件']);
     const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && canDetachRoute(currentRoute().path);
 
     function handleDragPointerDown(event: PointerEvent) {
@@ -30,7 +31,7 @@ export function RuntimeHeader(props: RuntimeHeaderProps) {
         void startWindowDragging();
     }
 
-    async function showPanelMenu(event: MouseEvent) {
+    async function showMenu(event: MouseEvent) {
         const route = currentRoute();
 
         if (!canDetachRoute(route.path)) {
@@ -45,14 +46,14 @@ export function RuntimeHeader(props: RuntimeHeaderProps) {
                 items: [
                     {
                         action: () => {
-                            const runtimeRoute = pluginRuntimeRouteParts(route.path);
-                            if (runtimeRoute) {
-                                void detachPluginRuntime(runtimeRoute.pluginId, runtimeRoute.commandId);
+                            const parts = pluginRouteParts(route.path);
+                            if (parts) {
+                                void detachPluginView(parts.pluginId, parts.commandId);
                                 return;
                             }
                             void detachRoute(route.path);
                         },
-                        id: 'detach-panel',
+                        id: 'detach',
                         text: '分离为独立窗口',
                     },
                 ],
@@ -93,7 +94,7 @@ export function RuntimeHeader(props: RuntimeHeaderProps) {
                 <button
                     aria-label="打开菜单"
                     class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
-                    onClick={showPanelMenu}
+                    onClick={showMenu}
                     title={menuError() ?? '更多操作'}
                     type="button"
                 >

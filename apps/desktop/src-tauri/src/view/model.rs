@@ -13,8 +13,7 @@ pub enum ViewProvider {
 #[serde(rename_all = "camelCase")]
 pub enum ViewKind {
     Launcher,
-    Panel,
-    Runtime,
+    Plugin,
 }
 
 #[allow(dead_code)]

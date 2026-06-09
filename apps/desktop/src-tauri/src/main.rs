@@ -136,14 +136,14 @@ fn main() {
             ipc::settings::get_settings,
             ipc::settings::update_settings,
             ipc::plugins::list_plugins,
-            ipc::plugins::get_plugin_runtime_descriptor,
-            plugin_runtime::ipc::dock_plugin_runtime,
-            plugin_runtime::ipc::hide_docked_plugin_runtime,
-            plugin_runtime::ipc::detach_plugin_runtime,
-            plugin_runtime::ipc::close_plugin_runtime,
-            plugin_runtime::ipc::close_plugin_runtime_by_id,
-            plugin_runtime::ipc::get_plugin_runtime_info,
-            plugin_runtime::ipc::plugin_runtime_call,
+            ipc::plugins::get_plugin_view_descriptor,
+            plugin_runtime::ipc::open_plugin_view,
+            plugin_runtime::ipc::hide_plugin_view,
+            plugin_runtime::ipc::detach_plugin_view,
+            plugin_runtime::ipc::close_plugin_view,
+            plugin_runtime::ipc::close_plugin_view_by_id,
+            plugin_runtime::ipc::get_plugin_view_info,
+            plugin_runtime::ipc::plugin_view_call,
             ipc::diagnostics::get_diagnostics
         ])
         .run(tauri::generate_context!())

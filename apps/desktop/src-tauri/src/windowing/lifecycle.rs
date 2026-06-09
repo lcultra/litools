@@ -17,7 +17,7 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
         label if labels::is_detached_panel_window_label(label) => {
             handle_detached_panel_event(window, event, &state)
         }
-        label if labels::is_plugin_runtime_window_label(label) => {
+        label if labels::is_plugin_window_label(label) => {
             handle_plugin_runtime_event(window, event, &state)
         }
         _ => {}

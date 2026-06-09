@@ -5,19 +5,19 @@ import { createEffect, createSignal, For, Show } from 'solid-js';
 import type { SearchResult } from '../../bridge/types';
 import { providerLabel } from '../../shared/labels';
 import { HighlightedText } from './HighlightedText';
-import type { PaletteRenderItem } from './PaletteView';
+import type { LauncherRenderItem } from './LauncherView';
 
 type PinnedSortableGridProps = {
-    items: PaletteRenderItem[];
+    items: LauncherRenderItem[];
     selectedIndex: number;
     onDragEnd: () => void;
     onReorder: (orderedIds: string[]) => void;
-    onResultClick: (item: PaletteRenderItem) => void;
-    onResultContextMenu: (item: PaletteRenderItem, event: MouseEvent) => void;
+    onResultClick: (item: LauncherRenderItem) => void;
+    onResultContextMenu: (item: LauncherRenderItem, event: MouseEvent) => void;
     onSelectedElement: (element: HTMLElement) => void;
 };
 
-type SortablePinnedItem = PaletteRenderItem & { id: string };
+type SortablePinnedItem = LauncherRenderItem & { id: string };
 type DragEndEvent = Parameters<typeof move>[1];
 
 type SortablePinnedTileProps = {
@@ -25,8 +25,8 @@ type SortablePinnedTileProps = {
     index: number;
     selected: boolean;
     suppressClickId: string | null;
-    onResultClick: (item: PaletteRenderItem) => void;
-    onResultContextMenu: (item: PaletteRenderItem, event: MouseEvent) => void;
+    onResultClick: (item: LauncherRenderItem) => void;
+    onResultContextMenu: (item: LauncherRenderItem, event: MouseEvent) => void;
     onSelectedElement: (element: HTMLElement) => void;
     onSuppressedClick: () => void;
 };
@@ -44,7 +44,7 @@ function SortableItemIcon(props: { result: SearchResult }) {
     );
 }
 
-function toSortableItems(items: PaletteRenderItem[]): SortablePinnedItem[] {
+function toSortableItems(items: LauncherRenderItem[]): SortablePinnedItem[] {
     return items.map((item) => ({ ...item, id: item.result.id }));
 }
 

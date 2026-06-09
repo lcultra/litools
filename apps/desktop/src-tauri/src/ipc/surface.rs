@@ -46,9 +46,9 @@ pub fn open_route(
     }
 
     if target.as_deref() == Some("runtime") {
-        let Some((plugin_id, command_id)) = registry::plugin_runtime_route_parts(&route) else {
+        let Some((plugin_id, command_id)) = registry::plugin_route_parts(&route) else {
             return Err(format!(
-                "runtime target requires a plugin runtime route: {route}"
+                "runtime target requires a plugin route: {route}"
             ));
         };
         plugin_runtime::service::dock_plugin_runtime(

@@ -512,7 +512,7 @@ impl LitoolsApp {
             return Err(LitoolsError::CommandNotFound(result_id.to_string()));
         }
 
-        let route = plugin_runtime_route(plugin_id, command_id);
+        let route = plugin_route(plugin_id, command_id);
         let connection = self.context.database.connection();
         UsageRepository::new(&connection).record_selection(
             &Uuid::new_v4().to_string(),
@@ -816,8 +816,8 @@ fn load_plugins_from_database(database: &IndexDatabase) -> LitoolsResult<PluginM
     Ok(PluginManager::hydrate(plugins))
 }
 
-pub fn plugin_runtime_route(plugin_id: &str, command_id: &str) -> String {
-    format!("/plugin-runtime/{plugin_id}/{command_id}")
+pub fn plugin_route(plugin_id: &str, command_id: &str) -> String {
+    format!("/plugin/{plugin_id}/{command_id}")
 }
 
 fn load_settings(database: &IndexDatabase) -> LitoolsResult<AppSettings> {

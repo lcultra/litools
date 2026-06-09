@@ -167,8 +167,8 @@ fn resolve_view_route(
         return Ok(view);
     }
 
-    if registry::plugin_runtime_route_parts(route).is_some() {
-        return crate::ipc::plugins::validate_plugin_runtime_route(state, route);
+    if registry::plugin_route_parts(route).is_some() {
+        return crate::ipc::plugins::validate_plugin_view_route(state, route);
     }
 
     registry::validate_route(route)

@@ -42,7 +42,7 @@ pub fn dock_plugin_runtime(
 
     let descriptor = runtime_launch_descriptor(state, plugin_id, command_id)?;
     let runtime_id = state.next_plugin_runtime_id()?;
-    let webview_label = labels::plugin_runtime_webview_label(&runtime_id);
+    let webview_label = labels::plugin_webview_label(&runtime_id);
     let context = state.register_plugin_runtime(
         PluginRuntimeRegistration {
             plugin_id: descriptor.plugin_id,
@@ -110,11 +110,11 @@ pub fn detach_plugin_runtime(
     let detached_window_label = context
         .detached_window_label
         .clone()
-        .unwrap_or_else(|| labels::plugin_runtime_window_label(&context.id));
+        .unwrap_or_else(|| labels::plugin_window_label(&context.id));
     let header_webview_label = context
         .header_webview_label
         .clone()
-        .unwrap_or_else(|| labels::plugin_runtime_header_webview_label(&context.id));
+        .unwrap_or_else(|| labels::titlebar_webview_label(&context.id));
     let detached_window = native::create_plugin_runtime_detached_host(
         app,
         detached_window_label.clone(),
@@ -126,7 +126,7 @@ pub fn detach_plugin_runtime(
         native::add_plugin_runtime_header_webview(
             &detached_window,
             header_webview_label.clone(),
-            &plugin_runtime_header_route(&context.id),
+            &titlebar_route(&context.id),
         )?;
     }
 
@@ -382,8 +382,8 @@ fn emit_lifecycle_event(
     Ok(())
 }
 
-fn plugin_runtime_header_route(runtime_id: &str) -> String {
-    format!("/plugin-runtime-header/{runtime_id}")
+fn titlebar_route(runtime_id: &str) -> String {
+    format!("/titlebar/{runtime_id}")
 }
 
 fn runtime_launch_descriptor(

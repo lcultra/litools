@@ -17,7 +17,7 @@ const MAX_STORAGE_KEY_LEN: usize = 256;
 const MAX_STORAGE_VALUE_LEN: usize = 256 * 1024;
 
 #[tauri::command]
-pub fn dock_plugin_runtime(
+pub fn open_plugin_view(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
@@ -34,7 +34,7 @@ pub fn dock_plugin_runtime(
 }
 
 #[tauri::command]
-pub fn hide_docked_plugin_runtime(
+pub fn hide_plugin_view(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
@@ -45,7 +45,7 @@ pub fn hide_docked_plugin_runtime(
 }
 
 #[tauri::command]
-pub fn detach_plugin_runtime(
+pub fn detach_plugin_view(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
@@ -62,7 +62,7 @@ pub fn detach_plugin_runtime(
 }
 
 #[tauri::command]
-pub fn close_plugin_runtime(
+pub fn close_plugin_view(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
@@ -72,7 +72,7 @@ pub fn close_plugin_runtime(
 }
 
 #[tauri::command]
-pub fn close_plugin_runtime_by_id(
+pub fn close_plugin_view_by_id(
     runtime_id: String,
     state: State<'_, AppState>,
     app_handle: AppHandle,
@@ -81,7 +81,7 @@ pub fn close_plugin_runtime_by_id(
 }
 
 #[tauri::command]
-pub fn get_plugin_runtime_info(
+pub fn get_plugin_view_info(
     runtime_id: String,
     state: State<'_, AppState>,
 ) -> Result<PluginRuntimeInfo, String> {
@@ -89,25 +89,25 @@ pub fn get_plugin_runtime_info(
 }
 
 #[tauri::command]
-pub fn plugin_runtime_call(
+pub fn plugin_view_call(
     method: String,
     params: Value,
     webview: Webview,
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<Value, InvokeError> {
-    route_plugin_runtime_call(&method, params, &webview, &state, &app_handle)
+    route_plugin_view_call(&method, params, &webview, &state, &app_handle)
         .map_err(InvokeError::from)
 }
 
-fn route_plugin_runtime_call(
+fn route_plugin_view_call(
     method: &str,
     params: Value,
     webview: &Webview,
     state: &AppState,
     app_handle: &AppHandle,
 ) -> Result<Value, PluginRuntimeError> {
-    if !crate::windowing::labels::is_plugin_runtime_webview_label(webview.label()) {
+    if !crate::windowing::labels::is_plugin_webview_label(webview.label()) {
         return Err(PluginRuntimeError::permission_denied(format!(
             "not a plugin runtime webview: {}",
             webview.label()

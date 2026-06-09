@@ -4,7 +4,7 @@ import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'soli
 import { executeResult, focusMainWindow, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
 import type { CommandEffect, LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
-import { type PaletteRenderSection, PaletteView } from './PaletteView';
+import { type LauncherRenderSection, LauncherView } from './LauncherView';
 
 const MIN_LAUNCHER_HEIGHT = 96;
 const MAX_LAUNCHER_HEIGHT = 520;
@@ -13,11 +13,11 @@ const DEFAULT_VISIBLE_ROWS = 2;
 
 let cachedIdleSections: LauncherSection[] = [];
 
-type PaletteSearchControllerProps = {
+type LauncherControllerProps = {
     onCommandEffect: (effect: CommandEffect) => void;
 };
 
-export type VisiblePaletteItem = {
+export type VisibleLauncherItem = {
     item: LauncherItem;
     result: SearchResult;
     sectionId: string;
@@ -30,10 +30,10 @@ export type VisiblePaletteItem = {
 };
 
 type VisibleRow = {
-    items: VisiblePaletteItem[];
+    items: VisibleLauncherItem[];
 };
 
-export function PaletteSearchController(props: PaletteSearchControllerProps) {
+export function LauncherController(props: LauncherControllerProps) {
     let inputElement: HTMLInputElement | undefined;
     let resizeFrame = 0;
     let lastSyncedHeight = 0;
@@ -178,7 +178,7 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
         }
     }
 
-    async function showResultContextMenu(renderItem: VisiblePaletteItem, position: { x: number; y: number }) {
+    async function showResultContextMenu(renderItem: VisibleLauncherItem, position: { x: number; y: number }) {
         setSelectedIndex(renderItem.globalIndex);
 
         try {
@@ -331,7 +331,7 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
     }
 
     return (
-        <PaletteView
+        <LauncherView
             error={error()}
             inputRef={(element) => {
                 inputElement = element;
@@ -354,8 +354,8 @@ export function PaletteSearchController(props: PaletteSearchControllerProps) {
 }
 
 function buildRenderModel(sections: LauncherSection[], expandedSectionIds: Set<string>) {
-    const renderSections: PaletteRenderSection[] = [];
-    const flatItems: VisiblePaletteItem[] = [];
+    const renderSections: LauncherRenderSection[] = [];
+    const flatItems: VisibleLauncherItem[] = [];
     const rows: VisibleRow[] = [];
 
     sections.forEach((section, sectionIndex) => {
@@ -365,7 +365,7 @@ function buildRenderModel(sections: LauncherSection[], expandedSectionIds: Set<s
         const visibleItems = section.items.slice(0, visibleCount).map((item, itemIndexInSection) => {
             const row = rowOffset + Math.floor(itemIndexInSection / PALETTE_GRID_COLUMNS);
             const col = itemIndexInSection % PALETTE_GRID_COLUMNS;
-            const visibleItem: VisiblePaletteItem = {
+            const visibleItem: VisibleLauncherItem = {
                 item,
                 result: item.result,
                 sectionId: section.id,
