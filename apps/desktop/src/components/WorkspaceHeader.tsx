@@ -66,7 +66,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     }
 
     return (
-        <header class="flex h-[68px] shrink-0 items-center gap-2 border-border border-b px-3">
+        <header class="flex h-17 shrink-0 items-center gap-2 border-border border-b px-3">
             <div class="flex items-center overflow-hidden rounded-full border border-border bg-surface-muted text-sm">
                 <div class="flex items-center gap-2 py-1.5 pl-3 pr-2" onPointerDown={handleDragPointerDown}>
                     <For each={breadcrumbs()}>

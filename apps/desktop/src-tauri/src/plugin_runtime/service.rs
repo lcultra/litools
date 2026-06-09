@@ -148,6 +148,9 @@ pub fn detach_plugin_runtime(
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
     native::show_panel_host(&detached_window, center_on_show);
+    // Navigate the main window back to launcher now that the plugin view
+    // has been moved out to its own window.
+    let _ = crate::surface::service::open_view_route(app, state, "/", center_on_show);
     enter_runtime(app, state, &context.id)
 }
 

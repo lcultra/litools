@@ -15,6 +15,8 @@ use crate::{
 const MANAGEMENT_WINDOW_WIDTH: f64 = 820.0;
 const MANAGEMENT_WINDOW_HEIGHT: f64 = 560.0;
 pub const PLUGIN_RUNTIME_HEADER_HEIGHT: f64 = 68.0;
+/// 1px WindowFrame p-px + 1px Panel border
+const CHROME_INSET: f64 = 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct MonitorBounds {
@@ -98,7 +100,7 @@ pub fn create_plugin_runtime_detached_host(
         .inner_size(MANAGEMENT_WINDOW_WIDTH, MANAGEMENT_WINDOW_HEIGHT)
         .resizable(true)
         .decorations(false)
-        .transparent(false)
+        .transparent(true)
         .visible(false)
         .visible_on_all_workspaces(true)
         .build()
@@ -119,7 +121,8 @@ pub fn add_plugin_runtime_webview(
     let webview = window
         .add_child(
             WebviewBuilder::new(webview_label, WebviewUrl::CustomProtocol(url))
-                .initialization_script(initialization_script),
+                .initialization_script(initialization_script)
+                .transparent(true),
             LogicalPosition::new(bounds.x, bounds.y),
             Size::Logical(LogicalSize {
                 width: bounds.width,
@@ -138,7 +141,7 @@ pub fn add_plugin_runtime_header_webview(
     webview_label: String,
     route: &str,
 ) -> Result<Webview, String> {
-    let width = window_inner_logical_size(window)?.width;
+    let size = window_inner_logical_size(window)?;
     let url = format!("index.html#{route}");
     let webview = window
         .add_child(
@@ -146,8 +149,8 @@ pub fn add_plugin_runtime_header_webview(
                 .transparent(true),
             LogicalPosition::new(0.0, 0.0),
             Size::Logical(LogicalSize {
-                width,
-                height: PLUGIN_RUNTIME_HEADER_HEIGHT,
+                width: size.width,
+                height: size.height,
             }),
         )
         .map_err(|error| error.to_string())?;
@@ -175,14 +178,14 @@ pub fn set_plugin_runtime_content_bounds(
 }
 
 pub fn set_plugin_runtime_header_bounds(window: &Window, webview: &Webview) -> Result<(), String> {
-    let width = window_inner_logical_size(window)?.width;
+    let size = window_inner_logical_size(window)?;
     webview
         .set_position(Position::Logical(LogicalPosition::new(0.0, 0.0)))
         .map_err(|error| error.to_string())?;
     webview
         .set_size(Size::Logical(LogicalSize {
-            width,
-            height: PLUGIN_RUNTIME_HEADER_HEIGHT,
+            width: size.width,
+            height: size.height,
         }))
         .map_err(|error| error.to_string())
 }
@@ -198,10 +201,10 @@ pub fn show_plugin_runtime_webview(webview: &Webview) -> Result<(), String> {
 pub fn plugin_runtime_content_bounds(window: &Window) -> Result<PluginRuntimeBounds, String> {
     let size = window_inner_logical_size(window)?;
     Ok(PluginRuntimeBounds {
-        x: 0.0,
-        y: PLUGIN_RUNTIME_HEADER_HEIGHT,
-        width: size.width,
-        height: (size.height - PLUGIN_RUNTIME_HEADER_HEIGHT).max(0.0),
+        x: CHROME_INSET,
+        y: PLUGIN_RUNTIME_HEADER_HEIGHT + CHROME_INSET,
+        width: (size.width - CHROME_INSET * 2.0).max(0.0),
+        height: (size.height - PLUGIN_RUNTIME_HEADER_HEIGHT - CHROME_INSET * 2.0).max(0.0),
     })
 }
 

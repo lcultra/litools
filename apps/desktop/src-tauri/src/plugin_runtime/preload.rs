@@ -8,6 +8,13 @@ pub fn initialization_script() -> String {
     return;
   }}
 
+  // Ensure no browser default white background behind the transparent webview.
+  var cornerStyle = document.createElement('style');
+  cornerStyle.textContent = 'html {{ background: transparent; }}';
+  document.addEventListener('DOMContentLoaded', function () {{
+    document.head.appendChild(cornerStyle);
+  }});
+
   function invokeRuntime(method, params) {{
     var internals = window.__TAURI_INTERNALS__;
     if (!internals || typeof internals.invoke !== 'function') {{

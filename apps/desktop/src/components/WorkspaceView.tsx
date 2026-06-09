@@ -16,7 +16,7 @@ export function WorkspaceView(props: WorkspaceViewProps) {
         <WindowFrame class="flex h-[calc(100vh-2px)] flex-col">
             <WorkspaceHeader isDetached={props.isDetached} onClose={props.onClose} ownerReady={props.ownerReady} pluginView={props.pluginView} />
             <div class="flex min-h-0 flex-1">
-                <section class="min-w-0 flex-1 overflow-y-auto">{props.children}</section>
+                <section class="min-w-0 flex-1">{props.children}</section>
             </div>
         </WindowFrame>
     );

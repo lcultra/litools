@@ -258,7 +258,16 @@ pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<
     if window.is_visible().unwrap_or(false) {
         native::hide_window(&window);
     } else {
-        open_view_route(app, state, "/", state.center_on_show())?;
+        // Just show the window — don't force navigate to /.
+        // The surface retains whatever route the user was on (launcher or plugin view).
+        let current_route = window
+            .webviews()
+            .iter()
+            .find_map(|webview| state.surface_metadata_for_webview_label(webview.label()))
+            .map(|metadata| metadata.route)
+            .unwrap_or_else(|| "/".to_string());
+        let view = resolve_view_route(state, &current_route)?;
+        native::show_host_for_view(&window, &view.kind, state.center_on_show());
     }
     Ok(())
 }
