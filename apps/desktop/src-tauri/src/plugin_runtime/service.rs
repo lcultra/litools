@@ -111,10 +111,43 @@ pub fn detach_plugin_runtime(
         .detached_window_label
         .clone()
         .unwrap_or_else(|| labels::plugin_window_label(&context.id));
-    let header_webview_label = context
-        .header_webview_label
-        .clone()
+    // Acquire a titlebar webview from the shared pool, or create one on demand.
+    let header_webview_label = state
+        .take_pooled_titlebar()
         .unwrap_or_else(|| labels::titlebar_webview_label(&context.id));
+
+    let main_window = crate::surface::service::ensure_main_launcher_surface(app, state)?;
+
+    if let Some(header) = app.get_webview(&header_webview_label) {
+        // Pooled webview is ready: navigate to the correct titlebar route and
+        // immediately spawn a replacement so the pool stays warm.
+        header
+            .eval(&format!(
+                "window.location.hash = '#/titlebar/{}';",
+                context.id
+            ))
+            .map_err(|error| error.to_string())?;
+        // Spawn replacement in the background.
+        let next_label = labels::titlebar_webview_label(&format!("next_{}", context.id));
+        if app.get_webview(&next_label).is_none() {
+            if let Ok(replacement) = native::add_plugin_runtime_header_webview(
+                &main_window,
+                next_label.clone(),
+                &titlebar_url(""),
+            ) {
+                let _ = replacement.hide();
+                state.return_pooled_titlebar(next_label);
+            }
+        }
+    } else {
+        // No pooled webview available: create one on demand.
+        native::add_plugin_runtime_header_webview(
+            &main_window,
+            header_webview_label.clone(),
+            &titlebar_url(&context.id),
+        )?;
+    }
+
     let detached_window = native::create_plugin_runtime_detached_host(
         app,
         detached_window_label.clone(),
@@ -122,12 +155,10 @@ pub fn detach_plugin_runtime(
         center_on_show,
     )?;
 
-    if app.get_webview(&header_webview_label).is_none() {
-        native::add_plugin_runtime_header_webview(
-            &detached_window,
-            header_webview_label.clone(),
-            &titlebar_route(&context.id),
-        )?;
+    if let Some(header) = app.get_webview(&header_webview_label) {
+        reparent::reparent_webview_to_window(&header, &detached_window)?;
+        native::set_plugin_runtime_header_bounds(&detached_window, &header)?;
+        header.show().map_err(|error| error.to_string())?;
     }
 
     reparent::reparent_webview_to_window(&webview, &detached_window)?;
@@ -249,10 +280,10 @@ pub fn close_runtime(
     if let Some(webview) = app.get_webview(&context.webview_label) {
         let _ = webview.close();
     }
-    if let Some(header_webview_label) = &context.header_webview_label
-        && let Some(webview) = app.get_webview(header_webview_label)
+    if let Some(header_label) = &context.header_webview_label
+        && let Some(header) = app.get_webview(header_label)
     {
-        let _ = webview.close();
+        let _ = header.close();
     }
     if context.placement == PluginRuntimePlacement::Detached
         && let Some(window) = app.get_window(&context.host_window_label)
@@ -385,8 +416,34 @@ fn emit_lifecycle_event(
     Ok(())
 }
 
-fn titlebar_route(runtime_id: &str) -> String {
+fn titlebar_url(runtime_id: &str) -> String {
     format!("/titlebar/{runtime_id}")
+}
+
+/// Pre-create a pooled titlebar webview so the first detach is instant.
+pub fn warm_titlebar_pool(app: &tauri::AppHandle, state: &AppState) {
+    let pooled = state.take_pooled_titlebar();
+    if pooled
+        .as_ref()
+        .is_some_and(|label| app.get_webview(label).is_some())
+    {
+        state.return_pooled_titlebar(pooled.unwrap());
+        return;
+    }
+    let Ok(main_window) = crate::surface::service::ensure_main_launcher_surface(app, state) else {
+        return;
+    };
+    let label = crate::windowing::labels::titlebar_webview_label("pool");
+    // Load the SolidJS app with a neutral route; we navigate to the real
+    // titlebar route later via eval() when the webview is used.
+    if let Ok(webview) = native::add_plugin_runtime_header_webview(
+        &main_window,
+        label.clone(),
+        "/",
+    ) {
+        let _ = webview.hide();
+        state.return_pooled_titlebar(label);
+    }
 }
 
 fn runtime_launch_descriptor(

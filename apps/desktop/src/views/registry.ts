@@ -100,7 +100,7 @@ export function hostForRoute(path: AppRoutePath) {
 
 export function canDetachRoute(path: AppRoutePath) {
     const route = routeForPath(path);
-    return route.kind !== 'launcher' && route.id !== 'titlebar' && route.allowedHosts.includes('detached');
+    return route.kind !== 'launcher' && route.allowedHosts.includes('detached');
 }
 
 export function pathForNavigationPayload(payload: string): AppRoutePath | null {

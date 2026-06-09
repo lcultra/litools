@@ -57,6 +57,10 @@ pub struct AppState {
     app_watcher_handle: Mutex<Option<AppWatcherHandle>>,
     surfaces: Mutex<SurfaceRegistry>,
     plugin_runtimes: Mutex<PluginRuntimeRegistry>,
+    /// Pre-loaded titlebar webview available for detached windows.
+    /// `None` means no webview is available; `Some(label)` means a
+    /// hidden titlebar webview is ready in the main window.
+    pooled_titlebar: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -72,6 +76,7 @@ impl AppState {
             app_watcher_handle: Mutex::new(None),
             surfaces: Mutex::new(SurfaceRegistry::default()),
             plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
+            pooled_titlebar: Mutex::new(None),
         })
     }
 
@@ -327,6 +332,19 @@ impl AppState {
 
     pub fn remove_plugin_runtime(&self, target: &str) -> Option<PluginRuntimeContext> {
         self.plugin_runtimes.lock().ok()?.remove(target)
+    }
+
+    /// Take the pooled titlebar webview for use in a detached window.
+    /// Returns None if no pooled webview is available.
+    pub fn take_pooled_titlebar(&self) -> Option<String> {
+        self.pooled_titlebar.lock().ok()?.take()
+    }
+
+    /// Return a titlebar webview to the pool (hidden in the main window).
+    pub fn return_pooled_titlebar(&self, label: String) {
+        if let Ok(mut pooled) = self.pooled_titlebar.lock() {
+            *pooled = Some(label);
+        }
     }
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {
