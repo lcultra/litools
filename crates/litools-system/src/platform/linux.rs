@@ -1,4 +1,4 @@
-use crate::{DiscoveredApp, SystemAdapter};
+use crate::{DiscoveredApp, SystemAdapter, launcher::LaunchTarget};
 
 #[derive(Default)]
 pub struct LinuxSystemAdapter;
@@ -8,11 +8,7 @@ impl SystemAdapter for LinuxSystemAdapter {
         Vec::new()
     }
 
-    fn launch_app(&self, _app_id: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    fn open_file(&self, _path: &str) -> Result<(), String> {
+    fn launch(&self, _target: &LaunchTarget) -> Result<(), String> {
         Ok(())
     }
 }

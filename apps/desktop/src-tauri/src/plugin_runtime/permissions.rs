@@ -67,7 +67,7 @@ mod tests {
             entry_url: "litools-plugin://dev.litools.test/dist/index.html".to_string(),
             host_window_label: "main".to_string(),
             detached_window_label: None,
-            header_webview_label: None,
+            titlebar_webview_label: None,
             webview_label: "plugin-runtime-runtime_000001".to_string(),
             placement: PluginRuntimePlacement::Docked,
             bounds: None,

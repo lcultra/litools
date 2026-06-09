@@ -1,12 +1,10 @@
 mod app_watcher;
-mod icon_cache;
-mod icon_protocol;
 mod index_refresh;
 mod ipc;
 #[cfg(target_os = "macos")]
 mod macos_icon;
-mod plugin_protocol;
 mod plugin_runtime;
+mod protocol;
 mod shortcut;
 mod state;
 mod surface;
@@ -47,8 +45,8 @@ fn dev_bundled_plugins_dir() -> Option<std::path::PathBuf> {
 }
 
 fn main() {
-    let icon_protocol = icon_protocol::IconProtocol::default();
-    let plugin_protocol = plugin_protocol::PluginProtocol;
+    let icon_protocol = protocol::IconProtocol::default();
+    let plugin_protocol = protocol::PluginProtocol;
 
     tauri::Builder::default()
         .register_uri_scheme_protocol("litools-icon", move |context, request| {
@@ -62,7 +60,7 @@ fn main() {
             icon_protocol.handle(&state, request.uri())
         })
         .register_uri_scheme_protocol(
-            plugin_protocol::PLUGIN_PROTOCOL_SCHEME,
+            protocol::plugin::PLUGIN_PROTOCOL_SCHEME,
             move |context, request| {
                 let Some(state) = context.app_handle().try_state::<AppState>() else {
                     return tauri::http::Response::builder()
@@ -134,7 +132,6 @@ fn main() {
             ipc::surface::hide_main_window,
             ipc::surface::show_main_window,
             ipc::surface::focus_main_window,
-            ipc::surface::start_dragging,
             ipc::surface::resize_main_window_height,
             ipc::diagnostics::reload_index,
             ipc::settings::get_settings,

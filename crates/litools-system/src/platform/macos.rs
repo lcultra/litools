@@ -7,7 +7,7 @@ use std::{
 
 use plist::Value;
 
-use crate::{DiscoveredApp, SystemAdapter, pinyin::pinyin_aliases};
+use crate::{DiscoveredApp, SystemAdapter, launcher::LaunchTarget, pinyin::pinyin_aliases};
 
 #[derive(Default)]
 pub struct MacosSystemAdapter;
@@ -17,18 +17,17 @@ impl SystemAdapter for MacosSystemAdapter {
         discover_apps_from(default_application_dirs())
     }
 
-    fn launch_app(&self, app_id: &str) -> Result<(), String> {
-        launch_app(app_id)
-    }
-
-    fn open_file(&self, path: &str) -> Result<(), String> {
-        Command::new("open")
-            .arg(path)
-            .status()
-            .map_err(|error| error.to_string())?
-            .success()
-            .then_some(())
-            .ok_or_else(|| format!("打开文件失败：{path}"))
+    fn launch(&self, target: &LaunchTarget) -> Result<(), String> {
+        match target {
+            LaunchTarget::App(app_id) => launch_app(app_id),
+            LaunchTarget::File(path) => Command::new("open")
+                .arg(path)
+                .status()
+                .map_err(|error| error.to_string())?
+                .success()
+                .then_some(())
+                .ok_or_else(|| format!("打开文件失败：{path}")),
+        }
     }
 }
 

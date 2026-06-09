@@ -5,8 +5,8 @@ use tauri::{Manager, State};
 
 use crate::{
     app_watcher::AppWatcherStatus,
-    icon_cache::{IconCacheSummary, icon_cache_summary},
     index_refresh::{IndexRefreshTrigger, IndexStatus, request_index_refresh},
+    protocol::icon_cache::{IconCacheSummary, icon_cache_summary},
     state::AppState,
 };
 
@@ -51,7 +51,7 @@ pub fn get_diagnostics_inner(state: &AppState) -> Result<DiagnosticsResponse, St
     let app = state.app().lock().map_err(|error| error.to_string())?;
     let recent_usage: Vec<UsageEventResponse> = app
         .recent_usage_events(10)
-        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_error_string())?
         .into_iter()
         .map(|event| UsageEventResponse {
             target_type: event.target_type,
@@ -61,17 +61,17 @@ pub fn get_diagnostics_inner(state: &AppState) -> Result<DiagnosticsResponse, St
         })
         .collect();
 
-    let recent_usage_count = app.usage_event_count().map_err(|error| error.to_string())?;
+    let recent_usage_count = app.usage_event_count().map_err(|error| error.to_error_string())?;
 
     Ok(DiagnosticsResponse {
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         app_data_dir: state.data_dir().display().to_string(),
         platform: std::env::consts::OS.to_string(),
         plugin_count: app.context().plugins.len(),
-        command_count: app.command_count().map_err(|error| error.to_string())?,
-        app_count: app.app_count().map_err(|error| error.to_string())?,
+        command_count: app.command_count().map_err(|error| error.to_error_string())?,
+        app_count: app.app_count().map_err(|error| error.to_error_string())?,
         index_status: state.index_status(),
-        last_persisted_index_status: app.index_status().map_err(|error| error.to_string())?,
+        last_persisted_index_status: app.index_status().map_err(|error| error.to_error_string())?,
         app_watcher: state.app_watcher_status(),
         icon_cache: icon_cache_summary(state.data_dir()),
         recent_usage_count,

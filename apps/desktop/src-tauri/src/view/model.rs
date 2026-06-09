@@ -1,6 +1,5 @@
 use serde::Serialize;
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ViewProvider {
@@ -8,7 +7,6 @@ pub enum ViewProvider {
     Plugin { plugin_id: String },
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ViewKind {
@@ -16,7 +14,6 @@ pub enum ViewKind {
     Plugin,
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum WindowHostKind {

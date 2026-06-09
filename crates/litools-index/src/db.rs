@@ -1,4 +1,5 @@
 use std::{
+    ops::{Deref, DerefMut},
     path::Path,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -10,6 +11,60 @@ use crate::migrations::run_migrations;
 #[derive(Clone)]
 pub struct IndexDatabase {
     connection: Arc<Mutex<Connection>>,
+}
+
+/// Wraps `MutexGuard<Connection>` and clears a re-entrancy flag on drop.
+pub struct ConnectionGuard<'a> {
+    guard: MutexGuard<'a, Connection>,
+}
+
+impl Deref for ConnectionGuard<'_> {
+    type Target = Connection;
+
+    fn deref(&self) -> &Self::Target {
+        &self.guard
+    }
+}
+
+impl DerefMut for ConnectionGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.guard
+    }
+}
+
+#[cfg(debug_assertions)]
+mod reentrancy {
+    use std::cell::Cell;
+    use std::thread;
+
+    thread_local! {
+        static LOCK_HELD: Cell<bool> = const { Cell::new(false) };
+    }
+
+    pub(super) fn check_and_mark() {
+        LOCK_HELD.with(|held| {
+            if held.get() {
+                panic!(
+                    "IndexDatabase: recursive lock on thread {:?}. \
+                     A ConnectionGuard is already held — drop it before calling \
+                     any method that re-acquires the database lock.",
+                    thread::current().id()
+                );
+            }
+            held.set(true);
+        });
+    }
+
+    pub(super) fn clear() {
+        LOCK_HELD.with(|held| held.set(false));
+    }
+}
+
+impl Drop for ConnectionGuard<'_> {
+    fn drop(&mut self) {
+        #[cfg(debug_assertions)]
+        reentrancy::clear();
+    }
 }
 
 impl IndexDatabase {
@@ -31,8 +86,20 @@ impl IndexDatabase {
         })
     }
 
-    pub fn connection(&self) -> MutexGuard<'_, Connection> {
-        self.connection.lock().expect("database mutex poisoned")
+    /// Acquire the database connection lock.
+    ///
+    /// # Deadlock safety
+    ///
+    /// `std::sync::Mutex` is not re-entrant. Do **not** call this method (or
+    /// any method that internally calls it) while holding a returned guard.
+    /// In debug builds a thread-local flag detects recursive attempts and
+    /// panics with a descriptive message.
+    pub fn connection(&self) -> ConnectionGuard<'_> {
+        #[cfg(debug_assertions)]
+        reentrancy::check_and_mark();
+
+        let guard = self.connection.lock().expect("database mutex poisoned");
+        ConnectionGuard { guard }
     }
 }
 

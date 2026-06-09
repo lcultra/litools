@@ -1,12 +1,14 @@
 use std::path::PathBuf;
 
-use tauri::http::{Response, StatusCode, Uri};
+use tauri::http::{StatusCode, Uri};
 
 use crate::state::AppState;
 
+use super::{empty_response, ok_response, percent_decode};
+
 pub const PLUGIN_PROTOCOL_SCHEME: &str = "litools-plugin";
 
-type PluginResponse = Response<Vec<u8>>;
+type PluginResponse = tauri::http::Response<Vec<u8>>;
 
 #[derive(Clone, Default)]
 pub struct PluginProtocol;
@@ -14,8 +16,8 @@ pub struct PluginProtocol;
 impl PluginProtocol {
     pub fn handle(&self, state: &AppState, uri: &Uri) -> PluginResponse {
         match plugin_asset_bytes(state, uri) {
-            Ok((bytes, content_type)) => response(StatusCode::OK, bytes, Some(content_type)),
-            Err(status) => response(status, Vec::new(), None),
+            Ok((bytes, content_type)) => ok_response(bytes, content_type),
+            Err(status) => empty_response(status),
         }
     }
 }
@@ -54,10 +56,7 @@ fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static 
     }
 
     let plugin_root = {
-        let app = state
-            .app()
-            .lock()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let app = state.app().lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let plugin = app
             .context()
             .plugins
@@ -69,9 +68,7 @@ fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static 
         plugin.path.clone()
     };
 
-    let root = plugin_root
-        .canonicalize()
-        .map_err(|_| StatusCode::NOT_FOUND)?;
+    let root = plugin_root.canonicalize().map_err(|_| StatusCode::NOT_FOUND)?;
     let asset = plugin_root
         .join(&requested_path)
         .canonicalize()
@@ -97,41 +94,6 @@ fn content_type_for_path(path: &std::path::Path) -> Option<&'static str> {
         "webp" => Some("image/webp"),
         _ => None,
     }
-}
-
-fn percent_decode(value: &str) -> Option<String> {
-    let mut bytes = Vec::with_capacity(value.len());
-    let mut input = value.as_bytes().iter().copied();
-
-    while let Some(byte) = input.next() {
-        if byte != b'%' {
-            bytes.push(byte);
-            continue;
-        }
-
-        let high = input.next()?;
-        let low = input.next()?;
-        bytes.push(hex_value(high)? << 4 | hex_value(low)?);
-    }
-
-    String::from_utf8(bytes).ok()
-}
-
-fn hex_value(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
-    }
-}
-
-fn response(status: StatusCode, body: Vec<u8>, content_type: Option<&str>) -> PluginResponse {
-    let mut builder = Response::builder().status(status);
-    if let Some(content_type) = content_type {
-        builder = builder.header("content-type", content_type);
-    }
-    builder.body(body).expect("valid plugin protocol response")
 }
 
 #[cfg(test)]

@@ -257,3 +257,30 @@ mod tests {
         assert!(result.matches.title.is_empty());
     }
 }
+
+pub fn builtin_effect_for_result(
+    result_id: &str,
+) -> Result<CommandEffect, crate::error::LitoolsError> {
+    match result_id {
+        "open-logs-directory" => Ok(CommandEffect::OpenLogsDirectory),
+        "open-data-directory" => Ok(CommandEffect::OpenDataDirectory),
+        "reload-index" => Ok(CommandEffect::ReloadIndex),
+        "quit-app" => Ok(CommandEffect::QuitApp),
+        "toggle-theme" => Ok(CommandEffect::ToggleTheme),
+        _ => Err(crate::error::LitoolsError::CommandNotFound(
+            result_id.to_string(),
+        )),
+    }
+}
+
+pub fn message_for_effect(effect: &CommandEffect) -> &'static str {
+    match effect {
+        CommandEffect::None => "未执行任何操作",
+        CommandEffect::OpenLogsDirectory => "正在打开日志目录",
+        CommandEffect::OpenDataDirectory => "正在打开数据目录",
+        CommandEffect::OpenPluginView { .. } => "正在打开插件",
+        CommandEffect::ReloadIndex => "正在重载索引",
+        CommandEffect::QuitApp => "正在退出应用",
+        CommandEffect::ToggleTheme => "正在切换主题",
+    }
+}

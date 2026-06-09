@@ -96,7 +96,7 @@ export type PluginViewInfo = {
     title: string;
     hostWindowLabel: string;
     detachedWindowLabel?: string | null;
-    headerWebviewLabel?: string | null;
+    titlebarWebviewLabel?: string | null;
     webviewLabel: string;
     placement: PluginViewPlacement;
     bounds?: PluginViewBounds | null;

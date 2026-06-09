@@ -1,8 +1,12 @@
+use std::sync::Mutex;
+
 use litools_index::{
     IndexDatabase,
     repository::{PluginCommandRecord, PluginCommandRepository},
 };
-use litools_plugin::{PluginCommandMode, plugin_command_mode_from_str};
+use litools_plugin::{
+    PluginCommandMode, plugin_command_mode_from_str, plugin_result_id,
+};
 use litools_search::{
     MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
     SearchResultMatches, TextMatch, match_text,
@@ -10,16 +14,40 @@ use litools_search::{
 
 pub const PLUGIN_PROVIDER_ID: &str = "plugins";
 pub const OPEN_PLUGIN_ACTION_ID: &str = "open";
-pub const PLUGIN_RESULT_PREFIX: &str = "plugin:";
-pub const PLUGIN_TARGET_TYPE: &str = "plugin_command";
 
 pub struct PluginCommandProvider {
     database: IndexDatabase,
+    cache: Mutex<Option<Vec<PluginCommandRecord>>>,
 }
 
 impl PluginCommandProvider {
     pub fn new(database: IndexDatabase) -> Self {
-        Self { database }
+        Self {
+            database,
+            cache: Mutex::new(None),
+        }
+    }
+
+    /// Invalidate the cached plugin command list so the next search reloads from DB.
+    pub fn invalidate_cache(&self) {
+        if let Ok(mut cache) = self.cache.lock() {
+            *cache = None;
+        }
+    }
+
+    fn load_commands(&self) -> Vec<PluginCommandRecord> {
+        let connection = self.database.connection();
+        PluginCommandRepository::new(&connection)
+            .list_enabled_plugin_commands()
+            .unwrap_or_default()
+    }
+
+    fn cached_commands(&self) -> Vec<PluginCommandRecord> {
+        let mut cache = self.cache.lock().expect("plugin provider cache lock");
+        if cache.is_none() {
+            *cache = Some(self.load_commands());
+        }
+        cache.clone().unwrap_or_default()
     }
 }
 
@@ -29,43 +57,12 @@ impl SearchProvider for PluginCommandProvider {
     }
 
     fn search(&self, query: &SearchQuery) -> Vec<SearchResult> {
-        let connection = self.database.connection();
-        let Ok(commands) = PluginCommandRepository::new(&connection).list_enabled_plugin_commands()
-        else {
-            return Vec::new();
-        };
-
-        commands
+        self.cached_commands()
             .into_iter()
-            .filter(|command| command_mode(&command) == Some(PluginCommandMode::View))
+            .filter(|command| command_mode(command) == Some(PluginCommandMode::View))
             .filter_map(|command| search_result_for_plugin_command(command, &query.text))
             .collect()
     }
-}
-
-pub fn plugin_result_id(plugin_id: &str, command_id: &str) -> String {
-    format!("{PLUGIN_RESULT_PREFIX}{plugin_id}:{command_id}")
-}
-
-pub fn plugin_target_id(plugin_id: &str, command_id: &str) -> String {
-    format!("{plugin_id}:{command_id}")
-}
-
-pub fn plugin_command_from_result_id(result_id: &str) -> Option<(&str, &str)> {
-    let rest = result_id.strip_prefix(PLUGIN_RESULT_PREFIX)?;
-    let (plugin_id, command_id) = rest.rsplit_once(':')?;
-    if plugin_id.is_empty() || command_id.is_empty() {
-        return None;
-    }
-    Some((plugin_id, command_id))
-}
-
-pub fn plugin_command_from_target_id(target_id: &str) -> Option<(&str, &str)> {
-    let (plugin_id, command_id) = target_id.rsplit_once(':')?;
-    if plugin_id.is_empty() || command_id.is_empty() {
-        return None;
-    }
-    Some((plugin_id, command_id))
 }
 
 pub fn search_result_for_plugin_command_record(
@@ -215,15 +212,8 @@ fn plugin_match_score(text_match: &TextMatch, adjustment: f32) -> f32 {
     (base + adjustment).max(1.0)
 }
 
+
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_plugin_result_id() {
-        assert_eq!(
-            plugin_command_from_result_id("plugin:dev.litools.hello-world:hello"),
-            Some(("dev.litools.hello-world", "hello"))
-        );
-    }
+    // Plugin ID parsing tests live in litools-plugin::ids.
 }

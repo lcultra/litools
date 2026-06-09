@@ -13,14 +13,14 @@ use icns::{IconFamily, PixelFormat};
 use image::{ColorType, ImageEncoder, codecs::png::PngEncoder};
 use litools_index::repository::AppRecord;
 use lru::LruCache;
-use tauri::http::{Response, StatusCode, Uri};
+use tauri::http::{StatusCode, Uri};
 
-use crate::state::AppState;
+use super::{empty_response, ok_response, percent_decode};
 
 const ICON_CACHE_CAPACITY: usize = 128;
 const ICON_TARGET_SIZE: u32 = 128;
 
-type IconResponse = Response<Vec<u8>>;
+type IconResponse = tauri::http::Response<Vec<u8>>;
 
 #[derive(Clone)]
 pub struct IconProtocol {
@@ -38,14 +38,14 @@ impl Default for IconProtocol {
 }
 
 impl IconProtocol {
-    pub fn handle(&self, state: &AppState, uri: &Uri) -> IconResponse {
+    pub fn handle(&self, state: &crate::state::AppState, uri: &Uri) -> IconResponse {
         match self.icon_bytes(state, uri) {
-            Ok(bytes) => png_response(bytes),
+            Ok(bytes) => ok_response(bytes, "image/png"),
             Err(status) => empty_response(status),
         }
     }
 
-    fn icon_bytes(&self, state: &AppState, uri: &Uri) -> Result<Vec<u8>, StatusCode> {
+    fn icon_bytes(&self, state: &crate::state::AppState, uri: &Uri) -> Result<Vec<u8>, StatusCode> {
         let app_id = app_id_from_uri(uri).ok_or(StatusCode::BAD_REQUEST)?;
         let app = state
             .app()
@@ -54,9 +54,8 @@ impl IconProtocol {
             .find_app(&app_id)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .ok_or(StatusCode::NOT_FOUND)?;
-        let app_path = PathBuf::from(&app.path)
-            .canonicalize()
-            .map_err(|_| StatusCode::NOT_FOUND)?;
+        let app_path =
+            PathBuf::from(&app.path).canonicalize().map_err(|_| StatusCode::NOT_FOUND)?;
         let icon_path = validated_icon_path(&app);
         let cache_key = cache_key(&app.id, &app_path, icon_path.as_deref())
             .map_err(|_| StatusCode::NOT_FOUND)?;
@@ -102,33 +101,6 @@ fn app_id_from_uri(uri: &Uri) -> Option<String> {
     }
 
     percent_decode(uri.path().trim_start_matches('/'))
-}
-
-fn percent_decode(value: &str) -> Option<String> {
-    let mut bytes = Vec::with_capacity(value.len());
-    let mut input = value.as_bytes().iter().copied();
-
-    while let Some(byte) = input.next() {
-        if byte != b'%' {
-            bytes.push(byte);
-            continue;
-        }
-
-        let high = input.next()?;
-        let low = input.next()?;
-        bytes.push(hex_value(high)? << 4 | hex_value(low)?);
-    }
-
-    String::from_utf8(bytes).ok()
-}
-
-fn hex_value(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
-    }
 }
 
 fn validated_icon_path(app: &AppRecord) -> Option<PathBuf> {
@@ -228,21 +200,6 @@ fn write_disk_cache(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::write(path, bytes)
 }
 
-fn png_response(bytes: Vec<u8>) -> IconResponse {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header("content-type", "image/png")
-        .body(bytes)
-        .expect("valid icon response")
-}
-
-fn empty_response(status: StatusCode) -> IconResponse {
-    Response::builder()
-        .status(status)
-        .body(Vec::new())
-        .expect("valid empty icon response")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,7 +231,6 @@ mod tests {
     #[test]
     fn rejects_invalid_percent_encoding() {
         let uri = "litools-icon://app/%GG".parse::<Uri>().expect("uri");
-
         assert_eq!(app_id_from_uri(&uri), None);
     }
 
@@ -283,7 +239,6 @@ mod tests {
         let uri = "litools-icon://file/com.apple.ActivityMonitor"
             .parse::<Uri>()
             .expect("uri");
-
         assert_eq!(app_id_from_uri(&uri), None);
     }
 }

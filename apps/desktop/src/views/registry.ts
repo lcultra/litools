@@ -4,7 +4,7 @@ export const hostKinds = ['main', 'detached', 'runtime'] as const;
 export type ViewKind = (typeof viewKinds)[number];
 export type HostKind = (typeof hostKinds)[number];
 
-export const viewIds = ['palette', 'plugin', 'titlebar'] as const;
+export const viewIds = ['core.launcher', 'plugin', 'titlebar'] as const;
 
 export type AppViewId = (typeof viewIds)[number];
 export type CoreRoutePath = '/';
@@ -28,7 +28,7 @@ export const routeDefinitions: RouteDefinition[] = [
         allowedHosts: ['main'],
         defaultHost: 'main',
         description: '搜索命令、本地应用和插件功能。',
-        id: 'palette',
+        id: 'core.launcher',
         kind: 'launcher',
         label: '启动器',
         path: '/',

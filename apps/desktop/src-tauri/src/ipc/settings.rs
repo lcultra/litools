@@ -18,7 +18,7 @@ pub fn update_settings(
     let updated_settings = {
         let mut app = state.app().lock().map_err(|error| error.to_string())?;
         app.update_settings(settings)
-            .map_err(|error| error.to_string())?
+            .map_err(|error| error.to_error_string())?
     };
 
     shortcut::register_global_shortcut(&app_handle, &updated_settings.palette.global_hotkey);

@@ -2,7 +2,7 @@ use litools_plugin::PluginCommandMode;
 use tauri::Manager;
 
 use crate::{
-    plugin_protocol::plugin_entry_url,
+    protocol::plugin::plugin_entry_url,
     plugin_runtime::{
         model::{
             PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle, PluginRuntimePlacement,
@@ -52,7 +52,7 @@ pub fn dock_plugin_runtime(
             entry_url: descriptor.entry_url,
             host_window_label: labels::MAIN_WINDOW_LABEL.to_string(),
             detached_window_label: None,
-            header_webview_label: None,
+            titlebar_webview_label: None,
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: descriptor.permissions,
@@ -112,13 +112,13 @@ pub fn detach_plugin_runtime(
         .clone()
         .unwrap_or_else(|| labels::plugin_window_label(&context.id));
     // Acquire a titlebar webview from the shared pool, or create one on demand.
-    let header_webview_label = state
+    let titlebar_webview_label = state
         .take_pooled_titlebar()
         .unwrap_or_else(|| labels::titlebar_webview_label(&context.id));
 
     let main_window = crate::surface::service::ensure_main_launcher_surface(app, state)?;
 
-    if let Some(header) = app.get_webview(&header_webview_label) {
+    if let Some(header) = app.get_webview(&titlebar_webview_label) {
         // Pooled webview is ready: navigate to the correct titlebar route and
         // immediately spawn a replacement so the pool stays warm.
         header
@@ -130,7 +130,7 @@ pub fn detach_plugin_runtime(
         // Spawn replacement in the background.
         let next_label = labels::titlebar_webview_label(&format!("next_{}", context.id));
         if app.get_webview(&next_label).is_none() {
-            if let Ok(replacement) = native::add_plugin_runtime_header_webview(
+            if let Ok(replacement) = native::add_plugin_runtime_titlebar_webview(
                 &main_window,
                 next_label.clone(),
                 &titlebar_url(""),
@@ -141,9 +141,9 @@ pub fn detach_plugin_runtime(
         }
     } else {
         // No pooled webview available: create one on demand.
-        native::add_plugin_runtime_header_webview(
+        native::add_plugin_runtime_titlebar_webview(
             &main_window,
-            header_webview_label.clone(),
+            titlebar_webview_label.clone(),
             &titlebar_url(&context.id),
         )?;
     }
@@ -155,9 +155,9 @@ pub fn detach_plugin_runtime(
         center_on_show,
     )?;
 
-    if let Some(header) = app.get_webview(&header_webview_label) {
+    if let Some(header) = app.get_webview(&titlebar_webview_label) {
         reparent::reparent_webview_to_window(&header, &detached_window)?;
-        native::set_plugin_runtime_header_bounds(&detached_window, &header)?;
+        native::set_plugin_runtime_titlebar_bounds(&detached_window, &header)?;
         header.show().map_err(|error| error.to_string())?;
     }
 
@@ -169,7 +169,7 @@ pub fn detach_plugin_runtime(
     native::show_plugin_runtime_webview(&webview)?;
 
     state.mark_plugin_runtime_detached_window(&context.id, Some(detached_window_label.clone()));
-    state.mark_plugin_runtime_header_webview(&context.id, Some(header_webview_label));
+    state.mark_plugin_runtime_titlebar_webview(&context.id, Some(titlebar_webview_label));
     let context = state
         .move_plugin_runtime_to_host(
             &context.id,
@@ -280,7 +280,7 @@ pub fn close_runtime(
     if let Some(webview) = app.get_webview(&context.webview_label) {
         let _ = webview.close();
     }
-    if let Some(header_label) = &context.header_webview_label
+    if let Some(header_label) = &context.titlebar_webview_label
         && let Some(header) = app.get_webview(header_label)
     {
         let _ = header.close();
@@ -330,10 +330,10 @@ pub fn layout_runtime_window(
     let Some(window) = app.get_window(window_label) else {
         return Ok(Some(context));
     };
-    if let Some(header_webview_label) = &context.header_webview_label
-        && let Some(header_webview) = app.get_webview(header_webview_label)
+    if let Some(titlebar_webview_label) = &context.titlebar_webview_label
+        && let Some(header_webview) = app.get_webview(titlebar_webview_label)
     {
-        native::set_plugin_runtime_header_bounds(&window, &header_webview)?;
+        native::set_plugin_runtime_titlebar_bounds(&window, &header_webview)?;
     }
     let Some(webview) = app.get_webview(&context.webview_label) else {
         return Ok(Some(context));
@@ -436,7 +436,7 @@ pub fn warm_titlebar_pool(app: &tauri::AppHandle, state: &AppState) {
     let label = crate::windowing::labels::titlebar_webview_label("pool");
     // Load the SolidJS app with a neutral route; we navigate to the real
     // titlebar route later via eval() when the webview is used.
-    if let Ok(webview) = native::add_plugin_runtime_header_webview(
+    if let Ok(webview) = native::add_plugin_runtime_titlebar_webview(
         &main_window,
         label.clone(),
         "/",
@@ -444,6 +444,37 @@ pub fn warm_titlebar_pool(app: &tauri::AppHandle, state: &AppState) {
         let _ = webview.hide();
         state.return_pooled_titlebar(label);
     }
+}
+
+/// Shared helper: look up a plugin and one of its commands, returning the
+/// plugin name, command title, and declared permissions. Used by IPC handlers
+/// that only need to validate plugin + command existence and enabled status.
+pub fn find_enabled_plugin_command(
+    state: &AppState,
+    plugin_id: &str,
+    command_id: &str,
+) -> Result<(String, String, Vec<String>), String> {
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let plugin = app
+        .context()
+        .plugins
+        .find_plugin(plugin_id)
+        .ok_or_else(|| format!("plugin not found: {plugin_id}"))?;
+    if !plugin.enabled {
+        return Err(format!("plugin is disabled: {plugin_id}"));
+    }
+    let command = plugin
+        .manifest
+        .commands
+        .iter()
+        .find(|c| c.id == command_id)
+        .ok_or_else(|| format!("plugin command not found: {plugin_id}:{command_id}"))?;
+
+    Ok((
+        plugin.manifest.name.clone(),
+        command.title.clone(),
+        plugin.manifest.permissions.clone(),
+    ))
 }
 
 fn runtime_launch_descriptor(

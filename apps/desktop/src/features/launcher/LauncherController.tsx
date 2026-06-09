@@ -1,10 +1,11 @@
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
-import { executeResult, focusMainWindow, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
+import { executeResult, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
 import type { CommandEffect, LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
 import { type LauncherRenderSection, LauncherView } from './LauncherView';
+import { useLauncherNavigation } from './useLauncherNavigation';
 
 const MIN_LAUNCHER_HEIGHT = 96;
 const MAX_LAUNCHER_HEIGHT = 520;
@@ -29,7 +30,7 @@ export type VisibleLauncherItem = {
     isPinned: boolean;
 };
 
-type VisibleRow = {
+export type VisibleRow = {
     items: VisibleLauncherItem[];
 };
 
@@ -236,85 +237,18 @@ export function LauncherController(props: LauncherControllerProps) {
         });
     }
 
-    function focusSearchInput() {
-        queueMicrotask(() => inputElement?.focus({ preventScroll: true }));
-    }
-
-    function refocusSearchInputAfterBlur() {
-        focusSearchInput();
-        window.requestAnimationFrame(() => inputElement?.focus({ preventScroll: true }));
-    }
-
-    function refocusSearchInputAfterPinnedDrag() {
-        window.setTimeout(() => {
-            void focusMainWindow().then(() => inputElement?.focus({ preventScroll: true }));
-        }, 0);
-    }
-
-    function selectAdjacent(offset: number) {
-        const items = visibleFlatItems();
-        setSelectedIndex((current) => (items.length ? (current + offset + items.length) % items.length : 0));
-        focusSearchInput();
-    }
-
-    function selectVertical(offset: number) {
-        const items = visibleFlatItems();
-        const rows = visibleRows();
-
-        if (!items.length || !rows.length) {
-            setSelectedIndex(0);
-            return;
-        }
-
-        const current = items[selectedIndex()] ?? items[0];
-        const currentRowIndex = rows.findIndex((row) => row.items.some((item) => item.globalIndex === current.globalIndex));
-        const nextRowIndex = (currentRowIndex + offset + rows.length) % rows.length;
-        const targetRow = rows[nextRowIndex];
-        const targetItem = targetRow.items[Math.min(current.col, targetRow.items.length - 1)];
-
-        setSelectedIndex(targetItem.globalIndex);
-        focusSearchInput();
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === 'Tab') {
-            event.preventDefault();
-            event.stopPropagation();
-            selectAdjacent(event.shiftKey ? -1 : 1);
-            return;
-        }
-
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            selectAdjacent(1);
-            return;
-        }
-
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            selectAdjacent(-1);
-            return;
-        }
-
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            selectVertical(1);
-            return;
-        }
-
-        if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            selectVertical(-1);
-            return;
-        }
-
-        if (event.key === 'Escape') {
-            event.preventDefault();
+    const navigation = useLauncherNavigation({
+        inputElement: () => inputElement,
+        visibleFlatItems,
+        visibleRows,
+        selectedIndex,
+        setSelectedIndex,
+        onEscape: () => {
             setQuery('');
             setError(null);
             void hideMainWindow();
-        }
-    }
+        },
+    });
 
     function toggleSectionExpanded(sectionId: string) {
         setExpandedSectionIds((current) => {
@@ -338,9 +272,9 @@ export function LauncherController(props: LauncherControllerProps) {
             }}
             onContentElement={handleContentElement}
             onInput={setQuery}
-            onInputBlur={refocusSearchInputAfterBlur}
-            onKeyDown={handleKeyDown}
-            onPinnedDragEnd={refocusSearchInputAfterPinnedDrag}
+            onInputBlur={navigation.refocusAfterBlur}
+            onKeyDown={navigation.handleKeyDown}
+            onPinnedDragEnd={navigation.refocusAfterDrag}
             onPinnedReorder={(resultIds) => void reorderPinnedSection(resultIds)}
             onResultContextMenu={(renderItem, position) => void showResultContextMenu(renderItem, position)}
             onResultRun={(result) => void runResult(result)}

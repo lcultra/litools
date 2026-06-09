@@ -18,20 +18,20 @@ pub fn launcher_panel(
     state: State<'_, AppState>,
 ) -> Result<LauncherPanelResponse, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
-    app.launcher_panel(query).map_err(|error| error.to_string())
+    app.launcher_panel(query).map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
 pub fn pin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
-    app.pin_result(result_id).map_err(|error| error.to_string())
+    app.pin_result(result_id).map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
 pub fn unpin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     app.unpin_result(result_id)
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
@@ -41,7 +41,7 @@ pub fn reorder_pinned_results(
 ) -> Result<(), String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     app.reorder_pinned_results(result_ids)
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
@@ -54,7 +54,7 @@ pub fn execute_result(
     let execution = {
         let mut app = state.app().lock().map_err(|error| error.to_string())?;
         app.execute_result(result_id, action_id)
-            .map_err(|error| error.to_string())?
+            .map_err(|error| error.to_error_string())?
     };
 
     match execution.effect {

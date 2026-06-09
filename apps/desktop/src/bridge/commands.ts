@@ -84,10 +84,6 @@ export function focusMainWindow(): Promise<void> {
     return invoke<void>('focus_main_window');
 }
 
-export function startDragging(): Promise<void> {
-    return invoke<void>('start_dragging');
-}
-
 export function resizeMainWindowHeight(height: number): Promise<void> {
     return invoke<void>('resize_main_window_height', { height });
 }

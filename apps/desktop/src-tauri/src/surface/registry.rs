@@ -171,3 +171,70 @@ impl SurfaceRegistry {
         Some(metadata.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::view::model::{ViewDefinition, ViewKind, ViewProvider, WindowHostKind};
+
+    use super::*;
+
+    fn test_view(route: &str) -> ViewDefinition {
+        ViewDefinition {
+            id: "core.launcher".to_string(),
+            provider: ViewProvider::Core,
+            kind: ViewKind::Launcher,
+            route: route.to_string(),
+            title: "Test".to_string(),
+            default_host: WindowHostKind::Main,
+            allowed_hosts: vec![WindowHostKind::Main],
+            detachable: false,
+        }
+    }
+
+    #[test]
+    fn registers_and_finds_surface() {
+        let mut registry = SurfaceRegistry::default();
+        let view = test_view("/");
+        let metadata = registry.register_surface(
+            view,
+            MAIN_WINDOW_LABEL.to_string(),
+            WindowHostKind::Main,
+        );
+
+        assert_eq!(metadata.route, "/");
+        assert_eq!(metadata.host_kind, WindowHostKind::Main);
+        assert!(matches!(metadata.lifecycle, SurfaceLifecycle::Active));
+
+        let found = registry.metadata(&metadata.webview_label);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, metadata.id);
+    }
+
+    #[test]
+    fn lists_all_surfaces() {
+        let mut registry = SurfaceRegistry::default();
+        registry.register_surface(test_view("/a"), "main".to_string(), WindowHostKind::Main);
+        registry.register_surface(test_view("/b"), "main".to_string(), WindowHostKind::Main);
+
+        assert_eq!(registry.list().len(), 2);
+    }
+
+    #[test]
+    fn marks_lifecycle_and_removes_surface() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata = registry.register_surface(
+            test_view("/"),
+            "main".to_string(),
+            WindowHostKind::Main,
+        );
+
+        let updated = registry
+            .mark_lifecycle(&metadata.webview_label, SurfaceLifecycle::Hidden)
+            .expect("mark lifecycle");
+        assert!(matches!(updated.lifecycle, SurfaceLifecycle::Hidden));
+
+        let removed = registry.remove(&metadata.webview_label);
+        assert!(removed.is_some());
+        assert!(registry.metadata(&metadata.webview_label).is_none());
+    }
+}

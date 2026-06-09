@@ -149,11 +149,6 @@ pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn start_dragging(webview: Webview) -> Result<(), String> {
-    start_window_dragging(webview)
-}
-
-#[tauri::command]
 pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(), String> {
     native::resize_main_window_height(&app_handle, height)
 }

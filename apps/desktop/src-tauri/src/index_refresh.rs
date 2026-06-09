@@ -84,7 +84,7 @@ fn run_or_queue_refresh(app_handle: AppHandle, trigger: String) {
             if result.is_ok() {
                 let data_dir = app_handle.state::<AppState>().data_dir().to_path_buf();
                 tauri::async_runtime::spawn_blocking(move || {
-                    let _ = crate::icon_cache::prune_icon_cache(&data_dir);
+                    let _ = crate::protocol::icon_cache::prune_icon_cache(&data_dir);
                 });
             }
             let rerun = app_handle.state::<AppState>().finish_index_refresh(result);

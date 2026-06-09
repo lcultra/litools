@@ -1,7 +1,11 @@
 use serde::Serialize;
 use tauri::State;
 
-use crate::{plugin_protocol::plugin_entry_url, state::AppState};
+use crate::{
+    plugin_runtime::service::find_enabled_plugin_command,
+    protocol::plugin::plugin_entry_url,
+    state::AppState,
+};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -83,31 +87,20 @@ pub fn get_plugin_view_descriptor(
     command_id: String,
     state: State<'_, AppState>,
 ) -> Result<PluginViewDescriptor, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
-    let plugin = app
-        .context()
-        .plugins
-        .find_plugin(&plugin_id)
-        .ok_or_else(|| format!("plugin not found: {plugin_id}"))?;
-    if !plugin.enabled {
-        return Err(format!("plugin is disabled: {plugin_id}"));
-    }
-    let command = plugin
-        .manifest
-        .commands
-        .iter()
-        .find(|command| command.id == command_id)
-        .ok_or_else(|| format!("plugin command not found: {plugin_id}:{command_id}"))?;
+    let (plugin_name, title, permissions) =
+        find_enabled_plugin_command(&state, &plugin_id, &command_id)?;
 
+    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let plugin = app.context().plugins.find_plugin(&plugin_id).unwrap();
     let entry_url = plugin_entry_url(&plugin.manifest.id, &plugin.manifest.entry)?;
 
     Ok(PluginViewDescriptor {
         plugin_id,
         command_id,
-        plugin_name: plugin.manifest.name.clone(),
-        title: command.title.clone(),
+        plugin_name,
+        title,
         entry_url,
-        permissions: plugin.manifest.permissions.clone(),
+        permissions,
     })
 }
 
@@ -120,25 +113,12 @@ pub fn validate_plugin_view_route(
         return Err(format!("unknown route: {route}"));
     };
 
-    let app = state.app().lock().map_err(|error| error.to_string())?;
-    let plugin = app
-        .context()
-        .plugins
-        .find_plugin(plugin_id)
-        .ok_or_else(|| format!("unknown plugin route: {route}"))?;
-    if !plugin.enabled {
-        return Err(format!("plugin is disabled: {plugin_id}"));
-    }
-    let command = plugin
-        .manifest
-        .commands
-        .iter()
-        .find(|command| command.id == command_id)
-        .ok_or_else(|| format!("unknown plugin command route: {route}"))?;
+    let (_, title, _) = find_enabled_plugin_command(state, plugin_id, command_id)
+        .map_err(|_| format!("unknown plugin route: {route}"))?;
 
     Ok(crate::view::registry::plugin_view_definition(
         plugin_id,
         command_id,
-        command.title.clone(),
+        title,
     ))
 }

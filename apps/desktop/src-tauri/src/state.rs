@@ -307,15 +307,15 @@ impl AppState {
             .mark_detached_window(id, detached_window_label)
     }
 
-    pub fn mark_plugin_runtime_header_webview(
+    pub fn mark_plugin_runtime_titlebar_webview(
         &self,
         id: &str,
-        header_webview_label: Option<String>,
+        titlebar_webview_label: Option<String>,
     ) -> Option<PluginRuntimeContext> {
         self.plugin_runtimes
             .lock()
             .ok()?
-            .mark_header_webview(id, header_webview_label)
+            .mark_titlebar_webview(id, titlebar_webview_label)
     }
 
     pub fn mark_plugin_runtime_ready(&self, id: &str) -> Option<PluginRuntimeContext> {

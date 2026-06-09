@@ -1,3 +1,4 @@
+use litools_system::normalize_accelerator;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
 
@@ -29,15 +30,6 @@ pub fn register_global_shortcut(app: &AppHandle, accelerator: &str) {
 
 pub fn matches_palette_shortcut(shortcut: &Shortcut, state: &AppState) -> bool {
     *shortcut == parse_shortcut(&normalize_accelerator(&state.global_hotkey()))
-}
-
-fn normalize_accelerator(accelerator: &str) -> String {
-    match accelerator.trim() {
-        "Meta+Space" | "Cmd+Space" | "Command+Space" => "Meta+Space".to_string(),
-        "Control+Space" | "Ctrl+Space" => "Control+Space".to_string(),
-        "CommandOrControl+Space" | "" => "CommandOrControl+Space".to_string(),
-        other => other.to_string(),
-    }
 }
 
 fn parse_shortcut(accelerator: &str) -> Shortcut {

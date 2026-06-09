@@ -28,7 +28,7 @@ pub fn initialization_script() -> String {
     if (!internals || typeof internals.invoke !== 'function') {{
       return Promise.reject(new Error('litools runtime bridge is unavailable'));
     }}
-    return internals.invoke('plugin_runtime_call', {{ method: method, params: params || {{}} }});
+    return internals.invoke('plugin_view_call', {{ method: method, params: params || {{}} }});
   }}
 
   function listenRuntimeEvent(eventName, callback) {{

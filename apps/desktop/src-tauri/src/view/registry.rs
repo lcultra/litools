@@ -51,11 +51,6 @@ pub fn plugin_view_definition(
     }
 }
 
-#[allow(dead_code)]
-pub fn view_for_id(id: &str) -> Option<ViewDefinition> {
-    core_views().into_iter().find(|view| view.id == id)
-}
-
 pub fn validate_route(route: &str) -> Result<ViewDefinition, String> {
     view_for_route(route).ok_or_else(|| format!("unknown route: {route}"))
 }
