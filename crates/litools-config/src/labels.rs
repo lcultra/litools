@@ -17,7 +17,6 @@ pub const PLUGIN_WINDOW_PREFIX: &str = "plugin-window-";
 /// 插件内容 webview 标签前缀，格式：`plugin-{runtime_id}`。
 pub const PLUGIN_WEBVIEW_PREFIX: &str = "plugin-";
 /// 分离窗口标题栏 webview 标签前缀，格式：`titlebar-{runtime_id}`。
-pub const TITLEBAR_WEBVIEW_PREFIX: &str = "titlebar-";
 /// Surface webview 标签前缀，格式：`surface-{surface_id}`。
 pub const SURFACE_WEBVIEW_LABEL_PREFIX: &str = "surface-";
 

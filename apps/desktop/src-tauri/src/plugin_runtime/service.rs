@@ -52,7 +52,6 @@ pub fn dock_plugin_runtime(
             entry_url: descriptor.entry_url,
             host_window_label: labels::MAIN_WINDOW_LABEL.to_string(),
             detached_window_label: None,
-            titlebar_webview_label: None,
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: descriptor.permissions,
@@ -102,87 +101,131 @@ pub fn detach_plugin_runtime(
     }
 
     let webview = app.get_webview(&context.webview_label).ok_or_else(|| {
-        format!(
-            "plugin runtime webview not found: {}",
-            context.webview_label
-        )
+        format!("plugin runtime webview not found: {}", context.webview_label)
     })?;
-    let detached_window_label = context
-        .detached_window_label
-        .clone()
-        .unwrap_or_else(|| labels::plugin_window_label(&context.id));
-    // Acquire a titlebar webview from the shared pool, or create one on demand.
-    let titlebar_webview_label = state
-        .take_pooled_titlebar()
-        .unwrap_or_else(|| labels::titlebar_webview_label(&context.id));
+    // Use a preloaded window if available, otherwise create one.
+    let (detached_window, actual_label, was_preloaded) =
+        if let Some(pooled_label) = state.take_pooled_detached() {
+            let window = app.get_window(&pooled_label).ok_or_else(|| {
+                format!("pooled detached window not found: {pooled_label}")
+            })?;
+            window
+                .set_title(&context.title)
+                .map_err(|e| e.to_string())?;
+            spawn_pooled_detached(app, state);
+            (window, pooled_label, true)
+        } else {
+            let label = context
+                .detached_window_label
+                .clone()
+                .unwrap_or_else(|| labels::plugin_window_label(&context.id));
+            let window = native::create_plugin_runtime_detached_host(
+                app,
+                label.clone(),
+                &context.title,
+                center_on_show,
+            )?;
+            (window, label, false)
+        };
 
-    let main_window = crate::surface::service::ensure_main_launcher_surface(app, state)?;
+    let plugin_route =
+        litools_core::plugin_route(&context.plugin_id, &context.command_id);
 
-    if let Some(header) = app.get_webview(&titlebar_webview_label) {
-        // Pooled webview is ready: navigate to the correct titlebar route and
-        // immediately spawn a replacement so the pool stays warm.
-        header
-            .eval(&format!(
-                "window.location.hash = '#/titlebar/{}';",
-                context.id
-            ))
-            .map_err(|error| error.to_string())?;
-        // Spawn replacement in the background.
-        let next_label = labels::titlebar_webview_label(&format!("next_{}", context.id));
-        if app.get_webview(&next_label).is_none() {
-            if let Ok(replacement) = native::add_plugin_runtime_titlebar_webview(
-                &main_window,
-                next_label.clone(),
-                &titlebar_url(""),
-            ) {
-                let _ = replacement.hide();
-                state.return_pooled_titlebar(next_label);
-            }
+    if was_preloaded {
+        // Navigate the already-loaded SolidJS app to the plugin route.
+        // The window is still hidden so the user never sees the pooled route.
+        for wv in detached_window.webviews() {
+            let _ = wv.eval(&format!(
+                "window.location.hash = '#{}';",
+                plugin_route
+            ));
         }
     } else {
-        // No pooled webview available: create one on demand.
-        native::add_plugin_runtime_titlebar_webview(
-            &main_window,
-            titlebar_webview_label.clone(),
-            &titlebar_url(&context.id),
+        native::add_surface_webview(
+            &detached_window,
+            &crate::surface::model::SurfaceMetadata {
+                id: format!("detached_{}", context.id),
+                webview_label: labels::surface_webview_label(&context.id),
+                view_id: "plugin".to_string(),
+                provider: crate::view::model::ViewProvider::Plugin {
+                    plugin_id: context.plugin_id.clone(),
+                },
+                route: plugin_route.clone(),
+                title: context.title.clone(),
+                host_window_label: actual_label.clone(),
+                host_kind: crate::view::model::WindowHostKind::Detached,
+                lifecycle: crate::surface::model::SurfaceLifecycle::Active,
+                focused: true,
+                created_at: chrono::Utc::now().to_rfc3339(),
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            },
+            &plugin_route,
         )?;
     }
 
-    let detached_window = native::create_plugin_runtime_detached_host(
-        app,
-        detached_window_label.clone(),
-        &context.title,
-        center_on_show,
-    )?;
-
-    if let Some(header) = app.get_webview(&titlebar_webview_label) {
-        reparent::reparent_webview_to_window(&header, &detached_window)?;
-        native::set_plugin_runtime_titlebar_bounds(&detached_window, &header)?;
-        header.show().map_err(|error| error.to_string())?;
-    }
-
+    // Reparent plugin content webview into detached window.
     reparent::reparent_webview_to_window(&webview, &detached_window)?;
-    webview
-        .set_auto_resize(false)
-        .map_err(|error| error.to_string())?;
+    webview.set_auto_resize(false).map_err(|error| error.to_string())?;
     let bounds = native::set_plugin_runtime_content_bounds(&detached_window, &webview)?;
     native::show_plugin_runtime_webview(&webview)?;
 
-    state.mark_plugin_runtime_detached_window(&context.id, Some(detached_window_label.clone()));
-    state.mark_plugin_runtime_titlebar_webview(&context.id, Some(titlebar_webview_label));
+    state.mark_plugin_runtime_detached_window(&context.id, Some(actual_label.clone()));
     let context = state
         .move_plugin_runtime_to_host(
             &context.id,
-            detached_window_label,
+            actual_label.clone(),
             PluginRuntimePlacement::Detached,
             Some(bounds),
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
     native::show_panel_host(&detached_window, center_on_show);
-    // Navigate the main window back to launcher now that the plugin view
-    // has been moved out to its own window.
     let _ = crate::surface::service::open_view_route(app, state, "/", center_on_show);
     enter_runtime(app, state, &context.id)
+}
+
+/// Pre-create a hidden detached window so the first detach is instant.
+pub fn warm_detached_pool(app: &tauri::AppHandle, state: &AppState) {
+    spawn_pooled_detached(app, state);
+}
+
+fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
+    use labels::DETACHED_PANEL_WINDOW_PREFIX;
+
+    let pooled_label = format!("{DETACHED_PANEL_WINDOW_PREFIX}pool");
+    if app.get_window(&pooled_label).is_some() {
+        return; // already exists
+    }
+
+    let Ok(window) = native::create_plugin_runtime_detached_host(
+        app,
+        pooled_label.clone(),
+        "litools",
+        false,
+    ) else {
+        return;
+    };
+    let _ = window.hide();
+
+    // Pre-warm: load SolidJS app at /pooled (no route matches → empty page).
+    // SolidJS boots but renders nothing visible, so when the window is later
+    // shown after navigating to the plugin route, the user never sees the launcher.
+    let metadata = crate::surface::model::SurfaceMetadata {
+        id: "detached_pool".to_string(),
+        webview_label: labels::surface_webview_label("pool"),
+        view_id: "core.launcher".to_string(),
+        provider: crate::view::model::ViewProvider::Core,
+        route: "/pooled".to_string(),
+        title: "litools".to_string(),
+        host_window_label: pooled_label.clone(),
+        host_kind: crate::view::model::WindowHostKind::Detached,
+        lifecycle: crate::surface::model::SurfaceLifecycle::Active,
+        focused: false,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: chrono::Utc::now().to_rfc3339(),
+    };
+    if native::add_surface_webview(&window, &metadata, "/pooled").is_ok() {
+        state.return_pooled_detached(pooled_label);
+    }
 }
 
 pub fn close_plugin_runtime_by_plugin_command(
@@ -260,9 +303,7 @@ pub fn mark_runtime_title(
     if context.placement == PluginRuntimePlacement::Detached
         && let Some(window) = app.get_window(&context.host_window_label)
     {
-        window
-            .set_title(&title)
-            .map_err(|error| error.to_string())?;
+        window.set_title(&title).map_err(|error| error.to_string())?;
     }
     Ok(context)
 }
@@ -279,11 +320,6 @@ pub fn close_runtime(
 
     if let Some(webview) = app.get_webview(&context.webview_label) {
         let _ = webview.close();
-    }
-    if let Some(header_label) = &context.titlebar_webview_label
-        && let Some(header) = app.get_webview(header_label)
-    {
-        let _ = header.close();
     }
     if context.placement == PluginRuntimePlacement::Detached
         && let Some(window) = app.get_window(&context.host_window_label)
@@ -330,11 +366,6 @@ pub fn layout_runtime_window(
     let Some(window) = app.get_window(window_label) else {
         return Ok(Some(context));
     };
-    if let Some(titlebar_webview_label) = &context.titlebar_webview_label
-        && let Some(header_webview) = app.get_webview(titlebar_webview_label)
-    {
-        native::set_plugin_runtime_titlebar_bounds(&window, &header_webview)?;
-    }
     let Some(webview) = app.get_webview(&context.webview_label) else {
         return Ok(Some(context));
     };
@@ -362,9 +393,7 @@ fn ensure_docked_runtime_webview(
         if webview.window().label() != labels::MAIN_WINDOW_LABEL {
             reparent::reparent_webview_to_window(&webview, &window)?;
         }
-        webview
-            .set_auto_resize(false)
-            .map_err(|error| error.to_string())?;
+        webview.set_auto_resize(false).map_err(|error| error.to_string())?;
         let bounds = native::set_plugin_runtime_content_bounds(&window, &webview)?;
         native::show_plugin_runtime_webview(&webview)?;
         bounds
@@ -390,15 +419,9 @@ fn ensure_docked_runtime_webview(
     enter_runtime(app, state, &context.id)
 }
 
-fn focus_runtime_host(
-    app: &tauri::AppHandle,
-    context: &PluginRuntimeContext,
-) -> Result<(), String> {
+fn focus_runtime_host(app: &tauri::AppHandle, context: &PluginRuntimeContext) -> Result<(), String> {
     let window = app.get_window(&context.host_window_label).ok_or_else(|| {
-        format!(
-            "plugin runtime host not found: {}",
-            context.host_window_label
-        )
+        format!("plugin runtime host not found: {}", context.host_window_label)
     })?;
     native::focus_window(&window)
 }
@@ -416,39 +439,8 @@ fn emit_lifecycle_event(
     Ok(())
 }
 
-fn titlebar_url(runtime_id: &str) -> String {
-    format!("/titlebar/{runtime_id}")
-}
-
-/// Pre-create a pooled titlebar webview so the first detach is instant.
-pub fn warm_titlebar_pool(app: &tauri::AppHandle, state: &AppState) {
-    let pooled = state.take_pooled_titlebar();
-    if pooled
-        .as_ref()
-        .is_some_and(|label| app.get_webview(label).is_some())
-    {
-        state.return_pooled_titlebar(pooled.unwrap());
-        return;
-    }
-    let Ok(main_window) = crate::surface::service::ensure_main_launcher_surface(app, state) else {
-        return;
-    };
-    let label = crate::windowing::labels::titlebar_webview_label("pool");
-    // Load the SolidJS app with a neutral route; we navigate to the real
-    // titlebar route later via eval() when the webview is used.
-    if let Ok(webview) = native::add_plugin_runtime_titlebar_webview(
-        &main_window,
-        label.clone(),
-        "/",
-    ) {
-        let _ = webview.hide();
-        state.return_pooled_titlebar(label);
-    }
-}
-
 /// Shared helper: look up a plugin and one of its commands, returning the
-/// plugin name, command title, and declared permissions. Used by IPC handlers
-/// that only need to validate plugin + command existence and enabled status.
+/// plugin name, command title, and declared permissions.
 pub fn find_enabled_plugin_command(
     state: &AppState,
     plugin_id: &str,
@@ -482,10 +474,6 @@ fn runtime_launch_descriptor(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<RuntimeLaunchDescriptor, String> {
-    // The app lock is released when this function returns: we clone every field
-    // we need out of the plugin into an owned descriptor. Callers then register
-    // the runtime without holding the lock, so we never re-enter the database
-    // mutex on the same thread (see CLAUDE.md 后端数据库锁).
     let app = state.app().lock().map_err(|error| error.to_string())?;
     let plugin = app
         .context()

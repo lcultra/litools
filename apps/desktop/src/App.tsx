@@ -1,26 +1,35 @@
-import { useLocation, useNavigate } from '@solidjs/router';
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { useNavigate } from '@solidjs/router';
+import { createContext, createEffect, createSignal, type JSX, onCleanup, onMount, useContext } from 'solid-js';
 import { closePluginView, getCurrentSurfaceMetadata, getSettings, hideSurface, updateSurfaceRoute } from './bridge/commands';
 import { onNavigate, onSurfaceMetadataChanged } from './bridge/events';
-import type { AppSettings, CommandEffect, PluginViewState } from './bridge/types';
-import { WorkspaceView } from './components/WorkspaceView';
-import { Launcher } from './features/launcher/Launcher';
-import { TitlebarPage } from './features/titlebar/TitlebarPage';
-import { PluginView } from './features/workspace/PluginView';
+import type { AppSettings } from './bridge/types';
 import { isDarkThemeValue } from './shared/theme';
-import { type AppRoutePath, pluginRouteParts, routeForPath } from './views/registry';
+import { isPluginRoutePath, pluginRouteParts } from './views/registry';
 
-export function App() {
-    const location = useLocation();
+// ── shared context ──
+
+type ShellContextValue = {
+    hostWindowLabel: () => string | null;
+    isDetachedWindow: () => boolean;
+    settings: () => AppSettings | null;
+};
+
+const ShellCtx = createContext<ShellContextValue>();
+
+export function useShell(): ShellContextValue {
+    const ctx = useContext(ShellCtx);
+    if (!ctx) throw new Error('useShell must be used inside AppShell');
+    return ctx;
+}
+
+// ── layout ──
+
+export function AppShell(props: { children?: JSX.Element }) {
     const navigate = useNavigate();
     const [settings, setSettings] = createSignal<AppSettings | null>(null);
     const [systemDark, setSystemDark] = createSignal(false);
-
     const [hostWindowLabel, setHostWindowLabel] = createSignal<string | null>(null);
-    const [pluginView, setPluginView] = createSignal<PluginViewState | null>(null);
     const isDetachedWindow = () => Boolean(hostWindowLabel() && hostWindowLabel() !== 'main');
-    const activeRoute = () => routeForPath(location.pathname);
-    const isLauncher = () => activeRoute().kind === 'launcher';
 
     onMount(() => {
         void refreshSettings();
@@ -36,10 +45,7 @@ export function App() {
             setHostWindowLabel(metadata.hostWindowLabel);
         });
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== 'Escape' || isLauncher()) {
-                return;
-            }
-
+            if (event.key !== 'Escape' || location.hash === '#/') return;
             event.preventDefault();
             closeCurrentView();
         };
@@ -64,12 +70,11 @@ export function App() {
     });
 
     createEffect(() => {
-        const route = activeRoute();
-        if (!hostWindowLabel() || route.id === 'titlebar' || (route.path === '/' && isDetachedWindow())) {
-            return;
+        const hash = location.hash.slice(1);
+        if (!hostWindowLabel() || hash === '/' || (hash === '/' && isDetachedWindow())) return;
+        if (isPluginRoutePath(hash)) {
+            void updateSurfaceRoute(hash);
         }
-
-        void updateSurfaceRoute(route.path);
     });
 
     async function refreshSettings() {
@@ -85,60 +90,29 @@ export function App() {
         return isDarkThemeValue(settings()?.theme, systemDark());
     }
 
-    function safeNavigate(path: AppRoutePath) {
-        if (activeRoute().id === 'titlebar') {
-            return;
-        }
-
-        if (path === '/' && isDetachedWindow()) {
-            return;
-        }
-
+    function safeNavigate(path: string) {
+        if (path === '/' && isDetachedWindow()) return;
         navigate(path);
     }
 
     function closeCurrentView() {
-        const parts = pluginRouteParts(activeRoute().path);
+        const hash = location.hash.slice(1);
+        const parts = pluginRouteParts(hash);
         if (parts) {
             void closePluginView(parts.pluginId, parts.commandId);
-            safeNavigate('/');
+            navigate('/');
             return;
         }
-
         if (isDetachedWindow()) {
             void hideSurface();
             return;
         }
-
-        safeNavigate('/');
-    }
-
-    function handleCommandEffect(effect: CommandEffect) {
-        if (typeof effect === 'object' && 'openPluginView' in effect) {
-            safeNavigate(effect.openPluginView.route);
-            return;
-        }
-
-        if (effect === 'toggleTheme') {
-            void refreshSettings();
-        }
-
-        if (effect === 'reloadIndex') {
-            safeNavigate('/');
-        }
+        navigate('/');
     }
 
     return (
-        <main class="h-screen overflow-hidden text-fg transition-colors">
-            <Show when={activeRoute().id !== 'titlebar'} fallback={<TitlebarPage path={activeRoute().path} />}>
-                <Show when={!isLauncher()} fallback={<Launcher onCommandEffect={handleCommandEffect} />}>
-                    <WorkspaceView isDetached={isDetachedWindow()} onClose={closeCurrentView} ownerReady={Boolean(hostWindowLabel())} pluginView={pluginView()}>
-                        <Show when={activeRoute().kind === 'plugin'}>
-                            <PluginView onStateChange={setPluginView} path={activeRoute().path} />
-                        </Show>
-                    </WorkspaceView>
-                </Show>
-            </Show>
-        </main>
+        <ShellCtx.Provider value={{ hostWindowLabel, isDetachedWindow, settings }}>
+            <main class="h-screen overflow-hidden text-fg transition-colors">{props.children}</main>
+        </ShellCtx.Provider>
     );
 }

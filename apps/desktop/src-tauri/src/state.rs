@@ -57,10 +57,8 @@ pub struct AppState {
     app_watcher_handle: Mutex<Option<AppWatcherHandle>>,
     surfaces: Mutex<SurfaceRegistry>,
     plugin_runtimes: Mutex<PluginRuntimeRegistry>,
-    /// Pre-loaded titlebar webview available for detached windows.
-    /// `None` means no webview is available; `Some(label)` means a
-    /// hidden titlebar webview is ready in the main window.
-    pooled_titlebar: Mutex<Option<String>>,
+    /// Pre-created detached window ready for instant plugin detach.
+    pooled_detached: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -76,7 +74,7 @@ impl AppState {
             app_watcher_handle: Mutex::new(None),
             surfaces: Mutex::new(SurfaceRegistry::default()),
             plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
-            pooled_titlebar: Mutex::new(None),
+            pooled_detached: Mutex::new(None),
         })
     }
 
@@ -307,16 +305,6 @@ impl AppState {
             .mark_detached_window(id, detached_window_label)
     }
 
-    pub fn mark_plugin_runtime_titlebar_webview(
-        &self,
-        id: &str,
-        titlebar_webview_label: Option<String>,
-    ) -> Option<PluginRuntimeContext> {
-        self.plugin_runtimes
-            .lock()
-            .ok()?
-            .mark_titlebar_webview(id, titlebar_webview_label)
-    }
 
     pub fn mark_plugin_runtime_ready(&self, id: &str) -> Option<PluginRuntimeContext> {
         self.plugin_runtimes.lock().ok()?.mark_ready(id)
@@ -334,18 +322,7 @@ impl AppState {
         self.plugin_runtimes.lock().ok()?.remove(target)
     }
 
-    /// Take the pooled titlebar webview for use in a detached window.
-    /// Returns None if no pooled webview is available.
-    pub fn take_pooled_titlebar(&self) -> Option<String> {
-        self.pooled_titlebar.lock().ok()?.take()
-    }
 
-    /// Return a titlebar webview to the pool (hidden in the main window).
-    pub fn return_pooled_titlebar(&self, label: String) {
-        if let Ok(mut pooled) = self.pooled_titlebar.lock() {
-            *pooled = Some(label);
-        }
-    }
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {
         if let Ok(mut shortcut_status) = self.shortcut_status.lock() {
@@ -414,5 +391,15 @@ impl AppState {
 
     pub fn app_watcher_status(&self) -> AppWatcherStatus {
         self.app_watcher.status()
+    }
+
+    pub fn take_pooled_detached(&self) -> Option<String> {
+        self.pooled_detached.lock().ok()?.take()
+    }
+
+    pub fn return_pooled_detached(&self, label: String) {
+        if let Ok(mut pooled) = self.pooled_detached.lock() {
+            *pooled = Some(label);
+        }
     }
 }

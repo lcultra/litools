@@ -25,7 +25,6 @@ pub struct PluginRuntimeRegistration {
     pub entry_url: String,
     pub host_window_label: String,
     pub detached_window_label: Option<String>,
-    pub titlebar_webview_label: Option<String>,
     pub placement: PluginRuntimePlacement,
     pub bounds: Option<PluginRuntimeBounds>,
     pub permissions: Vec<String>,
@@ -78,7 +77,6 @@ impl PluginRuntimeRegistry {
             entry_url: registration.entry_url,
             host_window_label: registration.host_window_label,
             detached_window_label: registration.detached_window_label,
-            titlebar_webview_label: registration.titlebar_webview_label,
             webview_label: webview_label.clone(),
             placement: registration.placement,
             bounds: registration.bounds,
@@ -213,15 +211,6 @@ impl PluginRuntimeRegistry {
         })
     }
 
-    pub fn mark_titlebar_webview(
-        &mut self,
-        id: &str,
-        titlebar_webview_label: Option<String>,
-    ) -> Option<PluginRuntimeContext> {
-        self.update_by_id(id, |context| {
-            context.titlebar_webview_label = titlebar_webview_label;
-        })
-    }
 
     pub fn remove(&mut self, target: &str) -> Option<PluginRuntimeContext> {
         let id = if self.runtimes_by_id.contains_key(target) {
@@ -231,8 +220,7 @@ impl PluginRuntimeRegistry {
         } else {
             self.runtimes_by_id.iter().find_map(|(id, context)| {
                 (context.host_window_label == target
-                    || context.detached_window_label.as_deref() == Some(target)
-                    || context.titlebar_webview_label.as_deref() == Some(target))
+                    || context.detached_window_label.as_deref() == Some(target))
                 .then(|| id.clone())
             })?
         };
@@ -272,7 +260,6 @@ mod tests {
             entry_url: "litools-plugin://dev.litools.test/dist/index.html".to_string(),
             host_window_label: MAIN_WINDOW_LABEL.to_string(),
             detached_window_label: None,
-            titlebar_webview_label: None,
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: vec!["ui:window".to_string()],
@@ -355,12 +342,6 @@ mod tests {
                 Some("plugin-runtime-window-runtime_000001".to_string()),
             )
             .expect("detached window marked");
-        let context = registry
-            .mark_titlebar_webview(
-                &context.id,
-                Some("plugin-runtime-header-runtime_000001".to_string()),
-            )
-            .expect("header webview marked");
 
         assert_eq!(context.placement, PluginRuntimePlacement::Detached);
         assert_eq!(context.bounds, Some(bounds));

@@ -115,30 +115,6 @@ pub fn add_plugin_runtime_webview(
     Ok((webview, bounds))
 }
 
-pub fn add_plugin_runtime_titlebar_webview(
-    window: &Window,
-    webview_label: String,
-    route: &str,
-) -> Result<Webview, String> {
-    let size = window_inner_logical_size(window)?;
-    let url = format!("index.html#{route}");
-    let webview = window
-        .add_child(
-            WebviewBuilder::new(webview_label, WebviewUrl::App(PathBuf::from(url)))
-                .transparent(true),
-            LogicalPosition::new(0.0, 0.0),
-            Size::Logical(LogicalSize {
-                width: size.width,
-                height: size.height,
-            }),
-        )
-        .map_err(|error| error.to_string())?;
-    webview
-        .set_auto_resize(false)
-        .map_err(|error| error.to_string())?;
-    Ok(webview)
-}
-
 pub fn set_plugin_runtime_content_bounds(
     window: &Window,
     webview: &Webview,
@@ -154,19 +130,6 @@ pub fn set_plugin_runtime_content_bounds(
         }))
         .map_err(|error| error.to_string())?;
     Ok(bounds)
-}
-
-pub fn set_plugin_runtime_titlebar_bounds(window: &Window, webview: &Webview) -> Result<(), String> {
-    let size = window_inner_logical_size(window)?;
-    webview
-        .set_position(Position::Logical(LogicalPosition::new(0.0, 0.0)))
-        .map_err(|error| error.to_string())?;
-    webview
-        .set_size(Size::Logical(LogicalSize {
-            width: size.width,
-            height: size.height,
-        }))
-        .map_err(|error| error.to_string())
 }
 
 pub fn hide_plugin_runtime_webview(webview: &Webview) -> Result<(), String> {

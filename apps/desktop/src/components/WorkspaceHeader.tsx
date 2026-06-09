@@ -5,7 +5,7 @@ import { Ellipsis, X } from 'lucide-solid';
 import { createSignal, For, Show } from 'solid-js';
 import { detachPluginView, detachRoute, startWindowDragging } from '../bridge/commands';
 import type { PluginViewState } from '../bridge/types';
-import { canDetachRoute, pluginRouteParts, routeForPath } from '../views/registry';
+import { canDetachRoute, pluginRouteParts } from '../views/registry';
 
 const MENU_OFFSET_Y = 8;
 
@@ -19,9 +19,9 @@ type WorkspaceHeaderProps = {
 export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     const location = useLocation();
     const [menuError, setMenuError] = createSignal<string | null>(null);
-    const currentRoute = () => routeForPath(location.pathname);
+    const currentPath = () => location.pathname;
     const breadcrumbs = () => (props.pluginView ? [props.pluginView.pluginName, props.pluginView.title] : ['插件']);
-    const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && canDetachRoute(currentRoute().path);
+    const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && canDetachRoute(currentPath());
 
     function handleDragPointerDown(event: PointerEvent) {
         if (event.button !== 0) {
@@ -32,9 +32,9 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     }
 
     async function showMenu(event: MouseEvent) {
-        const route = currentRoute();
+        const path = currentPath();
 
-        if (!canDetachRoute(route.path)) {
+        if (!canDetachRoute(path)) {
             return;
         }
 
@@ -46,12 +46,12 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
                 items: [
                     {
                         action: () => {
-                            const parts = pluginRouteParts(route.path);
+                            const parts = pluginRouteParts(path);
                             if (parts) {
                                 void detachPluginView(parts.pluginId, parts.commandId);
                                 return;
                             }
-                            void detachRoute(route.path);
+                            void detachRoute(path);
                         },
                         id: 'detach',
                         text: '分离为独立窗口',

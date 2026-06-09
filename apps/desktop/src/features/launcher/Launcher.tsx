@@ -1,10 +1,15 @@
+import { useNavigate } from '@solidjs/router';
 import type { CommandEffect } from '../../bridge/types';
 import { LauncherController } from './LauncherController';
 
-type LauncherProps = {
-    onCommandEffect: (effect: CommandEffect) => void;
-};
+export function Launcher() {
+    const navigate = useNavigate();
 
-export function Launcher(props: LauncherProps) {
-    return <LauncherController onCommandEffect={props.onCommandEffect} />;
+    function handleCommandEffect(effect: CommandEffect) {
+        if (typeof effect === 'object' && 'openPluginView' in effect) {
+            navigate(effect.openPluginView.route);
+        }
+    }
+
+    return <LauncherController onCommandEffect={handleCommandEffect} />;
 }
