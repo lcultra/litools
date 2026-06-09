@@ -12,10 +12,8 @@ use crate::{
     plugin_provider::PluginCommandProvider,
 };
 
-const APP_SETTINGS_KEY: &str = "app_settings";
-const APPS_INDEX_STATUS_KEY: &str = "apps_last_refresh_status";
-const LAUNCHER_RESULT_LIMIT: usize = 20;
-const RELOAD_INDEX_TRIGGER_DIRECT: &str = "direct";
+use litools_config::app::{APP_SETTINGS_KEY, APPS_INDEX_STATUS_KEY, RELOAD_INDEX_TRIGGER_DIRECT};
+use litools_config::search::DEFAULT_LAUNCHER_RESULT_LIMIT;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]

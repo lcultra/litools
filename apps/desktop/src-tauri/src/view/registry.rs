@@ -1,6 +1,6 @@
 use crate::view::model::{ViewDefinition, ViewKind, ViewProvider, WindowHostKind};
+pub use litools_config::labels::{CORE_LAUNCHER_VIEW_ID};
 
-pub const CORE_LAUNCHER_VIEW_ID: &str = "core.launcher";
 
 pub fn core_views() -> Vec<ViewDefinition> {
     vec![ViewDefinition {

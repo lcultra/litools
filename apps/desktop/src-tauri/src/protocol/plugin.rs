@@ -5,8 +5,8 @@ use tauri::http::{StatusCode, Uri};
 use crate::state::AppState;
 
 use super::{empty_response, ok_response, percent_decode};
+pub use litools_config::protocol::{PLUGIN_PROTOCOL_SCHEME};
 
-pub const PLUGIN_PROTOCOL_SCHEME: &str = "litools-plugin";
 
 type PluginResponse = tauri::http::Response<Vec<u8>>;
 

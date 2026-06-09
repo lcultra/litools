@@ -16,9 +16,8 @@ use lru::LruCache;
 use tauri::http::{StatusCode, Uri};
 
 use super::{empty_response, ok_response, percent_decode};
+pub use litools_config::icon::{DEFAULT_ICON_CACHE_CAPACITY, DEFAULT_ICON_TARGET_SIZE};
 
-const ICON_CACHE_CAPACITY: usize = 128;
-const ICON_TARGET_SIZE: u32 = 128;
 
 type IconResponse = tauri::http::Response<Vec<u8>>;
 
@@ -31,7 +30,7 @@ impl Default for IconProtocol {
     fn default() -> Self {
         Self {
             cache: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(ICON_CACHE_CAPACITY).expect("non-zero icon cache capacity"),
+                NonZeroUsize::new(DEFAULT_ICON_CACHE_CAPACITY).expect("non-zero icon cache capacity"),
             ))),
         }
     }
@@ -158,7 +157,7 @@ fn icns_to_png(path: &Path) -> std::io::Result<Vec<u8>> {
         .into_iter()
         .min_by_key(|icon_type| {
             let size = icon_type.pixel_width();
-            size.abs_diff(ICON_TARGET_SIZE)
+            size.abs_diff(DEFAULT_ICON_TARGET_SIZE)
         })
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "missing icon image"))?;
     let icon = family.get_icon_with_type(icon_type)?;

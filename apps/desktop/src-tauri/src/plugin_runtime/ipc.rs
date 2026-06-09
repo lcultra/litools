@@ -4,6 +4,7 @@ use litools_settings::AppSettings;
 use serde_json::{Value, json};
 use tauri::{AppHandle, State, Webview, ipc::InvokeError};
 
+pub use litools_config::plugin::{MAX_STORAGE_KEY_LEN, MAX_STORAGE_VALUE_LEN};
 use crate::{
     plugin_runtime::{
         model::{PermissionQueryResult, PluginRuntimeError, PluginRuntimeInfo},
@@ -13,8 +14,6 @@ use crate::{
     state::AppState,
 };
 
-const MAX_STORAGE_KEY_LEN: usize = 256;
-const MAX_STORAGE_VALUE_LEN: usize = 256 * 1024;
 
 #[tauri::command]
 pub fn open_plugin_view(

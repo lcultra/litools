@@ -1,5 +1,5 @@
-pub const PLUGIN_RESULT_PREFIX: &str = "plugin:";
-pub const PLUGIN_TARGET_TYPE: &str = "plugin_command";
+pub use litools_config::plugin::{PLUGIN_TARGET_TYPE};
+pub use litools_config::search::{PLUGIN_RESULT_PREFIX};
 
 /// Build a search result ID from a plugin ID and command ID.
 ///

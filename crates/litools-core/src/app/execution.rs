@@ -4,12 +4,12 @@ use litools_plugin::{PluginCommandMode, plugin_target_id};
 use litools_system::{NativeSystemAdapter, SystemAdapter};
 use uuid::Uuid;
 
+use litools_config::search::ACTION_OPEN;
+
 use crate::{
     app::LitoolsApp,
-    app_provider::OPEN_APP_ACTION_ID,
     command::{CommandEffect, CommandExecution, builtin_effect_for_result, message_for_effect},
     error::{LitoolsError, LitoolsResult},
-    plugin_provider::OPEN_PLUGIN_ACTION_ID,
 };
 
 use super::plugins::plugin_route;
@@ -73,7 +73,7 @@ impl LitoolsApp {
         app_id: &str,
         action_id: &str,
     ) -> LitoolsResult<CommandExecution> {
-        if action_id != OPEN_APP_ACTION_ID {
+        if action_id != ACTION_OPEN {
             return Err(LitoolsError::CommandNotFound(format!(
                 "{result_id}:{action_id}"
             )));
@@ -113,7 +113,7 @@ impl LitoolsApp {
         command_id: &str,
         action_id: &str,
     ) -> LitoolsResult<CommandExecution> {
-        if action_id != OPEN_PLUGIN_ACTION_ID {
+        if action_id != ACTION_OPEN {
             return Err(LitoolsError::CommandNotFound(format!(
                 "{result_id}:{action_id}"
             )));

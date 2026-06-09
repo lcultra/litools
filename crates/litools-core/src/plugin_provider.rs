@@ -11,9 +11,8 @@ use litools_search::{
     MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
     SearchResultMatches, TextMatch, match_text,
 };
+use litools_config::search::{ACTION_OPEN, PLUGIN_PROVIDER_ID};
 
-pub const PLUGIN_PROVIDER_ID: &str = "plugins";
-pub const OPEN_PLUGIN_ACTION_ID: &str = "open";
 
 pub struct PluginCommandProvider {
     database: IndexDatabase,
@@ -82,7 +81,7 @@ pub fn search_result_for_plugin_command_record(
             subtitle: command_match.subtitle_ranges,
         },
         actions: vec![SearchResultAction {
-            id: OPEN_PLUGIN_ACTION_ID.to_string(),
+            id: ACTION_OPEN.to_string(),
             label: "打开".to_string(),
         }],
     }

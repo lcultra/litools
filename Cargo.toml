@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "crates/litools-config",
   "crates/litools-core",
   "crates/litools-index",
   "crates/litools-plugin",
@@ -39,6 +40,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 
+litools-config = { path = "crates/litools-config" }
 litools-core = { path = "crates/litools-core" }
 litools-index = { path = "crates/litools-index" }
 litools-plugin = { path = "crates/litools-plugin" }

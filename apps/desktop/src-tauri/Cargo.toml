@@ -9,6 +9,7 @@ authors.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+litools-config.workspace = true
 chrono.workspace = true
 icns.workspace = true
 image.workspace = true

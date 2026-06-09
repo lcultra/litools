@@ -1,10 +1,8 @@
 use std::{fs, path::Path, time::SystemTime};
 
 use serde::Serialize;
+pub use litools_config::icon::{DEFAULT_ICON_CACHE_MAX_BYTES, DEFAULT_ICON_CACHE_MAX_FILES, ICON_CACHE_RELATIVE_DIR};
 
-const ICON_CACHE_RELATIVE_DIR: &str = "icon-cache/apps";
-const ICON_CACHE_MAX_FILES: usize = 1024;
-const ICON_CACHE_MAX_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,8 +27,8 @@ pub fn icon_cache_summary(data_dir: &Path) -> IconCacheSummary {
     match cache_entries(data_dir) {
         Ok(entries) => summary_from_entries(entries, None, 0, None),
         Err(error) => IconCacheSummary {
-            max_files: ICON_CACHE_MAX_FILES,
-            max_bytes: ICON_CACHE_MAX_BYTES,
+            max_files: DEFAULT_ICON_CACHE_MAX_FILES,
+            max_bytes: DEFAULT_ICON_CACHE_MAX_BYTES,
             error: Some(error.to_string()),
             ..IconCacheSummary::default()
         },
@@ -42,8 +40,8 @@ pub fn prune_icon_cache(data_dir: &Path) -> IconCacheSummary {
         Ok(entries) => entries,
         Err(error) => {
             return IconCacheSummary {
-                max_files: ICON_CACHE_MAX_FILES,
-                max_bytes: ICON_CACHE_MAX_BYTES,
+                max_files: DEFAULT_ICON_CACHE_MAX_FILES,
+                max_bytes: DEFAULT_ICON_CACHE_MAX_BYTES,
                 error: Some(error.to_string()),
                 ..IconCacheSummary::default()
             };
@@ -52,8 +50,8 @@ pub fn prune_icon_cache(data_dir: &Path) -> IconCacheSummary {
 
     entries.sort_by_key(|entry| entry.modified);
     let mut total_bytes = entries.iter().map(|entry| entry.bytes).sum::<u64>();
-    let mut remove_count = entries.len().saturating_sub(ICON_CACHE_MAX_FILES);
-    while total_bytes > ICON_CACHE_MAX_BYTES && remove_count < entries.len() {
+    let mut remove_count = entries.len().saturating_sub(DEFAULT_ICON_CACHE_MAX_FILES);
+    while total_bytes > DEFAULT_ICON_CACHE_MAX_BYTES && remove_count < entries.len() {
         total_bytes = total_bytes.saturating_sub(entries[remove_count].bytes);
         remove_count += 1;
     }
@@ -75,8 +73,8 @@ pub fn prune_icon_cache(data_dir: &Path) -> IconCacheSummary {
             error,
         ),
         Err(read_error) => IconCacheSummary {
-            max_files: ICON_CACHE_MAX_FILES,
-            max_bytes: ICON_CACHE_MAX_BYTES,
+            max_files: DEFAULT_ICON_CACHE_MAX_FILES,
+            max_bytes: DEFAULT_ICON_CACHE_MAX_BYTES,
             last_pruned_at: Some(chrono::Utc::now().to_rfc3339()),
             last_pruned_files: removed,
             error: Some(read_error.to_string()),
@@ -126,8 +124,8 @@ fn summary_from_entries(
     IconCacheSummary {
         file_count: entries.len(),
         total_bytes: entries.iter().map(|entry| entry.bytes).sum(),
-        max_files: ICON_CACHE_MAX_FILES,
-        max_bytes: ICON_CACHE_MAX_BYTES,
+        max_files: DEFAULT_ICON_CACHE_MAX_FILES,
+        max_bytes: DEFAULT_ICON_CACHE_MAX_BYTES,
         last_pruned_at,
         last_pruned_files,
         error,
@@ -149,6 +147,6 @@ mod tests {
 
         assert_eq!(summary.file_count, 0);
         assert_eq!(summary.total_bytes, 0);
-        assert_eq!(summary.max_files, ICON_CACHE_MAX_FILES);
+        assert_eq!(summary.max_files, DEFAULT_ICON_CACHE_MAX_FILES);
     }
 }

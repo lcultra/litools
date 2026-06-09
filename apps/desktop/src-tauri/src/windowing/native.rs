@@ -13,12 +13,9 @@ use crate::{
 };
 
 use super::positioning::maybe_position_on_show;
+pub use litools_config::window::{CHROME_INSET, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH, TITLEBAR_HEIGHT};
 
-const MANAGEMENT_WINDOW_WIDTH: f64 = 820.0;
-const MANAGEMENT_WINDOW_HEIGHT: f64 = 560.0;
-pub const PLUGIN_RUNTIME_TITLEBAR_HEIGHT: f64 = 68.0;
 /// 1px WindowFrame p-px + 1px Panel border
-const CHROME_INSET: f64 = 2.0;
 
 pub fn main_window(app: &tauri::AppHandle) -> Option<Window> {
     app.get_window(MAIN_WINDOW_LABEL)
@@ -32,7 +29,7 @@ pub fn create_main_host(app: &tauri::AppHandle) -> Result<Window, String> {
 
     let window = WindowBuilder::new(app, MAIN_WINDOW_LABEL)
         .title("litools")
-        .inner_size(MANAGEMENT_WINDOW_WIDTH, MANAGEMENT_WINDOW_HEIGHT)
+        .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         .resizable(false)
         .decorations(false)
         .transparent(true)
@@ -51,7 +48,7 @@ pub fn create_detached_panel_host(app: &tauri::AppHandle, label: String) -> Resu
 
     let window = WindowBuilder::new(app, label)
         .title("litools")
-        .inner_size(MANAGEMENT_WINDOW_WIDTH, MANAGEMENT_WINDOW_HEIGHT)
+        .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         .resizable(false)
         .decorations(false)
         .transparent(true)
@@ -79,7 +76,7 @@ pub fn create_plugin_runtime_detached_host(
 
     let window = WindowBuilder::new(app, window_label)
         .title(title)
-        .inner_size(MANAGEMENT_WINDOW_WIDTH, MANAGEMENT_WINDOW_HEIGHT)
+        .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         .resizable(false)
         .decorations(false)
         .transparent(true)
@@ -184,9 +181,9 @@ pub fn plugin_runtime_content_bounds(window: &Window) -> Result<PluginRuntimeBou
     let size = window_inner_logical_size(window)?;
     Ok(PluginRuntimeBounds {
         x: CHROME_INSET,
-        y: PLUGIN_RUNTIME_TITLEBAR_HEIGHT + CHROME_INSET,
+        y: TITLEBAR_HEIGHT + CHROME_INSET,
         width: (size.width - CHROME_INSET * 2.0).max(0.0),
-        height: (size.height - PLUGIN_RUNTIME_TITLEBAR_HEIGHT - CHROME_INSET * 2.0).max(0.0),
+        height: (size.height - TITLEBAR_HEIGHT - CHROME_INSET * 2.0).max(0.0),
     })
 }
 
@@ -290,8 +287,8 @@ pub fn emit_focus_to_owned_launcher_surfaces(window: &Window) {
 
 fn management_size() -> Size {
     Size::Logical(LogicalSize {
-        width: MANAGEMENT_WINDOW_WIDTH,
-        height: MANAGEMENT_WINDOW_HEIGHT,
+        width: DEFAULT_WINDOW_WIDTH,
+        height: DEFAULT_WINDOW_HEIGHT,
     })
 }
 

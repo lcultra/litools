@@ -11,7 +11,7 @@ use crate::{
     plugin_provider::search_result_for_plugin_command_record,
 };
 
-use super::LAUNCHER_RESULT_LIMIT;
+use super::DEFAULT_LAUNCHER_RESULT_LIMIT;
 
 impl LitoolsApp {
     pub fn launcher_panel(
@@ -45,7 +45,7 @@ impl LitoolsApp {
         let mut sections = Vec::new();
 
         if settings.palette.show_recent {
-            let recent_items = self.recent_launcher_items(LAUNCHER_RESULT_LIMIT)?;
+            let recent_items = self.recent_launcher_items(DEFAULT_LAUNCHER_RESULT_LIMIT)?;
 
             if let Some(section) = section_if_not_empty("recent", "最近使用", recent_items) {
                 sections.push(section);
@@ -53,7 +53,7 @@ impl LitoolsApp {
         }
 
         if settings.palette.show_pinned {
-            let pinned_items = self.pinned_launcher_items(LAUNCHER_RESULT_LIMIT)?;
+            let pinned_items = self.pinned_launcher_items(DEFAULT_LAUNCHER_RESULT_LIMIT)?;
 
             if let Some(section) = section_if_not_empty("pinned", "已固定", pinned_items) {
                 sections.push(section);

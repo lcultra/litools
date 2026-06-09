@@ -2,14 +2,13 @@ use std::collections::BTreeMap;
 
 use chrono::Utc;
 
+pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
 use crate::{
     surface::model::{SurfaceLifecycle, SurfaceMetadata},
     view::model::{ViewDefinition, WindowHostKind},
     windowing::labels::{MAIN_WINDOW_LABEL, surface_webview_label},
 };
 
-const DETACHED_HOST_ID_PREFIX: &str = "panel";
-const SURFACE_ID_PREFIX: &str = "surface";
 
 #[derive(Debug)]
 pub struct SurfaceRegistry {

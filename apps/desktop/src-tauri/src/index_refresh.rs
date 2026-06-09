@@ -5,8 +5,8 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::AppState;
+pub use litools_config::events::{INDEX_STATUS_CHANGED_EVENT};
 
-pub const INDEX_STATUS_CHANGED_EVENT: &str = "index-status-changed";
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

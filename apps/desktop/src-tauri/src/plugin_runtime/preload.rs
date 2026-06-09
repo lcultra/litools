@@ -1,5 +1,4 @@
-pub const LIFECYCLE_ENTER_EVENT: &str = "plugin-runtime://enter";
-pub const LIFECYCLE_LEAVE_EVENT: &str = "plugin-runtime://leave";
+pub use litools_config::events::{LIFECYCLE_ENTER_EVENT, LIFECYCLE_LEAVE_EVENT};
 
 pub fn initialization_script() -> String {
     format!(

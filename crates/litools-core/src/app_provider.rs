@@ -6,10 +6,8 @@ use litools_search::{
     MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
     SearchResultMatches, TextMatch, match_text,
 };
+use litools_config::search::{ACTION_OPEN, APP_PROVIDER_ID, APP_RESULT_PREFIX};
 
-pub const APP_PROVIDER_ID: &str = "apps";
-pub const APP_RESULT_PREFIX: &str = "app:";
-pub const OPEN_APP_ACTION_ID: &str = "open";
 
 pub struct AppSearchProvider {
     database: IndexDatabase,
@@ -59,7 +57,7 @@ pub fn search_result_for_app(app: AppRecord, query: &str) -> SearchResult {
             subtitle: app_match.subtitle_ranges,
         },
         actions: vec![SearchResultAction {
-            id: OPEN_APP_ACTION_ID.to_string(),
+            id: ACTION_OPEN.to_string(),
             label: "打开".to_string(),
         }],
     }

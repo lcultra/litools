@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
+pub use litools_config::settings::{DEFAULT_ENABLED_PROVIDERS, DEFAULT_GLOBAL_HOTKEY, SUPPORTED_SEARCH_PROVIDERS};
 
-pub const DEFAULT_GLOBAL_HOTKEY: &str = "CommandOrControl+Space";
-pub const DEFAULT_ENABLED_PROVIDERS: &[&str] = &["apps", "commands", "plugins"];
-pub const SUPPORTED_SEARCH_PROVIDERS: &[&str] = &["apps", "commands", "plugins"];
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AppSettings {

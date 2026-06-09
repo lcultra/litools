@@ -10,13 +10,13 @@ use crate::{
     plugin_provider::PluginCommandProvider,
 };
 
-use super::LAUNCHER_RESULT_LIMIT;
+use super::DEFAULT_LAUNCHER_RESULT_LIMIT;
 
 impl LitoolsApp {
     pub fn search(&self, text: impl Into<String>) -> Vec<SearchResult> {
         let settings = self.context.settings.get();
         self.context.search.search_with_providers(
-            SearchQuery::with_limit(text, LAUNCHER_RESULT_LIMIT),
+            SearchQuery::with_limit(text, DEFAULT_LAUNCHER_RESULT_LIMIT),
             settings.search.enabled_providers.iter().map(String::as_str),
         )
     }

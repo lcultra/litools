@@ -5,8 +5,8 @@ use chrono::Utc;
 use crate::plugin_runtime::model::{
     PluginRuntimeBounds, PluginRuntimeContext, PluginRuntimeLifecycle, PluginRuntimePlacement,
 };
+pub use litools_config::labels::RUNTIME_ID_PREFIX;
 
-const RUNTIME_ID_PREFIX: &str = "runtime";
 
 #[derive(Debug, Default)]
 pub struct PluginRuntimeRegistry {

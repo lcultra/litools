@@ -2,12 +2,12 @@ use std::{fs, path::PathBuf};
 
 use thiserror::Error;
 
+use litools_config::plugin::{PLUGIN_MANIFEST_FILE_NAME};
 use crate::{
     manager::PluginSource,
     manifest::{PluginManifest, PluginManifestError},
 };
 
-pub const PLUGIN_MANIFEST_FILE_NAME: &str = "plugin.json";
 
 #[derive(Clone, Debug)]
 pub struct PluginDiscoveryRoot {
