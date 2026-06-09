@@ -1,5 +1,5 @@
 import type { Accessor, Setter } from 'solid-js';
-import type { VisibleLauncherItem, VisibleRow } from './LauncherController';
+import type { VisibleLauncherItem, VisibleRow } from './LauncherPage';
 
 type LauncherNavigationOptions = {
     inputElement: Accessor<HTMLInputElement | undefined>;

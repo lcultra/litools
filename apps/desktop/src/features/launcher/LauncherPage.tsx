@@ -1,9 +1,10 @@
+import { useNavigate } from '@solidjs/router';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { executeResult, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
-import type { CommandEffect, LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
+import type { LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
 import { type LauncherRenderSection, LauncherView } from './LauncherView';
 import { useLauncherNavigation } from './useLauncherNavigation';
 
@@ -13,10 +14,6 @@ export const PALETTE_GRID_COLUMNS = 9;
 const DEFAULT_VISIBLE_ROWS = 2;
 
 let cachedIdleSections: LauncherSection[] = [];
-
-type LauncherControllerProps = {
-    onCommandEffect: (effect: CommandEffect) => void;
-};
 
 export type VisibleLauncherItem = {
     item: LauncherItem;
@@ -34,7 +31,8 @@ export type VisibleRow = {
     items: VisibleLauncherItem[];
 };
 
-export function LauncherController(props: LauncherControllerProps) {
+export function LauncherPage() {
+    const navigate = useNavigate();
     let inputElement: HTMLInputElement | undefined;
     let resizeFrame = 0;
     let lastSyncedHeight = 0;
@@ -128,7 +126,10 @@ export function LauncherController(props: LauncherControllerProps) {
             const response = await executeResult(result.id, firstAction.id);
             setQuery('');
             setError(null);
-            props.onCommandEffect(response.effect);
+            const effect = response.effect;
+            if (typeof effect === 'object' && 'openPluginView' in effect) {
+                navigate(effect.openPluginView.route);
+            }
         } catch (executeError) {
             setError(`执行失败：${String(executeError)}`);
         }

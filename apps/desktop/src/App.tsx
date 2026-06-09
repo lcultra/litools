@@ -1,17 +1,14 @@
-import { useNavigate } from '@solidjs/router';
-import type { JSX } from 'solid-js';
+import { HashRouter, Route } from '@solidjs/router';
 import { createEffect, onCleanup, onMount } from 'solid-js';
-import { closePluginView, hideSurface } from './bridge/commands';
+import { LauncherPage } from './features/launcher/LauncherPage';
+import { WorkspacePage } from './features/workspace/WorkspacePage';
 import { useAppEvents } from './hooks/useAppEvents';
-import { usePluginMatch } from './hooks/usePluginMatch';
-import { isDetachedWindow, settings } from './shared/store';
+import { PLUGIN_ROUTE_PATTERN } from './shared/routes';
+import { settings } from './shared/store';
 import { isDarkThemeValue } from './shared/theme';
 
-export function AppLayout(props: { children?: JSX.Element }) {
-    const navigate = useNavigate();
-    const pluginMatch = usePluginMatch();
-
-    // Tauri event listeners → store
+export function App() {
+    // Tauri events → shared store
     useAppEvents();
 
     // Theme
@@ -24,35 +21,19 @@ export function AppLayout(props: { children?: JSX.Element }) {
         onCleanup(() => mq.removeEventListener('change', handler));
     });
 
-    // Keyboard
+    // Global: disable native context menu on all webviews
     onMount(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key !== 'Escape' || location.hash === '#/') return;
-            e.preventDefault();
-            closeCurrentView();
-        };
         const preventCtx = (e: MouseEvent) => e.preventDefault();
-        window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('contextmenu', preventCtx);
-        onCleanup(() => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('contextmenu', preventCtx);
-        });
+        onCleanup(() => window.removeEventListener('contextmenu', preventCtx));
     });
 
-    function closeCurrentView() {
-        const match = pluginMatch();
-        if (match) {
-            void closePluginView(match.pluginId, match.commandId);
-            navigate('/');
-            return;
-        }
-        if (isDetachedWindow()) {
-            void hideSurface();
-            return;
-        }
-        navigate('/');
-    }
-
-    return <main class="h-screen overflow-hidden text-fg transition-colors">{props.children}</main>;
+    return (
+        <main class="h-screen overflow-hidden text-fg transition-colors">
+            <HashRouter>
+                <Route path="/" component={LauncherPage} />
+                <Route path={PLUGIN_ROUTE_PATTERN} component={WorkspacePage} />
+            </HashRouter>
+        </main>
+    );
 }

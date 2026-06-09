@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from '@solidjs/router';
-import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js';
-import { closePluginView, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
+import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { closePluginView, getPluginViewDescriptor, hideSurface, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
@@ -50,9 +50,24 @@ export function WorkspacePage() {
         void closePluginView(params.pluginId, params.commandId);
     });
 
+    onMount(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
+    });
+
     function handleClose() {
         void closePluginView(params.pluginId, params.commandId);
-        navigate('/');
+        if (isDetachedWindow()) {
+            void hideSurface();
+        } else {
+            navigate('/');
+        }
     }
 
     return (
