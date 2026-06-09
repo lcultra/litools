@@ -19,7 +19,6 @@ pub enum ViewKind {
 pub enum WindowHostKind {
     Main,
     Detached,
-    Runtime,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

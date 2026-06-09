@@ -3,7 +3,7 @@ import { DragDropProvider } from '@dnd-kit/solid';
 import { useSortable } from '@dnd-kit/solid/sortable';
 import { createEffect, createSignal, For, Show } from 'solid-js';
 import type { SearchResult } from '../../bridge/types';
-import { providerLabel } from '../../shared/labels';
+import { providerLabel } from '../../shared/strings';
 import { HighlightedText } from './HighlightedText';
 import type { LauncherRenderItem } from './LauncherView';
 

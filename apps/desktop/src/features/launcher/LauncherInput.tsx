@@ -1,7 +1,7 @@
 import { useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
 import { startWindowDragging } from '../../bridge/commands';
-import { pluginRoute } from '../../views/registry';
+import { generatePluginPath } from '../../shared/routes';
 
 const SETTINGS_PLUGIN_ID = 'dev.litools.settings';
 const SETTINGS_COMMAND_ID = 'settings';
@@ -101,7 +101,7 @@ export function LauncherInput(props: LauncherInputProps) {
             return;
         }
 
-        navigate(pluginRoute(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID));
+        navigate(generatePluginPath(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID));
     }
 
     createEffect(() => {

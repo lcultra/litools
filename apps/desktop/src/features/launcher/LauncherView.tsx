@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
 import { WindowFrame } from '../../components/WindowFrame';
-import { providerLabel } from '../../shared/labels';
+import { providerLabel } from '../../shared/strings';
 import { HighlightedText } from './HighlightedText';
 import { LauncherInput } from './LauncherInput';
 import { PinnedSortableGrid } from './PinnedSortableGrid';

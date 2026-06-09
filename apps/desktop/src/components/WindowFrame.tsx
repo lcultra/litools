@@ -1,5 +1,4 @@
 import type { JSX } from 'solid-js';
-import { Panel } from './Panel';
 
 type WindowFrameProps = {
     children: JSX.Element;
@@ -10,9 +9,9 @@ type WindowFrameProps = {
 export function WindowFrame(props: WindowFrameProps) {
     return (
         <div ref={props.ref} class="p-px">
-            <Panel class={['w-full self-start', props.class].filter(Boolean).join(' ')} variant="launcher">
+            <section class={['w-full self-start overflow-hidden rounded-[20px] bg-surface border border-border backdrop-blur', props.class].filter(Boolean).join(' ')}>
                 {props.children}
-            </Panel>
+            </section>
         </div>
     );
 }

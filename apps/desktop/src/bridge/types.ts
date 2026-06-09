@@ -1,5 +1,5 @@
+import type { AppRoutePath } from '../shared/routes';
 import type { ThemeValue } from '../shared/theme';
-import type { AppRoutePath } from '../views/registry';
 
 export type SearchResultAction = {
     id: string;
@@ -116,7 +116,7 @@ export type PluginViewState = {
 };
 
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };
-export type WindowHostKind = 'main' | 'detached' | 'runtime';
+export type WindowHostKind = 'main' | 'detached';
 export type SurfaceLifecycle = 'active' | 'hidden' | 'destroyed';
 
 export type SurfaceMetadata = {

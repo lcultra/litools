@@ -1,16 +1,15 @@
 import { useNavigate, useParams } from '@solidjs/router';
 import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js';
-import { useShell } from '../../App';
 import { closePluginView, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader';
+import { hostWindowLabel, isDetachedWindow } from '../../shared/store';
 
 export function WorkspacePage() {
     const params = useParams<{ pluginId: string; commandId: string }>();
     const navigate = useNavigate();
-    const { isDetachedWindow, hostWindowLabel } = useShell();
 
     const [descriptor] = createResource(
         () => ({ pluginId: params.pluginId, commandId: params.commandId }),
@@ -67,7 +66,14 @@ export function WorkspacePage() {
                 }
             >
                 <Show when={descriptor()} fallback={<PageState title="正在加载插件..." variant="loading" />}>
-                    <WorkspaceHeader isDetached={isDetachedWindow()} onClose={handleClose} ownerReady={Boolean(hostWindowLabel())} pluginView={pluginView()} />
+                    <WorkspaceHeader
+                        isDetached={isDetachedWindow()}
+                        onClose={handleClose}
+                        ownerReady={Boolean(hostWindowLabel())}
+                        pluginId={params.pluginId}
+                        commandId={params.commandId}
+                        pluginView={pluginView()}
+                    />
                     <div class="flex min-h-0 flex-1">
                         <section class="min-w-0 flex-1" />
                     </div>

@@ -41,12 +41,8 @@ pub fn plugin_view_definition(
         kind: ViewKind::Plugin,
         route: format!("/plugin/{plugin_id}/{command_id}"),
         title: title.into(),
-        default_host: WindowHostKind::Runtime,
-        allowed_hosts: vec![
-            WindowHostKind::Main,
-            WindowHostKind::Detached,
-            WindowHostKind::Runtime,
-        ],
+        default_host: WindowHostKind::Detached,
+        allowed_hosts: vec![WindowHostKind::Main, WindowHostKind::Detached],
         detachable: true,
     }
 }

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { AppRoutePath, HostKind } from '../views/registry';
+import type { AppRoutePath } from '../shared/routes';
 import type {
     AppSettings,
     CommandExecution,
@@ -10,6 +10,7 @@ import type {
     PluginViewInfo,
     SearchResult,
     SurfaceMetadata,
+    WindowHostKind,
 } from './types';
 
 export function search(query: string): Promise<SearchResult[]> {
@@ -44,15 +45,15 @@ export function updateSurfaceRoute(route: AppRoutePath): Promise<SurfaceMetadata
     return invoke<SurfaceMetadata>('update_surface_route', { route });
 }
 
-export function openRoute(route: AppRoutePath, target?: HostKind): Promise<void> {
+export function openRoute(route: AppRoutePath, target?: WindowHostKind): Promise<void> {
     return invoke<void>('open_route', { route, target });
 }
 
-export function hideSurface(target?: HostKind | string): Promise<void> {
+export function hideSurface(target?: WindowHostKind | string): Promise<void> {
     return invoke<void>('hide_window', { target });
 }
 
-export function focusSurface(target?: HostKind | string): Promise<void> {
+export function focusSurface(target?: WindowHostKind | string): Promise<void> {
     return invoke<void>('focus_window', { target });
 }
 

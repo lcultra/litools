@@ -1,8 +1,9 @@
 import { HashRouter, Route } from '@solidjs/router';
 import { render } from 'solid-js/web';
-import { AppShell } from './App';
+import { AppLayout } from './App';
 import { Launcher } from './features/launcher/Launcher';
 import { WorkspacePage } from './features/workspace/WorkspacePage';
+import { PLUGIN_ROUTE_PATTERN } from './shared/routes';
 import './styles.css';
 
 const root = document.getElementById('root');
@@ -14,17 +15,17 @@ if (root) {
                 <Route
                     path="/"
                     component={() => (
-                        <AppShell>
+                        <AppLayout>
                             <Launcher />
-                        </AppShell>
+                        </AppLayout>
                     )}
                 />
                 <Route
-                    path="/plugin/:pluginId/:commandId"
+                    path={PLUGIN_ROUTE_PATTERN}
                     component={() => (
-                        <AppShell>
+                        <AppLayout>
                             <WorkspacePage />
-                        </AppShell>
+                        </AppLayout>
                     )}
                 />
             </HashRouter>
