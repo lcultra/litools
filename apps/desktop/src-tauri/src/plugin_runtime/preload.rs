@@ -8,9 +8,12 @@ pub fn initialization_script() -> String {
     return;
   }}
 
-  // Ensure no browser default white background behind the transparent webview.
+  // Transparent webview chrome + bottom rounded corners matching Panel rounded-[20px].
+  // html locks viewport and hides overflow; body gets an internal scroll context
+  // with rounded bottom corners. The clipped corner area is transparent, revealing
+  // the Panel bg-surface and border underneath.
   var cornerStyle = document.createElement('style');
-  cornerStyle.textContent = 'html {{ background: transparent; }}';
+  cornerStyle.textContent = 'html {{ height: 100vh!important; width: 100vw!important; overflow: hidden!important;  background: transparent!important;}} body {{ margin: 0!important; height: 100%!important; width: 100%!important; overflow: auto!important; background: transparent!important; border-radius: 0 0 20px 20px!important; }}';
   document.addEventListener('DOMContentLoaded', function () {{
     document.head.appendChild(cornerStyle);
   }});

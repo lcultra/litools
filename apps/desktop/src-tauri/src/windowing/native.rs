@@ -98,7 +98,7 @@ pub fn create_plugin_runtime_detached_host(
     let window = WindowBuilder::new(app, window_label)
         .title(title)
         .inner_size(MANAGEMENT_WINDOW_WIDTH, MANAGEMENT_WINDOW_HEIGHT)
-        .resizable(true)
+        .resizable(false)
         .decorations(false)
         .transparent(true)
         .visible(false)
