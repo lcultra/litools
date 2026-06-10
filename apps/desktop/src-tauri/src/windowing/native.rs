@@ -234,16 +234,35 @@ pub fn set_panel_size(window: &Window) -> Result<(), String> {
 }
 
 pub fn resize_main_window_height(app: &tauri::AppHandle, height: f64) -> Result<(), String> {
-    if let Some(window) = main_window(app) {
-        let width = window
-            .outer_size()
-            .map_err(|error| error.to_string())?
-            .to_logical::<f64>(window.scale_factor().map_err(|error| error.to_string())?)
-            .width;
-        window
-            .set_size(Size::Logical(LogicalSize { width, height }))
-            .map_err(|error| error.to_string())?;
-    }
+    let Some(window) = main_window(app) else {
+        return Ok(());
+    };
+
+    let scale = window.scale_factor().map_err(|error| error.to_string())?;
+    let old_size = window
+        .outer_size()
+        .map_err(|error| error.to_string())?
+        .to_logical::<f64>(scale);
+    let old_position = window
+        .outer_position()
+        .map_err(|error| error.to_string())?
+        .to_logical::<f64>(scale);
+
+    // 保持窗口中心点不变：高度变化时同步调整 top-left
+    let delta_y = (old_size.height - height) / 2.0;
+    window
+        .set_position(Position::Logical(LogicalPosition {
+            x: old_position.x,
+            y: old_position.y + delta_y,
+        }))
+        .map_err(|error| error.to_string())?;
+
+    window
+        .set_size(Size::Logical(LogicalSize {
+            width: old_size.width,
+            height,
+        }))
+        .map_err(|error| error.to_string())?;
 
     Ok(())
 }
