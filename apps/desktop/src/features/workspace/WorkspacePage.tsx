@@ -1,6 +1,6 @@
-import { useNavigate, useParams } from '@solidjs/router';
+import { useLocation, useNavigate, useParams } from '@solidjs/router';
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { closePluginView, getPluginViewDescriptor, hideSurface, openPluginView } from '../../bridge/commands';
+import { closePluginView, closePluginViewById, getPluginViewDescriptor, hideSurface, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
@@ -9,7 +9,9 @@ import { hostWindowLabel, isDetachedWindow } from '../../shared/store';
 
 export function WorkspacePage() {
     const params = useParams<{ pluginId: string; commandId: string }>();
+    const location = useLocation<{ runtimeId?: string }>();
     const navigate = useNavigate();
+    const runtimeId = () => (location.state as Record<string, unknown> | null)?.runtimeId as string | undefined;
 
     const [descriptor] = createResource(
         () => ({ pluginId: params.pluginId, commandId: params.commandId }),
@@ -28,12 +30,12 @@ export function WorkspacePage() {
                 title: desc.title,
                 lifecycle: 'created',
                 placement: isDetachedWindow() ? 'detached' : 'docked',
-                runtimeId: null,
+                runtimeId: runtimeId() ?? null,
             });
         }
     });
 
-    // Open plugin webview when mounted, close on unmount.
+    // 创建/查找运行时。Singleton 时若已由 LauncherPage 创建则为无害的 EnsureVisible。
     let openedKey: string | null = null;
     createEffect(() => {
         const { pluginId, commandId } = params;
@@ -47,7 +49,12 @@ export function WorkspacePage() {
     });
 
     onCleanup(() => {
-        void closePluginView(params.pluginId, params.commandId);
+        const rid = runtimeId();
+        if (rid) {
+            void closePluginViewById(rid);
+        } else {
+            void closePluginView(params.pluginId, params.commandId);
+        }
     });
 
     onMount(() => {
@@ -62,7 +69,12 @@ export function WorkspacePage() {
     });
 
     function handleClose() {
-        void closePluginView(params.pluginId, params.commandId);
+        const rid = runtimeId();
+        if (rid) {
+            void closePluginViewById(rid);
+        } else {
+            void closePluginView(params.pluginId, params.commandId);
+        }
         if (isDetachedWindow()) {
             void hideSurface();
         } else {

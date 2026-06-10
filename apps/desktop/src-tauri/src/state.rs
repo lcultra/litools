@@ -2,8 +2,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
+    time::{Duration, SystemTime},
 };
 
 use litools_core::{AppBootstrapPaths, LitoolsApp, LitoolsResult, ReloadIndexSummary};
@@ -61,24 +62,9 @@ pub struct LauncherSavedPosition {
 #[derive(Default)]
 struct LauncherPositioningState {
     saved_position: Option<LauncherSavedPosition>,
-    pending_programmatic_move: Option<PendingLauncherMove>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PendingLauncherMove {
-    Any,
-    Position(LauncherWindowPosition),
-}
-
-impl PendingLauncherMove {
-    fn matches(self, position: LauncherWindowPosition) -> bool {
-        match self {
-            Self::Any => true,
-            Self::Position(expected) => {
-                (expected.x - position.x).abs() <= 2 && (expected.y - position.y).abs() <= 2
-            }
-        }
-    }
+    /// 程序化布局截止时间（SystemTime nanos）。当前时间 < 此值时，
+    /// 所有 WindowEvent::Moved 被视为程序控制，不写入位置记忆。
+    ignore_moved_until: AtomicU64,
 }
 
 impl Default for ShortcutStatus {
@@ -167,32 +153,38 @@ impl AppState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn clear_launcher_saved_position(&self) {
         if let Ok(mut state) = self.launcher_positioning.lock() {
             state.saved_position = None;
         }
     }
 
-    pub fn remember_programmatic_launcher_move(&self, position: LauncherWindowPosition) {
-        if let Ok(mut state) = self.launcher_positioning.lock() {
-            state.pending_programmatic_move = Some(PendingLauncherMove::Position(position));
+    /// 开启程序化布局窗口（100ms）。窗口内所有 WindowEvent::Moved 视为程序控制，
+    /// 不会被 save_launcher_position 记为用户拖拽。
+    pub fn begin_programmatic_layout(&self) {
+        let deadline = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .saturating_add(Duration::from_millis(100));
+        if let Ok(state) = self.launcher_positioning.lock() {
+            state
+                .ignore_moved_until
+                .store(deadline.as_nanos() as u64, Ordering::SeqCst);
         }
     }
 
-    pub fn remember_any_programmatic_launcher_move(&self) {
-        if let Ok(mut state) = self.launcher_positioning.lock() {
-            state.pending_programmatic_move = Some(PendingLauncherMove::Any);
-        }
-    }
-
-    pub fn should_ignore_launcher_moved(&self, position: LauncherWindowPosition) -> bool {
-        let Ok(mut state) = self.launcher_positioning.lock() else {
-            return false;
-        };
-        let Some(pending_move) = state.pending_programmatic_move.take() else {
-            return false;
-        };
-        pending_move.matches(position)
+    /// 当前是否处于程序化布局窗口内。
+    pub fn is_programmatic_layout(&self) -> bool {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+        self.launcher_positioning
+            .lock()
+            .ok()
+            .map(|state| state.ignore_moved_until.load(Ordering::Relaxed) > now)
+            .unwrap_or(false)
     }
 
     pub fn global_hotkey(&self) -> String {
@@ -334,6 +326,7 @@ impl AppState {
             .runtime_for_plugin_command(plugin_id, command_id)
     }
 
+    #[allow(dead_code)]
     pub fn plugin_runtimes_for_plugin_command(
         &self,
         plugin_id: &str,

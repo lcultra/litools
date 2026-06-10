@@ -2,7 +2,7 @@ import { useNavigate } from '@solidjs/router';
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
-import { executeResult, hideMainWindow, launcherPanel, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
+import { executeResult, hideMainWindow, launcherPanel, openPluginView, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
 import type { LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
 import { type LauncherRenderSection, LauncherView } from './LauncherView';
@@ -128,7 +128,20 @@ export function LauncherPage() {
             setError(null);
             const effect = response.effect;
             if (typeof effect === 'object' && 'openPluginView' in effect) {
-                navigate(effect.openPluginView.route);
+                // serde(rename_all) 在 enum 上只转换 variant 名，variant 内部字段保持 snake_case
+                const ovp = (effect as Record<string, unknown>).openPluginView as Record<string, string> | undefined;
+                const pluginId = ovp?.plugin_id;
+                const commandId = ovp?.command_id;
+                const route = ovp?.route;
+                if (!pluginId || !commandId || !route) {
+                    setError(`无效的插件参数：pluginId=${pluginId}, commandId=${commandId}, route=${route}`);
+                    return;
+                }
+                const info = await openPluginView(pluginId, commandId);
+                // 仅停靠态才跳转；分离态后端已聚焦窗口，前端留在启动器
+                if (info.placement === 'docked') {
+                    navigate(route, { state: { runtimeId: info.runtimeId } });
+                }
             }
         } catch (executeError) {
             setError(`执行失败：${String(executeError)}`);

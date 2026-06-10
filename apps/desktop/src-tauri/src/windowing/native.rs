@@ -186,6 +186,7 @@ pub fn add_surface_webview(
 }
 
 pub fn show_launcher_host(window: &Window, state: &AppState) {
+    state.begin_programmatic_layout();
     configure_space_behavior(window);
     position_launcher_on_show(window, state);
     let _ = window.show();
@@ -201,9 +202,10 @@ pub fn show_panel_host(window: &Window) {
 }
 
 pub fn show_main_panel_host(window: &Window, state: &AppState) {
+    state.begin_programmatic_layout();
     configure_space_behavior(window);
     let _ = set_panel_size(window);
-    center_main_window_on_show(window, state);
+    center_main_window_on_show(window);
     let _ = window.show();
     let _ = window.set_focus();
 }
@@ -235,13 +237,18 @@ pub fn set_panel_size(window: &Window) -> Result<(), String> {
 
 pub fn resize_main_window_height(app: &tauri::AppHandle, height: f64) -> Result<(), String> {
     if let Some(window) = main_window(app) {
-        let width = window
+        let scale = window.scale_factor().map_err(|error| error.to_string())?;
+        let old_size = window
             .outer_size()
             .map_err(|error| error.to_string())?
-            .to_logical::<f64>(window.scale_factor().map_err(|error| error.to_string())?)
-            .width;
+            .to_logical::<f64>(scale);
+        // resize 可能异步触发 Moved 事件；begin_programmatic_layout
+        // 开启 100ms 窗口将其忽略，不写入位置记忆。
+        if let Some(state) = app.try_state::<AppState>() {
+            state.begin_programmatic_layout();
+        }
         window
-            .set_size(Size::Logical(LogicalSize { width, height }))
+            .set_size(Size::Logical(LogicalSize { width: old_size.width, height }))
             .map_err(|error| error.to_string())?;
     }
 

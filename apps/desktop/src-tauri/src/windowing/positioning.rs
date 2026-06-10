@@ -52,7 +52,6 @@ struct Rect {
 
 pub fn position_launcher_on_show(window: &Window, state: &AppState) {
     if position_launcher_on_target_monitor(window, state).is_err() {
-        state.remember_any_programmatic_launcher_move();
         let _ = window.center();
     }
 }
@@ -68,17 +67,12 @@ pub fn center_window_on_show(window: &Window) {
     }
 }
 
-pub fn center_main_window_on_show(window: &Window, state: &AppState) {
+pub fn center_main_window_on_show(window: &Window) {
     match centered_target_position(window) {
         Ok(position) => {
-            state.remember_programmatic_launcher_move(LauncherWindowPosition {
-                x: position.x,
-                y: position.y,
-            });
             let _ = set_window_position(window, position);
         }
         Err(_) => {
-            state.remember_any_programmatic_launcher_move();
             let _ = window.center();
         }
     }
@@ -96,9 +90,7 @@ pub fn save_launcher_position(window: &Window, state: &AppState, position: Launc
     };
     let logical_position = logical_position_on_monitor(position, monitor);
 
-    if state.should_ignore_launcher_moved(logical_position) {
-        return;
-    }
+    // 程序化布局过滤由 lifecycle.rs 的 is_programmatic_layout() 统一处理
 
     state.replace_launcher_saved_position(LauncherSavedPosition {
         monitor: monitor_fingerprint(monitor),
@@ -112,9 +104,6 @@ fn position_launcher_on_target_monitor(window: &Window, state: &AppState) -> Res
     let target_fingerprint = monitor_fingerprint(target_monitor);
     let target_position =
         launcher_show_position(target_monitor, window_size, state.launcher_saved_position());
-    if target_position.should_forget_saved_position {
-        state.clear_launcher_saved_position();
-    }
     let saved_position = LauncherSavedPosition {
         monitor: target_fingerprint,
         position: LauncherWindowPosition {
@@ -124,14 +113,13 @@ fn position_launcher_on_target_monitor(window: &Window, state: &AppState) -> Res
     };
 
     state.replace_launcher_saved_position(saved_position);
-    state.remember_programmatic_launcher_move(saved_position.position);
     set_window_position(window, target_position.position)
 }
 
 fn centered_target_position(window: &Window) -> Result<Point, String> {
     let target_monitor = target_monitor_bounds(window)?;
     let window_size = window_logical_size(window)?;
-    Ok(default_window_position(target_monitor, window_size))
+    Ok(launcher_default_anchor_position(target_monitor, window_size))
 }
 
 fn set_window_position(window: &Window, position: Point) -> Result<(), String> {
@@ -304,23 +292,26 @@ fn launcher_show_position(
         }
     }
 
+    // 不匹配或首次：走默认锚点。不清空 saved——下次回到原显示器仍可恢复。
     LauncherShowPosition {
-        position: default_window_position(monitor, window),
-        should_forget_saved_position: true,
+        position: launcher_default_anchor_position(monitor, window),
+        should_forget_saved_position: false,
     }
 }
 
-/// 窗口默认位置：窗口顶部在屏幕高度 1/3 处，水平居中。所有窗口类型共用。
-const DEFAULT_WINDOW_TOP_Y_RATIO_NUMER: i32 = 1;
-const DEFAULT_WINDOW_TOP_Y_RATIO_DENOM: i32 = 3;
+/// 启动器默认定位策略：窗口顶部锚定在屏幕高度 ratio 处，水平居中。
+///
+/// 窗口高度变化只影响底部扩展区域，不改变用户关注区域（搜索框）的位置。
+/// 未来可扩展为配置项，加入 `Center`、`Mouse` 等策略。
+const LAUNCHER_TOP_OFFSET_RATIO: f32 = 1.0 / 3.0;
 
-fn default_window_position(monitor: MonitorBounds, window: WindowSize) -> Point {
+fn launcher_default_anchor_position(monitor: MonitorBounds, window: WindowSize) -> Point {
     let monitor_size = monitor.logical_size();
     let max_x = monitor.logical_rect.x + (monitor_size.width - window.width).max(0);
     let max_y = monitor.logical_rect.y + (monitor_size.height - window.height).max(0);
     let x = monitor.logical_rect.x + (monitor_size.width - window.width) / 2;
     let y = monitor.logical_rect.y
-        + monitor_size.height * DEFAULT_WINDOW_TOP_Y_RATIO_NUMER / DEFAULT_WINDOW_TOP_Y_RATIO_DENOM;
+        + (monitor_size.height as f32 * LAUNCHER_TOP_OFFSET_RATIO).round() as i32;
 
     Point {
         x: x.clamp(monitor.logical_rect.x, max_x),
@@ -571,7 +562,7 @@ mod tests {
     }
 
     #[test]
-    fn anchors_and_forgets_saved_position_on_different_monitor() {
+    fn anchors_and_keeps_saved_position_on_different_monitor() {
         let saved_monitor = monitor(0, 0, 1920, 1080);
         let target_monitor = monitor(1920, 0, 1920, 1080);
 
@@ -586,13 +577,13 @@ mod tests {
             ),
             LauncherShowPosition {
                 position: Point { x: 2470, y: 360 },
-                should_forget_saved_position: true,
+                should_forget_saved_position: false,
             }
         );
     }
 
     #[test]
-    fn anchors_and_forgets_saved_position_when_monitor_size_changes() {
+    fn anchors_and_keeps_saved_position_when_monitor_size_changes() {
         let saved_monitor = monitor(0, 0, 1920, 1080);
         let target_monitor = monitor(0, 0, 2560, 1440);
 
@@ -607,13 +598,13 @@ mod tests {
             ),
             LauncherShowPosition {
                 position: Point { x: 870, y: 480 },
-                should_forget_saved_position: true,
+                should_forget_saved_position: false,
             }
         );
     }
 
     #[test]
-    fn anchors_and_forgets_saved_position_when_mostly_invisible() {
+    fn anchors_and_keeps_saved_position_when_mostly_invisible() {
         let target_monitor = monitor(0, 0, 1920, 1080);
 
         assert_eq!(
@@ -627,17 +618,17 @@ mod tests {
             ),
             LauncherShowPosition {
                 position: Point { x: 550, y: 360 },
-                should_forget_saved_position: true,
+                should_forget_saved_position: false,
             }
         );
     }
 
     #[test]
-    fn default_window_position_anchors_at_one_third_of_monitor() {
+    fn launcher_anchors_at_one_third_of_monitor() {
         let target_monitor = monitor(0, 0, 1920, 1080);
 
         assert_eq!(
-            default_window_position(
+            launcher_default_anchor_position(
                 target_monitor,
                 WindowSize {
                     width: 820,

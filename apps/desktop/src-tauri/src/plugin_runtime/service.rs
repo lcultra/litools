@@ -81,10 +81,6 @@ pub fn dock_plugin_runtime(
             }
             LaunchAction::FocusDetached(context) => {
                 focus_runtime_host(app, &context)?;
-                // 前端已经 navigate 到了插件路由（LauncherPage.runResult → navigate(route)），
-                // 主窗口现在显示空的 WorkspacePage。重置启动器到首页并隐藏，
-                // 让下次快捷键呼出时是干净的搜索框。
-                let _ = surface_service::reset_launcher_surface(app, state, false);
                 Ok(context)
             }
             LaunchAction::Create => unreachable!(), // Create 不在 resolve 中返回
@@ -227,6 +223,8 @@ pub fn detach_plugin_runtime(
             Some(bounds),
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
+    // 整个 detach 流程内的 Moved 由 begin_programmatic_layout 统一过滤
+    state.begin_programmatic_layout();
     native::show_panel_host(&detached_window);
     let _ = crate::surface::service::reset_launcher_surface(app, state, false);
     enter_runtime(app, state, &context.id)

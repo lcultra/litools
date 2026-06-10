@@ -138,6 +138,7 @@ impl PluginRuntimeRegistry {
     }
 
     /// 取所有匹配的运行时（多实例管理、批量操作、卸载清理用）。
+    #[allow(dead_code)]
     pub fn runtimes_for_plugin_command(
         &self,
         plugin_id: &str,

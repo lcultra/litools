@@ -38,6 +38,11 @@ fn handle_main_window_event(window: &Window, event: &WindowEvent, state: &AppSta
             native::hide_window(window);
         }
         WindowEvent::Moved(position) => {
+            // 程序化布局窗口内（show/resize/set_position）的所有 Moved 忽略，
+            // 只有用户拖拽触发的才会写入位置记忆。
+            if state.is_programmatic_layout() {
+                return;
+            }
             super::positioning::save_launcher_position(
                 window,
                 state,

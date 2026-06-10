@@ -1,6 +1,6 @@
 import { useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
-import { openRoute, startWindowDragging } from '../../bridge/commands';
+import { openPluginView, startWindowDragging } from '../../bridge/commands';
 import { generatePluginPath } from '../../shared/routes';
 
 const SETTINGS_PLUGIN_ID = 'dev.litools.settings';
@@ -94,7 +94,7 @@ export function LauncherInput(props: LauncherInputProps) {
         actionPointerStart = undefined;
     }
 
-    function handleActionClick(event: MouseEvent) {
+    async function handleActionClick(event: MouseEvent) {
         if (actionDragStarted) {
             event.preventDefault();
             actionDragStarted = false;
@@ -102,8 +102,14 @@ export function LauncherInput(props: LauncherInputProps) {
         }
 
         const route = generatePluginPath(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID);
-        void openRoute(route);
-        navigate(route);
+        try {
+            const info = await openPluginView(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID);
+            if (info.placement === 'docked') {
+                navigate(route, { state: { runtimeId: info.runtimeId } });
+            }
+        } catch {
+            // 静默失败，避免拖拽时的意外触发影响体验
+        }
     }
 
     createEffect(() => {

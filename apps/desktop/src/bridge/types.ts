@@ -31,7 +31,7 @@ export type CommandEffect =
     | 'none'
     | 'openLogsDirectory'
     | 'openDataDirectory'
-    | { openPluginView: { pluginId: string; commandId: string; route: AppRoutePath } }
+    | { openPluginView: { plugin_id: string; command_id: string; route: AppRoutePath } }
     | 'reloadIndex'
     | 'quitApp'
     | 'toggleTheme';

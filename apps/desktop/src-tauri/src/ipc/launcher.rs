@@ -4,7 +4,7 @@ use litools_core::{CommandEffect, CommandExecution, LauncherPanelResponse};
 use litools_search::SearchResult;
 use tauri::{AppHandle, Manager, State};
 
-use crate::{state::AppState, surface::service};
+use crate::state::AppState;
 
 #[tauri::command]
 pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
@@ -67,9 +67,9 @@ pub fn execute_result(
         CommandEffect::OpenDataDirectory => {
             open_directory(state.data_dir())?;
         }
-        CommandEffect::OpenPluginView { ref route, .. } => {
-            service::open_view_route(&app_handle, &state, route)?;
-        }
+        // 前端已改由 openPluginView 驱动——先调 IPC 获取 placement，
+        // docked 才 navigate(route)，后端不再在这里操作窗口。
+        CommandEffect::OpenPluginView { .. } => {}
         _ => {}
     }
 
