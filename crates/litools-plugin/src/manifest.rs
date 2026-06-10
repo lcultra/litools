@@ -3,6 +3,25 @@ use std::{collections::HashSet, path::Path};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// 控制插件运行时实例化策略。
+///
+/// 从 manifest JSON 的 `singleton: bool` 字段转换而来，内部链路统一使用此 enum，
+/// 方便未来扩展 `SingletonPerWorkspace`、`Ephemeral` 等策略。
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RuntimePolicy {
+    /// 全局最多一个运行时；重新打开时若已分离则重新停靠
+    Singleton,
+    /// 每次打开创建新的停靠运行时，允许多实例共存
+    MultiInstance,
+}
+
+impl Default for RuntimePolicy {
+    fn default() -> Self {
+        Self::Singleton
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PluginManifest {
     pub id: String,
@@ -16,8 +35,17 @@ pub struct PluginManifest {
     pub icon: String,
     #[serde(default)]
     pub commands: Vec<PluginCommand>,
+    /// 单例模式控制（JSON 字段，向后兼容默认 true）。
+    ///
+    /// 内部应通过 [`runtime_policy`] 转换为 [`RuntimePolicy`] enum。
+    #[serde(default = "default_singleton")]
+    pub singleton: bool,
     #[serde(default)]
     pub permissions: Vec<String>,
+}
+
+fn default_singleton() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -66,6 +94,15 @@ pub enum PluginManifestError {
 }
 
 impl PluginManifest {
+    /// 将 manifest 的 `singleton` bool 转换为 [`RuntimePolicy`] enum。
+    pub fn runtime_policy(&self) -> RuntimePolicy {
+        if self.singleton {
+            RuntimePolicy::Singleton
+        } else {
+            RuntimePolicy::MultiInstance
+        }
+    }
+
     pub fn validate(&self) -> Result<(), PluginManifestError> {
         let id = self.id.trim();
         if id.is_empty() {
@@ -170,6 +207,7 @@ mod tests {
                 keywords: vec!["hello".to_string()],
                 mode: PluginCommandMode::View,
             }],
+            singleton: true,
             permissions: vec!["ui:window".to_string()],
         }
     }

@@ -1,3 +1,4 @@
+use litools_plugin::RuntimePolicy;
 use litools_plugin::PluginCommandMode;
 use tauri::Manager;
 
@@ -15,6 +16,45 @@ use crate::{
     windowing::{labels, native, reparent},
 };
 
+/// 定义启动时的操作类型。
+enum LaunchAction {
+    /// 创建新运行时（仅在 dispatch 表中作为语义标记，不在此 enum 中构造实例）
+    #[allow(dead_code)]
+    Create,
+    /// 确保已有停靠运行时可见
+    EnsureVisible(PluginRuntimeContext),
+    /// 聚焦已分离的运行时（仅将窗口提到前台，不 re-dock）
+    FocusDetached(PluginRuntimeContext),
+}
+
+/// 根据 policy 和当前运行时状态决定启动行为。
+fn resolve_launch_action(
+    state: &AppState,
+    plugin_id: &str,
+    command_id: &str,
+    policy: RuntimePolicy,
+) -> Option<LaunchAction> {
+    match policy {
+        RuntimePolicy::Singleton => {
+            let context = state.plugin_runtime_for_plugin_command(plugin_id, command_id)?;
+            match context.placement {
+                PluginRuntimePlacement::Detached => Some(LaunchAction::FocusDetached(context)),
+                PluginRuntimePlacement::Docked => Some(LaunchAction::EnsureVisible(context)),
+            }
+        }
+        RuntimePolicy::MultiInstance => None, // 总是创建新实例
+    }
+}
+
+/// dispatch 表：
+///
+/// | policy        | 是否存在 | placement | action         |
+/// |---------------|----------|-----------|----------------|
+/// | Singleton     | 否       | —         | Create         |
+/// | Singleton     | 是       | Docked    | EnsureVisible  |
+/// | Singleton     | 是       | Detached  | FocusDetached  |
+/// | MultiInstance | —        | —         | Create         |
+
 #[derive(Clone, Debug)]
 struct RuntimeLaunchDescriptor {
     plugin_id: String,
@@ -23,6 +63,7 @@ struct RuntimeLaunchDescriptor {
     title: String,
     entry_url: String,
     permissions: Vec<String>,
+    policy: RuntimePolicy,
 }
 
 pub fn dock_plugin_runtime(
@@ -31,14 +72,26 @@ pub fn dock_plugin_runtime(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<PluginRuntimeContext, String> {
-    if let Some(context) = state.plugin_runtime_for_plugin_command(plugin_id, command_id) {
-        if context.placement == PluginRuntimePlacement::Detached {
-            focus_runtime_host(app, &context)?;
-            return Ok(context);
-        }
-        return ensure_docked_runtime_webview(app, state, context);
+    let (_, _, _, policy) = find_enabled_plugin_command(state, plugin_id, command_id)?;
+
+    if let Some(action) = resolve_launch_action(state, plugin_id, command_id, policy) {
+        return match action {
+            LaunchAction::EnsureVisible(context) => {
+                ensure_docked_runtime_webview(app, state, context)
+            }
+            LaunchAction::FocusDetached(context) => {
+                focus_runtime_host(app, &context)?;
+                // 前端已经 navigate 到了插件路由（LauncherPage.runResult → navigate(route)），
+                // 主窗口现在显示空的 WorkspacePage。重置启动器到首页并隐藏，
+                // 让下次快捷键呼出时是干净的搜索框。
+                let _ = surface_service::reset_launcher_surface(app, state, false);
+                Ok(context)
+            }
+            LaunchAction::Create => unreachable!(), // Create 不在 resolve 中返回
+        };
     }
 
+    // 非单例 或 单例首次：创建新运行时
     let descriptor = runtime_launch_descriptor(state, plugin_id, command_id)?;
     let runtime_id = state.next_plugin_runtime_id()?;
     let webview_label = labels::plugin_webview_label(&runtime_id);
@@ -54,6 +107,7 @@ pub fn dock_plugin_runtime(
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: descriptor.permissions,
+            policy: descriptor.policy,
         },
         runtime_id,
         webview_label,
@@ -174,7 +228,68 @@ pub fn detach_plugin_runtime(
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
     native::show_panel_host(&detached_window);
-    let _ = crate::surface::service::open_view_route(app, state, "/");
+    let _ = crate::surface::service::reset_launcher_surface(app, state, false);
+    enter_runtime(app, state, &context.id)
+}
+
+/// 将分离态的运行时重新停靠回主窗口（detach 的逆操作）。
+/// 当前未使用——单例模式分离后用 FocusDetached 提到前台。
+/// 保留以备未来需要 re-dock 的场景。
+#[allow(dead_code)]
+fn dock_detached_runtime(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    context: PluginRuntimeContext,
+) -> Result<PluginRuntimeContext, String> {
+    // 1. 获取分离窗口和 webview（detach 后 host_window_label 指向分离窗口）
+    let webview = app
+        .get_webview(&context.webview_label)
+        .ok_or_else(|| {
+            format!(
+                "plugin runtime webview not found: {}",
+                context.webview_label
+            )
+        })?;
+    let detached_window = app
+        .get_window(&context.host_window_label)
+        .ok_or_else(|| {
+            format!(
+                "detached window not found: {}",
+                context.host_window_label
+            )
+        })?;
+
+    // 2. 确保主窗口存在
+    let main_window = surface_service::ensure_main_launcher_surface(app, state)?;
+
+    // 3. Reparent webview 回主窗口
+    reparent::reparent_webview_to_window(&webview, &main_window)?;
+    webview
+        .set_auto_resize(false)
+        .map_err(|error| error.to_string())?;
+    let bounds = native::set_plugin_runtime_content_bounds(&main_window, &webview)?;
+    native::show_plugin_runtime_webview(&webview)?;
+
+    // 4. 先更新 runtime 状态再销毁分离窗口。
+    //    必须放在 destroy 之前——destroy 会同步触发 Destroyed 事件，
+    //    cleanup_runtime_window 会检查 placement == Detached 并删除 runtime。
+    state.mark_plugin_runtime_detached_window(&context.id, None);
+    let context = state
+        .move_plugin_runtime_to_host(
+            &context.id,
+            labels::MAIN_WINDOW_LABEL.to_string(),
+            PluginRuntimePlacement::Docked,
+            Some(bounds),
+        )
+        .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
+
+    // 5. 销毁分离窗口
+    detached_window
+        .destroy()
+        .map_err(|error| error.to_string())?;
+
+    // 6. 显示主窗口
+    native::show_main_panel_host(&main_window, state);
     enter_runtime(app, state, &context.id)
 }
 
@@ -441,12 +556,12 @@ fn emit_lifecycle_event(
 }
 
 /// Shared helper: look up a plugin and one of its commands, returning the
-/// plugin name, command title, and declared permissions.
+/// plugin name, command title, declared permissions, and runtime policy.
 pub fn find_enabled_plugin_command(
     state: &AppState,
     plugin_id: &str,
     command_id: &str,
-) -> Result<(String, String, Vec<String>), String> {
+) -> Result<(String, String, Vec<String>, RuntimePolicy), String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
     let plugin = app
         .context()
@@ -467,6 +582,7 @@ pub fn find_enabled_plugin_command(
         plugin.manifest.name.clone(),
         command.title.clone(),
         plugin.manifest.permissions.clone(),
+        plugin.manifest.runtime_policy(),
     ))
 }
 
@@ -503,5 +619,6 @@ fn runtime_launch_descriptor(
         title: command.title.clone(),
         entry_url: plugin_entry_url(&plugin.manifest.id, &plugin.manifest.entry)?,
         permissions: plugin.manifest.permissions.clone(),
+        policy: plugin.manifest.runtime_policy(),
     })
 }

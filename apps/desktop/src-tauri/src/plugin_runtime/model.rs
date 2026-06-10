@@ -1,3 +1,4 @@
+use litools_plugin::RuntimePolicy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -40,6 +41,7 @@ pub struct PluginRuntimeContext {
     pub placement: PluginRuntimePlacement,
     pub bounds: Option<PluginRuntimeBounds>,
     pub permissions: Vec<String>,
+    pub policy: RuntimePolicy,
     pub lifecycle: PluginRuntimeLifecycle,
     pub pending_enter: bool,
     pub entered: bool,

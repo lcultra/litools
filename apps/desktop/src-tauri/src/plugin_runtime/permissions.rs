@@ -71,6 +71,7 @@ mod tests {
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: permissions.into_iter().map(str::to_string).collect(),
+            policy: litools_plugin::RuntimePolicy::Singleton,
             lifecycle: PluginRuntimeLifecycle::Created,
             pending_enter: false,
             entered: false,

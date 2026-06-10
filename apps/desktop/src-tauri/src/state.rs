@@ -334,6 +334,18 @@ impl AppState {
             .runtime_for_plugin_command(plugin_id, command_id)
     }
 
+    pub fn plugin_runtimes_for_plugin_command(
+        &self,
+        plugin_id: &str,
+        command_id: &str,
+    ) -> Vec<PluginRuntimeContext> {
+        self.plugin_runtimes
+            .lock()
+            .ok()
+            .map(|r| r.runtimes_for_plugin_command(plugin_id, command_id))
+            .unwrap_or_default()
+    }
+
     pub fn mark_plugin_runtime_lifecycle(
         &self,
         id: &str,

@@ -266,6 +266,44 @@ pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<
             .unwrap_or_else(|| "/".to_string());
         let view = resolve_view_route(state, &current_route)?;
         native::show_host_for_view(&window, state, &view.kind);
+
+        // 仅在从隐藏→显示 且 当前为启动器页面时聚焦搜索框，避免抢插件焦点
+        if view.kind == ViewKind::Launcher {
+            native::emit_focus_to_owned_launcher_surfaces(&window);
+        }
+    }
+    Ok(())
+}
+
+/// 重置启动器 surface 到首页，可选择显示或隐藏主窗口。
+///
+/// 通过 `webview.eval` 直接设置 hash 来驱动 HashRouter 导航，同时更新 metadata route
+/// 以保持前后端路由一致（`emit_navigate` 是 no-op，metadata 不会自动同步）。
+pub fn reset_launcher_surface(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    show: bool,
+) -> Result<(), String> {
+    let window = ensure_main_launcher_surface(app, state)?;
+    for webview in window.webviews() {
+        if let Some(metadata) = state.surface_metadata_for_webview_label(webview.label()) {
+            if metadata.host_kind == WindowHostKind::Main {
+                // 同步 metadata route，让 toggle_main_launcher 能读到正确的当前路由
+                let _ = state.mark_surface_route(
+                    webview.label(),
+                    registry::validate_route("/")?,
+                );
+                // 实际驱动前端 HashRouter 导航
+                let _ = webview.eval("window.location.hash = '#/'");
+                break;
+            }
+        }
+    }
+    if show {
+        let view = registry::validate_route("/")?;
+        native::show_host_for_view(&window, state, &view.kind);
+    } else {
+        native::hide_window(&window);
     }
     Ok(())
 }

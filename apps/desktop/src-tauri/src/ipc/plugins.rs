@@ -86,7 +86,7 @@ pub fn get_plugin_view_descriptor(
     command_id: String,
     state: State<'_, AppState>,
 ) -> Result<PluginViewDescriptor, String> {
-    let (plugin_name, title, permissions) =
+    let (plugin_name, title, permissions, _policy) =
         find_enabled_plugin_command(&state, &plugin_id, &command_id)?;
 
     let app = state.app().lock().map_err(|error| error.to_string())?;
@@ -111,7 +111,7 @@ pub fn validate_plugin_view_route(
         return Err(format!("unknown route: {route}"));
     };
 
-    let (_, title, _) = find_enabled_plugin_command(state, plugin_id, command_id)
+    let (_, title, _, _) = find_enabled_plugin_command(state, plugin_id, command_id)
         .map_err(|_| format!("unknown plugin route: {route}"))?;
 
     Ok(crate::view::registry::plugin_view_definition(

@@ -25,6 +25,10 @@
         }
       }
     },
+    "singleton": {
+      "type": "boolean",
+      "description": "单例模式。true 时全局仅一个运行时，重新打开会停靠；false 时允许创建多个实例。"
+    },
     "permissions": { "type": "array", "items": { "type": "string" } }
   }
 }
