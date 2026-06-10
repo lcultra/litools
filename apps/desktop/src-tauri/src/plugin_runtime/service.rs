@@ -163,6 +163,7 @@ pub fn detach_plugin_runtime(
             window
                 .set_title(&context.title)
                 .map_err(|e| e.to_string())?;
+            // 唯一标签已消除碰撞，同步补充预热窗口
             spawn_pooled_detached(app, state);
             (window, pooled_label, true)
         } else {
@@ -297,12 +298,10 @@ pub fn warm_detached_pool(app: &tauri::AppHandle, state: &AppState) {
 }
 
 fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
-    use labels::DETACHED_PANEL_WINDOW_PREFIX;
-
-    let pooled_label = format!("{DETACHED_PANEL_WINDOW_PREFIX}pool");
-    if app.get_window(&pooled_label).is_some() {
-        return; // already exists
-    }
+    // 每次生成唯一标签，避免复用已被实际分离窗口占用的标签
+    let Ok(pooled_label) = state.next_detached_host_label() else {
+        return;
+    };
 
     let Ok(window) =
         native::create_plugin_runtime_detached_host(app, pooled_label.clone(), "litools")
@@ -315,8 +314,8 @@ fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
     // SolidJS boots but renders nothing visible, so when the window is later
     // shown after navigating to the plugin route, the user never sees the launcher.
     let metadata = crate::surface::model::SurfaceMetadata {
-        id: "detached_pool".to_string(),
-        webview_label: labels::surface_webview_label("pool"),
+        id: format!("detached_pool_{}", pooled_label.strip_prefix(labels::DETACHED_PANEL_WINDOW_PREFIX).unwrap_or("unknown")),
+        webview_label: labels::surface_webview_label(&format!("pool_{}", pooled_label.strip_prefix(labels::DETACHED_PANEL_WINDOW_PREFIX).unwrap_or("unknown"))),
         view_id: "core.launcher".to_string(),
         provider: crate::view::model::ViewProvider::Core,
         route: "/pooled".to_string(),
