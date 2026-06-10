@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from '@solidjs/router';
 import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { closePluginView, closePluginViewById, getPluginViewDescriptor, hideSurface, openPluginView } from '../../bridge/commands';
+import { closePluginView, closePluginViewById, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
@@ -75,9 +75,9 @@ export function WorkspacePage() {
         } else {
             void closePluginView(params.pluginId, params.commandId);
         }
-        if (isDetachedWindow()) {
-            void hideSurface();
-        } else {
+        // 分离态：后端 close_runtime 已 destroy 窗口，无需额外操作
+        // 停靠态：后端 open_view_route 展示窗口，前端 navigate 驱动 HashRouter
+        if (!isDetachedWindow()) {
             navigate('/');
         }
     }
