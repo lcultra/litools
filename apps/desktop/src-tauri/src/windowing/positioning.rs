@@ -67,17 +67,6 @@ pub fn center_window_on_show(window: &Window) {
     }
 }
 
-pub fn center_main_window_on_show(window: &Window) {
-    match centered_target_position(window) {
-        Ok(position) => {
-            let _ = set_window_position(window, position);
-        }
-        Err(_) => {
-            let _ = window.center();
-        }
-    }
-}
-
 pub fn save_launcher_position(window: &Window, state: &AppState, position: LauncherWindowPosition) {
     let Ok(monitor) = window
         .current_monitor()

@@ -13,9 +13,7 @@ use crate::{
     windowing::labels::MAIN_WINDOW_LABEL,
 };
 
-use super::positioning::{
-    center_main_window_on_show, center_window_on_show, position_launcher_on_show,
-};
+use super::positioning::{center_window_on_show, position_launcher_on_show};
 pub use litools_config::window::{
     CHROME_INSET, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH, TITLEBAR_HEIGHT,
 };
@@ -205,7 +203,7 @@ pub fn show_main_panel_host(window: &Window, state: &AppState) {
     state.begin_programmatic_layout();
     configure_space_behavior(window);
     let _ = set_panel_size(window);
-    center_main_window_on_show(window);
+    position_launcher_on_show(window, state);
     let _ = window.show();
     let _ = window.set_focus();
 }
