@@ -36,6 +36,7 @@ pub fn create_main_host(app: &tauri::AppHandle) -> Result<Window, String> {
         .resizable(false)
         .decorations(false)
         .transparent(true)
+        .visible(false)
         .visible_on_all_workspaces(true)
         .build()
         .map_err(|error| error.to_string())?;
