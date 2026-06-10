@@ -4,6 +4,8 @@ use tauri::http::{StatusCode, Uri};
 
 use crate::state::AppState;
 
+use litools_plugin::PluginManifest;
+
 use super::{empty_response, ok_response, percent_decode};
 pub use litools_config::protocol::PLUGIN_PROTOCOL_SCHEME;
 
@@ -38,6 +40,20 @@ pub fn plugin_entry_url(plugin_id: &str, entry: &str) -> Result<String, String> 
     }
 
     Ok(plugin_asset_url(plugin_id, entry))
+}
+
+/// 根据 manifest 的 `development` 字段决定插件入口 URL。
+///
+/// - 有 `development.main` → 直接返回 dev server URL
+/// - 无 `development` → 返回 `litools-plugin://` 生产路径
+pub fn resolve_entry_url(
+    plugin_id: &str,
+    manifest: &PluginManifest,
+) -> Result<String, String> {
+    if let Some(ref dev) = manifest.development {
+        return Ok(dev.main.clone());
+    }
+    plugin_entry_url(plugin_id, &manifest.entry)
 }
 
 fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static str), StatusCode> {
@@ -135,5 +151,45 @@ mod tests {
             content_type_for_path(std::path::Path::new("app.css")),
             Some("text/css; charset=utf-8")
         );
+    }
+
+    #[test]
+    fn resolve_entry_url_uses_development_when_present() {
+        let manifest = PluginManifest {
+            id: "dev.litools.test".to_string(),
+            name: "Test".to_string(),
+            version: "0.1.0".to_string(),
+            entry: "dist/index.html".to_string(),
+            description: None,
+            author: None,
+            icon: "dist/icon.svg".to_string(),
+            commands: vec![],
+            singleton: true,
+            permissions: vec![],
+            development: Some(litools_plugin::PluginDevelopment {
+                main: "http://127.0.0.1:5173/index.html".to_string(),
+            }),
+        };
+        let url = resolve_entry_url("dev.litools.test", &manifest).expect("resolve");
+        assert_eq!(url, "http://127.0.0.1:5173/index.html");
+    }
+
+    #[test]
+    fn resolve_entry_url_falls_back_to_production() {
+        let manifest = PluginManifest {
+            id: "dev.litools.test".to_string(),
+            name: "Test".to_string(),
+            version: "0.1.0".to_string(),
+            entry: "dist/index.html".to_string(),
+            description: None,
+            author: None,
+            icon: "dist/icon.svg".to_string(),
+            commands: vec![],
+            singleton: true,
+            permissions: vec![],
+            development: None,
+        };
+        let url = resolve_entry_url("dev.litools.test", &manifest).expect("resolve");
+        assert_eq!(url, "litools-plugin://dev.litools.test/dist/index.html");
     }
 }
