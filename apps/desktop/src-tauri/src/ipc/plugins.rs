@@ -2,8 +2,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::{
-    plugin_runtime::service::find_enabled_plugin_command,
-    protocol::plugin::plugin_entry_url,
+    plugin_runtime::service::find_enabled_plugin_command, protocol::plugin::plugin_entry_url,
     state::AppState,
 };
 
@@ -108,8 +107,7 @@ pub fn validate_plugin_view_route(
     state: &AppState,
     route: &str,
 ) -> Result<crate::view::model::ViewDefinition, String> {
-    let Some((plugin_id, command_id)) = crate::view::registry::plugin_route_parts(route)
-    else {
+    let Some((plugin_id, command_id)) = crate::view::registry::plugin_route_parts(route) else {
         return Err(format!("unknown route: {route}"));
     };
 
@@ -117,8 +115,6 @@ pub fn validate_plugin_view_route(
         .map_err(|_| format!("unknown plugin route: {route}"))?;
 
     Ok(crate::view::registry::plugin_view_definition(
-        plugin_id,
-        command_id,
-        title,
+        plugin_id, command_id, title,
     ))
 }

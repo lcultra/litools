@@ -18,13 +18,15 @@ pub fn launcher_panel(
     state: State<'_, AppState>,
 ) -> Result<LauncherPanelResponse, String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
-    app.launcher_panel(query).map_err(|error| error.to_error_string())
+    app.launcher_panel(query)
+        .map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
 pub fn pin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let app = state.app().lock().map_err(|error| error.to_string())?;
-    app.pin_result(result_id).map_err(|error| error.to_error_string())
+    app.pin_result(result_id)
+        .map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
@@ -66,7 +68,7 @@ pub fn execute_result(
             open_directory(state.data_dir())?;
         }
         CommandEffect::OpenPluginView { ref route, .. } => {
-            service::open_view_route(&app_handle, &state, route, state.center_on_show())?;
+            service::open_view_route(&app_handle, &state, route)?;
         }
         _ => {}
     }

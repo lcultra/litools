@@ -1,13 +1,7 @@
-use litools_index::{
-    IndexDatabase,
-    repository::SettingsRepository,
-};
+use litools_index::{IndexDatabase, repository::SettingsRepository};
 use litools_settings::AppSettings;
 
-use crate::{
-    app::LitoolsApp,
-    error::LitoolsResult,
-};
+use crate::{app::LitoolsApp, error::LitoolsResult};
 
 use super::APP_SETTINGS_KEY;
 

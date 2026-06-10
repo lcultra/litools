@@ -1,6 +1,7 @@
+pub use litools_config::settings::{
+    DEFAULT_ENABLED_PROVIDERS, DEFAULT_GLOBAL_HOTKEY, SUPPORTED_SEARCH_PROVIDERS,
+};
 use serde::{Deserialize, Serialize};
-pub use litools_config::settings::{DEFAULT_ENABLED_PROVIDERS, DEFAULT_GLOBAL_HOTKEY, SUPPORTED_SEARCH_PROVIDERS};
-
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct AppSettings {
@@ -26,7 +27,6 @@ pub struct SearchSettings {
 pub struct WindowSettings {
     pub hide_on_blur: bool,
     pub close_to_tray: bool,
-    pub center_on_show: bool,
 }
 
 impl AppSettings {
@@ -75,7 +75,6 @@ impl Default for AppSettings {
             window: WindowSettings {
                 hide_on_blur: true,
                 close_to_tray: true,
-                center_on_show: true,
             },
         }
     }
@@ -99,7 +98,6 @@ mod tests {
         );
         assert!(settings.window.hide_on_blur);
         assert!(settings.window.close_to_tray);
-        assert!(settings.window.center_on_show);
     }
 
     #[test]
@@ -121,7 +119,6 @@ mod tests {
             window: WindowSettings {
                 hide_on_blur: false,
                 close_to_tray: false,
-                center_on_show: false,
             },
         }
         .normalized();
@@ -136,6 +133,5 @@ mod tests {
         assert!(!settings.palette.show_pinned);
         assert!(!settings.window.hide_on_blur);
         assert!(!settings.window.close_to_tray);
-        assert!(!settings.window.center_on_show);
     }
 }

@@ -110,7 +110,9 @@ impl<'a> PluginCommandRepository<'a> {
     }
 }
 
-fn plugin_command_record_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<PluginCommandRecord> {
+fn plugin_command_record_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<PluginCommandRecord> {
     Ok(PluginCommandRecord {
         id: row.get(0)?,
         plugin_id: row.get(1)?,

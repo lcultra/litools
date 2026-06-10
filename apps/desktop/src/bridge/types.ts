@@ -201,7 +201,6 @@ export type AppSettings = {
     window: {
         hide_on_blur: boolean;
         close_to_tray: boolean;
-        center_on_show: boolean;
     };
 };
 

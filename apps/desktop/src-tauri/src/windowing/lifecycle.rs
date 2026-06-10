@@ -2,7 +2,7 @@ use tauri::{Manager, Window, WindowEvent};
 
 use crate::{
     plugin_runtime,
-    state::AppState,
+    state::{AppState, LauncherWindowPosition},
     surface::{events, model::SurfaceLifecycle},
     windowing::{labels, native},
 };
@@ -36,6 +36,16 @@ fn handle_main_window_event(window: &Window, event: &WindowEvent, state: &AppSta
         }
         WindowEvent::Focused(false) if !state.is_quitting() && state.hide_on_blur() => {
             native::hide_window(window);
+        }
+        WindowEvent::Moved(position) => {
+            super::positioning::save_launcher_position(
+                window,
+                state,
+                LauncherWindowPosition {
+                    x: position.x,
+                    y: position.y,
+                },
+            );
         }
         _ => {}
     }

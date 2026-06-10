@@ -34,10 +34,7 @@ fn hex_value(byte: u8) -> Option<u8> {
     }
 }
 
-pub(crate) fn ok_response(
-    body: Vec<u8>,
-    content_type: &'static str,
-) -> Response<Vec<u8>> {
+pub(crate) fn ok_response(body: Vec<u8>, content_type: &'static str) -> Response<Vec<u8>> {
     Response::builder()
         .status(StatusCode::OK)
         .header("content-type", content_type)

@@ -90,9 +90,15 @@ impl<'a> AppRepository<'a> {
                 platform = excluded.platform,
                 last_seen_at = excluded.last_seen_at",
             params![
-                app.id, app.name, app.path, app.icon_path,
-                localized_names_json, aliases_json, app.search_text,
-                app.platform, app.last_seen_at
+                app.id,
+                app.name,
+                app.path,
+                app.icon_path,
+                localized_names_json,
+                aliases_json,
+                app.search_text,
+                app.platform,
+                app.last_seen_at
             ],
         )?;
         Ok(())
@@ -223,7 +229,10 @@ mod tests {
             .expect("app exists");
 
         assert_eq!(app.name, "Example");
-        assert_eq!(app.search_text, "Example com.example.App /Applications/Example.app");
+        assert_eq!(
+            app.search_text,
+            "Example com.example.App /Applications/Example.app"
+        );
         assert_eq!(repository.count_apps().expect("count apps"), 1);
     }
 
@@ -246,9 +255,14 @@ mod tests {
                 last_seen_at: "2026-06-04T00:00:00Z",
             })
             .expect("write app");
-        repository.increment_launch_count("com.example.App").expect("increment");
+        repository
+            .increment_launch_count("com.example.App")
+            .expect("increment");
 
-        let app = repository.find_app("com.example.App").expect("find app").expect("app exists");
+        let app = repository
+            .find_app("com.example.App")
+            .expect("find app")
+            .expect("app exists");
         assert_eq!(app.launch_count, 1);
     }
 
@@ -286,14 +300,30 @@ mod tests {
         for (id, platform, last_seen_at) in [
             ("com.example.Current", "macos", "2026-06-05T00:00:00Z"),
             ("com.example.Stale", "macos", "2026-06-04T00:00:00Z"),
-            ("com.example.OtherPlatform", "windows", "2026-06-04T00:00:00Z"),
+            (
+                "com.example.OtherPlatform",
+                "windows",
+                "2026-06-04T00:00:00Z",
+            ),
         ] {
             repository
-                .upsert_app(AppUpsert { id, name: id, path: "/tmp", icon_path: None, localized_names: &[], aliases: &[], search_text: id, platform, last_seen_at })
+                .upsert_app(AppUpsert {
+                    id,
+                    name: id,
+                    path: "/tmp",
+                    icon_path: None,
+                    localized_names: &[],
+                    aliases: &[],
+                    search_text: id,
+                    platform,
+                    last_seen_at,
+                })
                 .expect("write app");
         }
 
-        let removed = repository.delete_apps_not_seen_at("macos", "2026-06-05T00:00:00Z").expect("delete stale");
+        let removed = repository
+            .delete_apps_not_seen_at("macos", "2026-06-05T00:00:00Z")
+            .expect("delete stale");
         assert_eq!(removed, 1);
     }
 }

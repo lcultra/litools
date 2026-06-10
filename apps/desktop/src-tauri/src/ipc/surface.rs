@@ -15,13 +15,7 @@ pub fn detach_route(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<SurfaceMetadata, String> {
-    service::detach_current_surface(
-        &app_handle,
-        &state,
-        &webview,
-        &route,
-        state.center_on_show(),
-    )
+    service::detach_current_surface(&app_handle, &state, &webview, &route)
 }
 
 #[tauri::command]
@@ -47,21 +41,13 @@ pub fn open_route(
 
     if target.as_deref() == Some("runtime") {
         let Some((plugin_id, command_id)) = registry::plugin_route_parts(&route) else {
-            return Err(format!(
-                "runtime target requires a plugin route: {route}"
-            ));
+            return Err(format!("runtime target requires a plugin route: {route}"));
         };
-        plugin_runtime::service::dock_plugin_runtime(
-            &app_handle,
-            &state,
-            plugin_id,
-            command_id,
-            state.center_on_show(),
-        )?;
+        plugin_runtime::service::dock_plugin_runtime(&app_handle, &state, plugin_id, command_id)?;
         return Ok(());
     }
 
-    service::open_view_route(&app_handle, &state, &route, state.center_on_show())
+    service::open_view_route(&app_handle, &state, &route)
 }
 
 #[tauri::command]
@@ -135,7 +121,7 @@ pub fn hide_main_window(app_handle: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn show_main_window(app_handle: AppHandle) -> Result<(), String> {
     let state = app_handle.state::<AppState>();
-    service::open_view_route(&app_handle, &state, "/", state.center_on_show())
+    service::open_view_route(&app_handle, &state, "/")
 }
 
 #[tauri::command]

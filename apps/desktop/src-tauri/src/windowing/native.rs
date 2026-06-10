@@ -1,19 +1,24 @@
 use std::path::PathBuf;
 
 use tauri::{
-    LogicalPosition, LogicalSize, Manager, Position, Size, Webview, WebviewUrl,
-    Window, webview::WebviewBuilder, window::WindowBuilder,
+    LogicalPosition, LogicalSize, Manager, Position, Size, Webview, WebviewUrl, Window,
+    webview::WebviewBuilder, window::WindowBuilder,
 };
 
 use crate::{
     plugin_runtime::model::PluginRuntimeBounds,
+    state::AppState,
     surface::{events, model::SurfaceMetadata},
     view::model::ViewKind,
     windowing::labels::MAIN_WINDOW_LABEL,
 };
 
-use super::positioning::maybe_position_on_show;
-pub use litools_config::window::{CHROME_INSET, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH, TITLEBAR_HEIGHT};
+use super::positioning::{
+    center_main_window_on_show, center_window_on_show, position_launcher_on_show,
+};
+pub use litools_config::window::{
+    CHROME_INSET, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH, TITLEBAR_HEIGHT,
+};
 
 /// 1px WindowFrame p-px + 1px Panel border
 
@@ -64,11 +69,10 @@ pub fn create_plugin_runtime_detached_host(
     app: &tauri::AppHandle,
     window_label: String,
     title: &str,
-    center_on_show: bool,
 ) -> Result<Window, String> {
     if let Some(window) = app.get_window(&window_label) {
         configure_space_behavior(&window);
-        maybe_position_on_show(&window, center_on_show);
+        center_window_on_show(&window);
         window.show().map_err(|error| error.to_string())?;
         window.set_focus().map_err(|error| error.to_string())?;
         return Ok(window);
@@ -85,7 +89,7 @@ pub fn create_plugin_runtime_detached_host(
         .build()
         .map_err(|error| error.to_string())?;
     configure_space_behavior(&window);
-    maybe_position_on_show(&window, center_on_show);
+    center_window_on_show(&window);
     Ok(window)
 }
 
@@ -181,25 +185,36 @@ pub fn add_surface_webview(
     Ok(webview)
 }
 
-pub fn show_launcher_host(window: &Window, center_on_show: bool) {
+pub fn show_launcher_host(window: &Window, state: &AppState) {
     configure_space_behavior(window);
-    maybe_position_on_show(window, center_on_show);
+    position_launcher_on_show(window, state);
     let _ = window.show();
     let _ = window.set_focus();
 }
 
-pub fn show_panel_host(window: &Window, center_on_show: bool) {
+pub fn show_panel_host(window: &Window) {
     configure_space_behavior(window);
     let _ = set_panel_size(window);
-    maybe_position_on_show(window, center_on_show);
+    center_window_on_show(window);
     let _ = window.show();
     let _ = window.set_focus();
 }
 
-pub fn show_host_for_view(window: &Window, view_kind: &ViewKind, center_on_show: bool) {
+pub fn show_main_panel_host(window: &Window, state: &AppState) {
+    configure_space_behavior(window);
+    let _ = set_panel_size(window);
+    center_main_window_on_show(window, state);
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+pub fn show_host_for_view(window: &Window, state: &AppState, view_kind: &ViewKind) {
     match view_kind {
-        ViewKind::Launcher => show_launcher_host(window, center_on_show),
-        ViewKind::Plugin => show_panel_host(window, center_on_show),
+        ViewKind::Launcher => show_launcher_host(window, state),
+        ViewKind::Plugin if window.label() == MAIN_WINDOW_LABEL => {
+            show_main_panel_host(window, state)
+        }
+        ViewKind::Plugin => show_panel_host(window),
     }
 }
 

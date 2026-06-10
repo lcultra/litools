@@ -2,12 +2,11 @@ use std::{fs, path::PathBuf};
 
 use thiserror::Error;
 
-use litools_config::plugin::{PLUGIN_MANIFEST_FILE_NAME};
 use crate::{
     manager::PluginSource,
     manifest::{PluginManifest, PluginManifestError},
 };
-
+use litools_config::plugin::PLUGIN_MANIFEST_FILE_NAME;
 
 #[derive(Clone, Debug)]
 pub struct PluginDiscoveryRoot {

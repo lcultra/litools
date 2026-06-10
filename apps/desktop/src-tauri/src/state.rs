@@ -37,6 +37,50 @@ pub struct ShortcutStatus {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LauncherMonitorFingerprint {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    pub scale_millis: i32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LauncherWindowPosition {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LauncherSavedPosition {
+    pub monitor: LauncherMonitorFingerprint,
+    pub position: LauncherWindowPosition,
+}
+
+#[derive(Default)]
+struct LauncherPositioningState {
+    saved_position: Option<LauncherSavedPosition>,
+    pending_programmatic_move: Option<PendingLauncherMove>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PendingLauncherMove {
+    Any,
+    Position(LauncherWindowPosition),
+}
+
+impl PendingLauncherMove {
+    fn matches(self, position: LauncherWindowPosition) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Position(expected) => {
+                (expected.x - position.x).abs() <= 2 && (expected.y - position.y).abs() <= 2
+            }
+        }
+    }
+}
+
 impl Default for ShortcutStatus {
     fn default() -> Self {
         Self {
@@ -57,6 +101,7 @@ pub struct AppState {
     app_watcher_handle: Mutex<Option<AppWatcherHandle>>,
     surfaces: Mutex<SurfaceRegistry>,
     plugin_runtimes: Mutex<PluginRuntimeRegistry>,
+    launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
     pooled_detached: Mutex<Option<String>>,
 }
@@ -74,6 +119,7 @@ impl AppState {
             app_watcher_handle: Mutex::new(None),
             surfaces: Mutex::new(SurfaceRegistry::default()),
             plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
+            launcher_positioning: Mutex::new(LauncherPositioningState::default()),
             pooled_detached: Mutex::new(None),
         })
     }
@@ -108,11 +154,45 @@ impl AppState {
             .unwrap_or(true)
     }
 
-    pub fn center_on_show(&self) -> bool {
-        self.app
+    pub fn launcher_saved_position(&self) -> Option<LauncherSavedPosition> {
+        self.launcher_positioning
             .lock()
-            .map(|app| app.settings().window.center_on_show)
-            .unwrap_or(true)
+            .ok()
+            .and_then(|state| state.saved_position)
+    }
+
+    pub fn replace_launcher_saved_position(&self, saved_position: LauncherSavedPosition) {
+        if let Ok(mut state) = self.launcher_positioning.lock() {
+            state.saved_position = Some(saved_position);
+        }
+    }
+
+    pub fn clear_launcher_saved_position(&self) {
+        if let Ok(mut state) = self.launcher_positioning.lock() {
+            state.saved_position = None;
+        }
+    }
+
+    pub fn remember_programmatic_launcher_move(&self, position: LauncherWindowPosition) {
+        if let Ok(mut state) = self.launcher_positioning.lock() {
+            state.pending_programmatic_move = Some(PendingLauncherMove::Position(position));
+        }
+    }
+
+    pub fn remember_any_programmatic_launcher_move(&self) {
+        if let Ok(mut state) = self.launcher_positioning.lock() {
+            state.pending_programmatic_move = Some(PendingLauncherMove::Any);
+        }
+    }
+
+    pub fn should_ignore_launcher_moved(&self, position: LauncherWindowPosition) -> bool {
+        let Ok(mut state) = self.launcher_positioning.lock() else {
+            return false;
+        };
+        let Some(pending_move) = state.pending_programmatic_move.take() else {
+            return false;
+        };
+        pending_move.matches(position)
     }
 
     pub fn global_hotkey(&self) -> String {
@@ -305,7 +385,6 @@ impl AppState {
             .mark_detached_window(id, detached_window_label)
     }
 
-
     pub fn mark_plugin_runtime_ready(&self, id: &str) -> Option<PluginRuntimeContext> {
         self.plugin_runtimes.lock().ok()?.mark_ready(id)
     }
@@ -321,8 +400,6 @@ impl AppState {
     pub fn remove_plugin_runtime(&self, target: &str) -> Option<PluginRuntimeContext> {
         self.plugin_runtimes.lock().ok()?.remove(target)
     }
-
-
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {
         if let Ok(mut shortcut_status) = self.shortcut_status.lock() {

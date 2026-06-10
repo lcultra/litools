@@ -152,9 +152,7 @@ fn plugin_source_priority(source: &PluginSource) -> u8 {
     }
 }
 
-pub(crate) fn load_plugins_from_database(
-    database: &IndexDatabase,
-) -> LitoolsResult<PluginManager> {
+pub(crate) fn load_plugins_from_database(database: &IndexDatabase) -> LitoolsResult<PluginManager> {
     let connection = database.connection();
     let plugins = PluginRepository::new(&connection)
         .list_plugins()?

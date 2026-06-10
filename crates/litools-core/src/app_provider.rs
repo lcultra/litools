@@ -1,3 +1,4 @@
+use litools_config::search::{ACTION_OPEN, APP_PROVIDER_ID, APP_RESULT_PREFIX};
 use litools_index::{
     IndexDatabase,
     repository::{AppRecord, AppRepository},
@@ -6,8 +7,6 @@ use litools_search::{
     MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
     SearchResultMatches, TextMatch, match_text,
 };
-use litools_config::search::{ACTION_OPEN, APP_PROVIDER_ID, APP_RESULT_PREFIX};
-
 
 pub struct AppSearchProvider {
     database: IndexDatabase,

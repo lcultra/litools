@@ -2,7 +2,6 @@ use litools_plugin::PluginCommandMode;
 use tauri::Manager;
 
 use crate::{
-    protocol::plugin::plugin_entry_url,
     plugin_runtime::{
         model::{
             PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle, PluginRuntimePlacement,
@@ -10,6 +9,7 @@ use crate::{
         preload,
         registry::PluginRuntimeRegistration,
     },
+    protocol::plugin::plugin_entry_url,
     state::AppState,
     surface::service as surface_service,
     windowing::{labels, native, reparent},
@@ -30,14 +30,13 @@ pub fn dock_plugin_runtime(
     state: &AppState,
     plugin_id: &str,
     command_id: &str,
-    center_on_show: bool,
 ) -> Result<PluginRuntimeContext, String> {
     if let Some(context) = state.plugin_runtime_for_plugin_command(plugin_id, command_id) {
         if context.placement == PluginRuntimePlacement::Detached {
             focus_runtime_host(app, &context)?;
             return Ok(context);
         }
-        return ensure_docked_runtime_webview(app, state, context, center_on_show);
+        return ensure_docked_runtime_webview(app, state, context);
     }
 
     let descriptor = runtime_launch_descriptor(state, plugin_id, command_id)?;
@@ -60,7 +59,7 @@ pub fn dock_plugin_runtime(
         webview_label,
     )?;
 
-    ensure_docked_runtime_webview(app, state, context, center_on_show)
+    ensure_docked_runtime_webview(app, state, context)
 }
 
 pub fn hide_docked_plugin_runtime(
@@ -90,7 +89,6 @@ pub fn detach_plugin_runtime(
     state: &AppState,
     plugin_id: &str,
     command_id: &str,
-    center_on_show: bool,
 ) -> Result<PluginRuntimeContext, String> {
     let context = state
         .plugin_runtime_for_plugin_command(plugin_id, command_id)
@@ -101,14 +99,17 @@ pub fn detach_plugin_runtime(
     }
 
     let webview = app.get_webview(&context.webview_label).ok_or_else(|| {
-        format!("plugin runtime webview not found: {}", context.webview_label)
+        format!(
+            "plugin runtime webview not found: {}",
+            context.webview_label
+        )
     })?;
     // Use a preloaded window if available, otherwise create one.
     let (detached_window, actual_label, was_preloaded) =
         if let Some(pooled_label) = state.take_pooled_detached() {
-            let window = app.get_window(&pooled_label).ok_or_else(|| {
-                format!("pooled detached window not found: {pooled_label}")
-            })?;
+            let window = app
+                .get_window(&pooled_label)
+                .ok_or_else(|| format!("pooled detached window not found: {pooled_label}"))?;
             window
                 .set_title(&context.title)
                 .map_err(|e| e.to_string())?;
@@ -119,26 +120,18 @@ pub fn detach_plugin_runtime(
                 .detached_window_label
                 .clone()
                 .unwrap_or_else(|| labels::plugin_window_label(&context.id));
-            let window = native::create_plugin_runtime_detached_host(
-                app,
-                label.clone(),
-                &context.title,
-                center_on_show,
-            )?;
+            let window =
+                native::create_plugin_runtime_detached_host(app, label.clone(), &context.title)?;
             (window, label, false)
         };
 
-    let plugin_route =
-        litools_core::plugin_route(&context.plugin_id, &context.command_id);
+    let plugin_route = litools_core::plugin_route(&context.plugin_id, &context.command_id);
 
     if was_preloaded {
         // Navigate the already-loaded SolidJS app to the plugin route.
         // The window is still hidden so the user never sees the pooled route.
         for wv in detached_window.webviews() {
-            let _ = wv.eval(&format!(
-                "window.location.hash = '#{}';",
-                plugin_route
-            ));
+            let _ = wv.eval(&format!("window.location.hash = '#{}';", plugin_route));
         }
     } else {
         native::add_surface_webview(
@@ -165,7 +158,9 @@ pub fn detach_plugin_runtime(
 
     // Reparent plugin content webview into detached window.
     reparent::reparent_webview_to_window(&webview, &detached_window)?;
-    webview.set_auto_resize(false).map_err(|error| error.to_string())?;
+    webview
+        .set_auto_resize(false)
+        .map_err(|error| error.to_string())?;
     let bounds = native::set_plugin_runtime_content_bounds(&detached_window, &webview)?;
     native::show_plugin_runtime_webview(&webview)?;
 
@@ -178,8 +173,8 @@ pub fn detach_plugin_runtime(
             Some(bounds),
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
-    native::show_panel_host(&detached_window, center_on_show);
-    let _ = crate::surface::service::open_view_route(app, state, "/", center_on_show);
+    native::show_panel_host(&detached_window);
+    let _ = crate::surface::service::open_view_route(app, state, "/");
     enter_runtime(app, state, &context.id)
 }
 
@@ -196,12 +191,9 @@ fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
         return; // already exists
     }
 
-    let Ok(window) = native::create_plugin_runtime_detached_host(
-        app,
-        pooled_label.clone(),
-        "litools",
-        false,
-    ) else {
+    let Ok(window) =
+        native::create_plugin_runtime_detached_host(app, pooled_label.clone(), "litools")
+    else {
         return;
     };
     let _ = window.hide();
@@ -303,7 +295,9 @@ pub fn mark_runtime_title(
     if context.placement == PluginRuntimePlacement::Detached
         && let Some(window) = app.get_window(&context.host_window_label)
     {
-        window.set_title(&title).map_err(|error| error.to_string())?;
+        window
+            .set_title(&title)
+            .map_err(|error| error.to_string())?;
     }
     Ok(context)
 }
@@ -327,7 +321,7 @@ pub fn close_runtime(
         let _ = window.destroy();
     }
     if context.placement == PluginRuntimePlacement::Docked {
-        let _ = surface_service::open_view_route(app, state, "/", state.center_on_show());
+        let _ = surface_service::open_view_route(app, state, "/");
     }
 
     state.mark_plugin_runtime_lifecycle(runtime_id, PluginRuntimeLifecycle::Closed);
@@ -384,16 +378,17 @@ fn ensure_docked_runtime_webview(
     app: &tauri::AppHandle,
     state: &AppState,
     context: PluginRuntimeContext,
-    center_on_show: bool,
 ) -> Result<PluginRuntimeContext, String> {
     let window = surface_service::ensure_main_launcher_surface(app, state)?;
-    native::show_panel_host(&window, center_on_show);
+    native::show_main_panel_host(&window, state);
 
     let bounds = if let Some(webview) = app.get_webview(&context.webview_label) {
         if webview.window().label() != labels::MAIN_WINDOW_LABEL {
             reparent::reparent_webview_to_window(&webview, &window)?;
         }
-        webview.set_auto_resize(false).map_err(|error| error.to_string())?;
+        webview
+            .set_auto_resize(false)
+            .map_err(|error| error.to_string())?;
         let bounds = native::set_plugin_runtime_content_bounds(&window, &webview)?;
         native::show_plugin_runtime_webview(&webview)?;
         bounds
@@ -419,9 +414,15 @@ fn ensure_docked_runtime_webview(
     enter_runtime(app, state, &context.id)
 }
 
-fn focus_runtime_host(app: &tauri::AppHandle, context: &PluginRuntimeContext) -> Result<(), String> {
+fn focus_runtime_host(
+    app: &tauri::AppHandle,
+    context: &PluginRuntimeContext,
+) -> Result<(), String> {
     let window = app.get_window(&context.host_window_label).ok_or_else(|| {
-        format!("plugin runtime host not found: {}", context.host_window_label)
+        format!(
+            "plugin runtime host not found: {}",
+            context.host_window_label
+        )
     })?;
     native::focus_window(&window)
 }

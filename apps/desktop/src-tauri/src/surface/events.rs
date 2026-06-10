@@ -1,8 +1,9 @@
 use tauri::{Emitter, Manager, Webview};
 
 use crate::surface::model::SurfaceMetadata;
-pub use litools_config::events::{FOCUS_SEARCH_EVENT, NAVIGATE_EVENT, SURFACE_METADATA_CHANGED_EVENT};
-
+pub use litools_config::events::{
+    FOCUS_SEARCH_EVENT, NAVIGATE_EVENT, SURFACE_METADATA_CHANGED_EVENT,
+};
 
 pub fn emit_metadata_changed(app: &tauri::AppHandle, metadata: &SurfaceMetadata) {
     if let Some(webview) = app.get_webview(&metadata.webview_label) {

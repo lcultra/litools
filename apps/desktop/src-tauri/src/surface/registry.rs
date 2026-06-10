@@ -2,13 +2,12 @@ use std::collections::BTreeMap;
 
 use chrono::Utc;
 
-pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
 use crate::{
     surface::model::{SurfaceLifecycle, SurfaceMetadata},
     view::model::{ViewDefinition, WindowHostKind},
     windowing::labels::{MAIN_WINDOW_LABEL, surface_webview_label},
 };
-
+pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
 
 #[derive(Debug)]
 pub struct SurfaceRegistry {
@@ -194,11 +193,8 @@ mod tests {
     fn registers_and_finds_surface() {
         let mut registry = SurfaceRegistry::default();
         let view = test_view("/");
-        let metadata = registry.register_surface(
-            view,
-            MAIN_WINDOW_LABEL.to_string(),
-            WindowHostKind::Main,
-        );
+        let metadata =
+            registry.register_surface(view, MAIN_WINDOW_LABEL.to_string(), WindowHostKind::Main);
 
         assert_eq!(metadata.route, "/");
         assert_eq!(metadata.host_kind, WindowHostKind::Main);
@@ -221,11 +217,8 @@ mod tests {
     #[test]
     fn marks_lifecycle_and_removes_surface() {
         let mut registry = SurfaceRegistry::default();
-        let metadata = registry.register_surface(
-            test_view("/"),
-            "main".to_string(),
-            WindowHostKind::Main,
-        );
+        let metadata =
+            registry.register_surface(test_view("/"), "main".to_string(), WindowHostKind::Main);
 
         let updated = registry
             .mark_lifecycle(&metadata.webview_label, SurfaceLifecycle::Hidden)

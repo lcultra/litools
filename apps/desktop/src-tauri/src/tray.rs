@@ -20,16 +20,15 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id().as_ref() {
             SHOW_ID => {
                 let state = app.state::<AppState>();
-                let _ = service::open_view_route(app, &state, "/", state.center_on_show());
+                let _ = service::open_view_route(app, &state, "/");
             }
             SETTINGS_ID => {
                 let state = app.state::<AppState>();
-                let _ = service::open_view_route(app, &state, "/settings", state.center_on_show());
+                let _ = service::open_view_route(app, &state, "/settings");
             }
             DIAGNOSTICS_ID => {
                 let state = app.state::<AppState>();
-                let _ =
-                    service::open_view_route(app, &state, "/diagnostics", state.center_on_show());
+                let _ = service::open_view_route(app, &state, "/diagnostics");
             }
             QUIT_ID => {
                 if let Some(state) = app.try_state::<AppState>() {

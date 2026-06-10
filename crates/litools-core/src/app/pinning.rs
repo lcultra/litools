@@ -102,10 +102,7 @@ impl LitoolsApp {
         Ok((target_type, target_id))
     }
 
-    pub(crate) fn target_from_result_id(
-        &self,
-        result_id: &str,
-    ) -> Option<(&'static str, String)> {
+    pub(crate) fn target_from_result_id(&self, result_id: &str) -> Option<(&'static str, String)> {
         use crate::app_provider::app_id_from_result_id;
         use litools_plugin::{plugin_command_from_result_id, plugin_target_id};
 

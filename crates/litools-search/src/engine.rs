@@ -125,10 +125,8 @@ mod tests {
             results: vec![result_for("B1", "b", 90.0)],
         }));
 
-        let results = engine.search_with_providers(
-            SearchQuery::without_limit(""),
-            ["a"].iter().copied(),
-        );
+        let results =
+            engine.search_with_providers(SearchQuery::without_limit(""), ["a"].iter().copied());
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].provider, "a");
     }
@@ -138,9 +136,16 @@ mod tests {
         let mut engine = SearchEngine::new();
         let mut r = Vec::new();
         for i in 0..5 {
-            r.push(result_for(&format!("Item{i}"), "test", (100 - i * 10) as f32));
+            r.push(result_for(
+                &format!("Item{i}"),
+                "test",
+                (100 - i * 10) as f32,
+            ));
         }
-        engine.register_provider(Arc::new(StubProvider { id: "test", results: r }));
+        engine.register_provider(Arc::new(StubProvider {
+            id: "test",
+            results: r,
+        }));
 
         let results = engine.search(SearchQuery::with_limit("", 3));
         assert_eq!(results.len(), 3);

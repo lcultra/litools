@@ -48,12 +48,11 @@ pub fn open_view_route(
     app: &tauri::AppHandle,
     state: &AppState,
     route: &str,
-    center_on_show: bool,
 ) -> Result<(), String> {
     let view = resolve_view_route(state, route)?;
     registry::validate_host_allowed(&view, &WindowHostKind::Main)?;
     let window = ensure_main_launcher_surface(app, state)?;
-    native::show_host_for_view(&window, &view.kind, center_on_show);
+    native::show_host_for_view(&window, state, &view.kind);
 
     for webview in window.webviews() {
         let Some(metadata) = state.surface_metadata_for_webview_label(webview.label()) else {
@@ -76,7 +75,6 @@ pub fn detach_current_surface(
     state: &AppState,
     webview: &Webview,
     route: &str,
-    center_on_show: bool,
 ) -> Result<SurfaceMetadata, String> {
     let view = resolve_view_route(state, route)?;
     registry::validate_detachable(&view)?;
@@ -116,13 +114,13 @@ pub fn detach_current_surface(
         .mark_surface_route(webview.label(), view)
         .unwrap_or(metadata);
 
-    native::show_panel_host(&detached_window, center_on_show);
+    native::show_panel_host(&detached_window);
     events::emit_metadata_changed(app, &metadata);
 
     if source_window_label == MAIN_WINDOW_LABEL {
         match create_replacement_main_surface(app, state) {
             Ok((main_window, main_webview)) => {
-                native::show_launcher_host(&main_window, center_on_show);
+                native::show_launcher_host(&main_window, state);
                 events::emit_focus_search(&main_webview);
             }
             Err(error) => {
@@ -267,7 +265,7 @@ pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<
             .map(|metadata| metadata.route)
             .unwrap_or_else(|| "/".to_string());
         let view = resolve_view_route(state, &current_route)?;
-        native::show_host_for_view(&window, &view.kind, state.center_on_show());
+        native::show_host_for_view(&window, state, &view.kind);
     }
     Ok(())
 }

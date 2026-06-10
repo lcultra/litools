@@ -1,8 +1,9 @@
 use std::{fs, path::Path, time::SystemTime};
 
+pub use litools_config::icon::{
+    DEFAULT_ICON_CACHE_MAX_BYTES, DEFAULT_ICON_CACHE_MAX_FILES, ICON_CACHE_RELATIVE_DIR,
+};
 use serde::Serialize;
-pub use litools_config::icon::{DEFAULT_ICON_CACHE_MAX_BYTES, DEFAULT_ICON_CACHE_MAX_FILES, ICON_CACHE_RELATIVE_DIR};
-
 
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]

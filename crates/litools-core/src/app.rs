@@ -3,14 +3,10 @@ use std::{path::PathBuf, sync::Arc};
 use serde::{Deserialize, Serialize};
 
 use litools_index::IndexDatabase;
-use litools_settings::{storage::SettingsStore};
+use litools_settings::storage::SettingsStore;
 use litools_telemetry::init_logging;
 
-use crate::{
-    context::AppContext,
-    error::LitoolsResult,
-    plugin_provider::PluginCommandProvider,
-};
+use crate::{context::AppContext, error::LitoolsResult, plugin_provider::PluginCommandProvider};
 
 use litools_config::app::{APP_SETTINGS_KEY, APPS_INDEX_STATUS_KEY, RELOAD_INDEX_TRIGGER_DIRECT};
 use litools_config::search::DEFAULT_LAUNCHER_RESULT_LIMIT;
@@ -157,11 +153,8 @@ mod tests {
 
         app.pin_result("reload-index").expect("pin reload");
         app.pin_result("quit-app").expect("pin quit");
-        app.reorder_pinned_results(vec![
-            "reload-index".to_string(),
-            "quit-app".to_string(),
-        ])
-        .expect("reorder pinned results");
+        app.reorder_pinned_results(vec!["reload-index".to_string(), "quit-app".to_string()])
+            .expect("reorder pinned results");
 
         let panel = app.launcher_panel("").expect("launcher panel");
         let pinned = panel
@@ -211,7 +204,6 @@ mod tests {
             window: WindowSettings {
                 hide_on_blur: false,
                 close_to_tray: false,
-                center_on_show: false,
             },
         };
 

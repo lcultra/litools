@@ -85,25 +85,39 @@ mod tests {
         let connection = database.connection();
         let repository = PinnedRepository::new(&connection);
 
-        repository.pin("app", "com.example.App", "2026-06-05T00:00:00Z").expect("pin app");
-        repository.pin("command", "open-settings", "2026-06-06T00:00:00Z").expect("pin command");
+        repository
+            .pin("app", "com.example.App", "2026-06-05T00:00:00Z")
+            .expect("pin app");
+        repository
+            .pin("command", "open-settings", "2026-06-06T00:00:00Z")
+            .expect("pin command");
 
-        assert!(repository.is_pinned("app", "com.example.App").expect("check pinned"));
+        assert!(
+            repository
+                .is_pinned("app", "com.example.App")
+                .expect("check pinned")
+        );
 
         let pinned = repository.list_pinned(10).expect("list pinned");
         assert_eq!(pinned.len(), 2);
         assert_eq!(pinned[0].target_id, "com.example.App");
         assert_eq!(pinned[1].target_id, "open-settings");
 
-        repository.reorder(&[
-            ("command".to_string(), "open-settings".to_string()),
-            ("app".to_string(), "com.example.App".to_string()),
-        ]).expect("reorder");
+        repository
+            .reorder(&[
+                ("command".to_string(), "open-settings".to_string()),
+                ("app".to_string(), "com.example.App".to_string()),
+            ])
+            .expect("reorder");
 
         let pinned = repository.list_pinned(10).expect("list reordered");
         assert_eq!(pinned[0].target_id, "open-settings");
 
         repository.unpin("app", "com.example.App").expect("unpin");
-        assert!(!repository.is_pinned("app", "com.example.App").expect("check unpinned"));
+        assert!(
+            !repository
+                .is_pinned("app", "com.example.App")
+                .expect("check unpinned")
+        );
     }
 }

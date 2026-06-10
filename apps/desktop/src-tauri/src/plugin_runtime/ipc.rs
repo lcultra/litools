@@ -4,7 +4,6 @@ use litools_settings::AppSettings;
 use serde_json::{Value, json};
 use tauri::{AppHandle, State, Webview, ipc::InvokeError};
 
-pub use litools_config::plugin::{MAX_STORAGE_KEY_LEN, MAX_STORAGE_VALUE_LEN};
 use crate::{
     plugin_runtime::{
         model::{PermissionQueryResult, PluginRuntimeError, PluginRuntimeInfo},
@@ -13,7 +12,7 @@ use crate::{
     shortcut,
     state::AppState,
 };
-
+pub use litools_config::plugin::{MAX_STORAGE_KEY_LEN, MAX_STORAGE_VALUE_LEN};
 
 #[tauri::command]
 pub fn open_plugin_view(
@@ -22,14 +21,8 @@ pub fn open_plugin_view(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<PluginRuntimeInfo, String> {
-    service::dock_plugin_runtime(
-        &app_handle,
-        &state,
-        &plugin_id,
-        &command_id,
-        state.center_on_show(),
-    )
-    .map(|context| PluginRuntimeInfo::from(&context))
+    service::dock_plugin_runtime(&app_handle, &state, &plugin_id, &command_id)
+        .map(|context| PluginRuntimeInfo::from(&context))
 }
 
 #[tauri::command]
@@ -50,14 +43,8 @@ pub fn detach_plugin_view(
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<PluginRuntimeInfo, String> {
-    service::detach_plugin_runtime(
-        &app_handle,
-        &state,
-        &plugin_id,
-        &command_id,
-        state.center_on_show(),
-    )
-    .map(|context| PluginRuntimeInfo::from(&context))
+    service::detach_plugin_runtime(&app_handle, &state, &plugin_id, &command_id)
+        .map(|context| PluginRuntimeInfo::from(&context))
 }
 
 #[tauri::command]
@@ -211,8 +198,9 @@ fn route_plugin_view_call(
             Ok(json!(settings))
         }
         "settings.update" => {
-            let new_settings: AppSettings = serde_json::from_value(params.get("settings").cloned().unwrap_or(Value::Null))
-                .map_err(|error| PluginRuntimeError::invalid_params(error.to_string()))?;
+            let new_settings: AppSettings =
+                serde_json::from_value(params.get("settings").cloned().unwrap_or(Value::Null))
+                    .map_err(|error| PluginRuntimeError::invalid_params(error.to_string()))?;
             let updated_settings = {
                 let mut app = state
                     .app()
@@ -224,12 +212,10 @@ fn route_plugin_view_call(
             shortcut::register_global_shortcut(app_handle, &updated_settings.palette.global_hotkey);
             Ok(json!(updated_settings))
         }
-        "diagnostics.get" => {
-            Ok(json!(crate::ipc::diagnostics::get_diagnostics_inner(
-                state,
-            )
-            .map_err(|error| PluginRuntimeError::internal(error))?))
-        }
+        "diagnostics.get" => Ok(json!(
+            crate::ipc::diagnostics::get_diagnostics_inner(state,)
+                .map_err(|error| PluginRuntimeError::internal(error))?
+        )),
         "plugins.list" => {
             let app = state
                 .app()

@@ -108,13 +108,30 @@ mod tests {
         seed_plugin(&connection, "plugin-b");
         let repository = PluginStorageRepository::new(&connection);
 
-        repository.set_json("plugin-a", "count", "1", "2026-06-08T00:00:00Z").expect("write a");
-        repository.set_json("plugin-b", "count", "2", "2026-06-08T00:00:00Z").expect("write b");
-        repository.set_json("plugin-a", "count", "3", "2026-06-08T00:00:01Z").expect("overwrite a");
+        repository
+            .set_json("plugin-a", "count", "1", "2026-06-08T00:00:00Z")
+            .expect("write a");
+        repository
+            .set_json("plugin-b", "count", "2", "2026-06-08T00:00:00Z")
+            .expect("write b");
+        repository
+            .set_json("plugin-a", "count", "3", "2026-06-08T00:00:01Z")
+            .expect("overwrite a");
 
-        assert_eq!(repository.get_json("plugin-a", "count").expect("read a"), Some("3".to_string()));
-        assert_eq!(repository.get_json("plugin-b", "count").expect("read b"), Some("2".to_string()));
-        assert_eq!(repository.get_json("plugin-a", "missing").expect("read missing"), None);
+        assert_eq!(
+            repository.get_json("plugin-a", "count").expect("read a"),
+            Some("3".to_string())
+        );
+        assert_eq!(
+            repository.get_json("plugin-b", "count").expect("read b"),
+            Some("2".to_string())
+        );
+        assert_eq!(
+            repository
+                .get_json("plugin-a", "missing")
+                .expect("read missing"),
+            None
+        );
     }
 
     #[test]
@@ -124,11 +141,20 @@ mod tests {
         seed_plugin(&connection, "plugin-a");
         let repository = PluginStorageRepository::new(&connection);
 
-        repository.set_json("plugin-a", "one", "1", "2026-06-08T00:00:00Z").expect("write one");
-        repository.set_json("plugin-a", "two", "2", "2026-06-08T00:00:00Z").expect("write two");
+        repository
+            .set_json("plugin-a", "one", "1", "2026-06-08T00:00:00Z")
+            .expect("write one");
+        repository
+            .set_json("plugin-a", "two", "2", "2026-06-08T00:00:00Z")
+            .expect("write two");
 
         assert_eq!(repository.remove("plugin-a", "one").expect("remove one"), 1);
-        assert_eq!(repository.get_json("plugin-a", "one").expect("read removed"), None);
+        assert_eq!(
+            repository
+                .get_json("plugin-a", "one")
+                .expect("read removed"),
+            None
+        );
         assert_eq!(repository.clear("plugin-a").expect("clear"), 1);
         assert!(repository.list("plugin-a").expect("list").is_empty());
     }

@@ -5,8 +5,7 @@ use tauri::http::{StatusCode, Uri};
 use crate::state::AppState;
 
 use super::{empty_response, ok_response, percent_decode};
-pub use litools_config::protocol::{PLUGIN_PROTOCOL_SCHEME};
-
+pub use litools_config::protocol::PLUGIN_PROTOCOL_SCHEME;
 
 type PluginResponse = tauri::http::Response<Vec<u8>>;
 
@@ -56,7 +55,10 @@ fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static 
     }
 
     let plugin_root = {
-        let app = state.app().lock().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let app = state
+            .app()
+            .lock()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let plugin = app
             .context()
             .plugins
@@ -68,7 +70,9 @@ fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static 
         plugin.path.clone()
     };
 
-    let root = plugin_root.canonicalize().map_err(|_| StatusCode::NOT_FOUND)?;
+    let root = plugin_root
+        .canonicalize()
+        .map_err(|_| StatusCode::NOT_FOUND)?;
     let asset = plugin_root
         .join(&requested_path)
         .canonicalize()

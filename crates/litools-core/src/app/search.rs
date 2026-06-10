@@ -4,9 +4,7 @@ use litools_index::IndexDatabase;
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 
 use crate::{
-    app::LitoolsApp,
-    app_provider::AppSearchProvider,
-    command::BuiltinCommandProvider,
+    app::LitoolsApp, app_provider::AppSearchProvider, command::BuiltinCommandProvider,
     plugin_provider::PluginCommandProvider,
 };
 

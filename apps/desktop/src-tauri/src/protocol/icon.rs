@@ -18,7 +18,6 @@ use tauri::http::{StatusCode, Uri};
 use super::{empty_response, ok_response, percent_decode};
 pub use litools_config::icon::{DEFAULT_ICON_CACHE_CAPACITY, DEFAULT_ICON_TARGET_SIZE};
 
-
 type IconResponse = tauri::http::Response<Vec<u8>>;
 
 #[derive(Clone)]
@@ -30,7 +29,8 @@ impl Default for IconProtocol {
     fn default() -> Self {
         Self {
             cache: Arc::new(Mutex::new(LruCache::new(
-                NonZeroUsize::new(DEFAULT_ICON_CACHE_CAPACITY).expect("non-zero icon cache capacity"),
+                NonZeroUsize::new(DEFAULT_ICON_CACHE_CAPACITY)
+                    .expect("non-zero icon cache capacity"),
             ))),
         }
     }
@@ -53,8 +53,9 @@ impl IconProtocol {
             .find_app(&app_id)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .ok_or(StatusCode::NOT_FOUND)?;
-        let app_path =
-            PathBuf::from(&app.path).canonicalize().map_err(|_| StatusCode::NOT_FOUND)?;
+        let app_path = PathBuf::from(&app.path)
+            .canonicalize()
+            .map_err(|_| StatusCode::NOT_FOUND)?;
         let icon_path = validated_icon_path(&app);
         let cache_key = cache_key(&app.id, &app_path, icon_path.as_deref())
             .map_err(|_| StatusCode::NOT_FOUND)?;

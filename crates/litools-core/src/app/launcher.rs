@@ -1,4 +1,4 @@
-use litools_index::repository::{AppRepository, PluginCommandRepository, PinnedRepository};
+use litools_index::repository::{AppRepository, PinnedRepository, PluginCommandRepository};
 use litools_plugin::PLUGIN_TARGET_TYPE;
 use litools_search::SearchResult;
 
@@ -63,10 +63,7 @@ impl LitoolsApp {
         Ok(crate::launcher::LauncherPanelResponse { sections })
     }
 
-    pub(crate) fn pinned_launcher_items(
-        &self,
-        limit: usize,
-    ) -> LitoolsResult<Vec<LauncherItem>> {
+    pub(crate) fn pinned_launcher_items(&self, limit: usize) -> LitoolsResult<Vec<LauncherItem>> {
         let connection = self.context.database.connection();
         let pinned = PinnedRepository::new(&connection).list_pinned(limit)?;
         let apps = AppRepository::new(&connection);
@@ -90,10 +87,7 @@ impl LitoolsApp {
         Ok(items)
     }
 
-    pub(crate) fn recent_launcher_items(
-        &self,
-        limit: usize,
-    ) -> LitoolsResult<Vec<LauncherItem>> {
+    pub(crate) fn recent_launcher_items(&self, limit: usize) -> LitoolsResult<Vec<LauncherItem>> {
         use litools_index::repository::UsageRepository;
 
         let connection = self.context.database.connection();

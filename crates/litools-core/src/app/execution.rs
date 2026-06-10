@@ -23,21 +23,15 @@ impl LitoolsApp {
         let result_id = result_id.into();
         let action_id = action_id.into();
 
-        if let Some(app_id) =
-            crate::app_provider::app_id_from_result_id(&result_id)
-        {
+        if let Some(app_id) = crate::app_provider::app_id_from_result_id(&result_id) {
             return self.execute_app_result(&result_id, app_id, &action_id);
         }
 
         if let Some((plugin_id, command_id)) =
             litools_plugin::plugin_command_from_result_id(&result_id)
         {
-            return self.execute_plugin_command_result(
-                &result_id,
-                plugin_id,
-                command_id,
-                &action_id,
-            );
+            return self
+                .execute_plugin_command_result(&result_id, plugin_id, command_id, &action_id);
         }
 
         let effect = builtin_effect_for_result(&result_id)?;

@@ -7,7 +7,6 @@ use crate::plugin_runtime::model::{
 };
 pub use litools_config::labels::RUNTIME_ID_PREFIX;
 
-
 #[derive(Debug, Default)]
 pub struct PluginRuntimeRegistry {
     next_runtime_index: u64,
@@ -210,7 +209,6 @@ impl PluginRuntimeRegistry {
             context.detached_window_label = detached_window_label;
         })
     }
-
 
     pub fn remove(&mut self, target: &str) -> Option<PluginRuntimeContext> {
         let id = if self.runtimes_by_id.contains_key(target) {

@@ -60,8 +60,7 @@ impl LitoolsApp {
             })?;
         }
 
-        let apps_removed =
-            apps.delete_apps_not_seen_at(std::env::consts::OS, &last_seen_at)?;
+        let apps_removed = apps.delete_apps_not_seen_at(std::env::consts::OS, &last_seen_at)?;
         let finished_at = Utc::now();
         let summary = reload_index_summary(
             trigger,

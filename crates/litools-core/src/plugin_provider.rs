@@ -1,18 +1,15 @@
 use std::sync::Mutex;
 
+use litools_config::search::{ACTION_OPEN, PLUGIN_PROVIDER_ID};
 use litools_index::{
     IndexDatabase,
     repository::{PluginCommandRecord, PluginCommandRepository},
 };
-use litools_plugin::{
-    PluginCommandMode, plugin_command_mode_from_str, plugin_result_id,
-};
+use litools_plugin::{PluginCommandMode, plugin_command_mode_from_str, plugin_result_id};
 use litools_search::{
     MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
     SearchResultMatches, TextMatch, match_text,
 };
-use litools_config::search::{ACTION_OPEN, PLUGIN_PROVIDER_ID};
-
 
 pub struct PluginCommandProvider {
     database: IndexDatabase,
@@ -210,7 +207,6 @@ fn plugin_match_score(text_match: &TextMatch, adjustment: f32) -> f32 {
 
     (base + adjustment).max(1.0)
 }
-
 
 #[cfg(test)]
 mod tests {

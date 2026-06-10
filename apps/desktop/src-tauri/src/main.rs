@@ -95,10 +95,7 @@ fn main() {
                 bundled_plugins_dir,
             })?);
             surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
-            plugin_runtime::service::warm_detached_pool(
-                app.handle(),
-                &app.state::<AppState>(),
-            );
+            plugin_runtime::service::warm_detached_pool(app.handle(), &app.state::<AppState>());
             tray::setup_tray(app)?;
             shortcut::register_global_shortcut(
                 app.handle(),

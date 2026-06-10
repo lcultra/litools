@@ -101,9 +101,8 @@ impl<'a> PluginRepository<'a> {
         let command_sql = format!(
             "DELETE FROM plugin_commands WHERE plugin_id IN (SELECT id FROM plugins WHERE source = ? AND id NOT IN ({placeholders}))"
         );
-        let plugin_sql = format!(
-            "DELETE FROM plugins WHERE source = ? AND id NOT IN ({placeholders})"
-        );
+        let plugin_sql =
+            format!("DELETE FROM plugins WHERE source = ? AND id NOT IN ({placeholders})");
         let mut values: Vec<&dyn ToSql> = Vec::with_capacity(seen_ids.len() + 1);
         values.push(&source);
         for id in seen_ids {

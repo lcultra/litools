@@ -91,10 +91,14 @@ mod tests {
             ("2", "command", "open-settings", "2026-06-06T00:00:00Z"),
             ("3", "app", "com.example.App", "2026-06-07T00:00:00Z"),
         ] {
-            repository.record_selection(id, target_type, target_id, None, selected_at).expect("record usage");
+            repository
+                .record_selection(id, target_type, target_id, None, selected_at)
+                .expect("record usage");
         }
 
-        let recent = repository.recent_unique_targets(10).expect("list recent unique targets");
+        let recent = repository
+            .recent_unique_targets(10)
+            .expect("list recent unique targets");
         assert_eq!(recent.len(), 2);
         assert_eq!(recent[0].target_type, "app");
         assert_eq!(recent[0].target_id, "com.example.App");

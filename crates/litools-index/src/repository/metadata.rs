@@ -57,10 +57,17 @@ mod tests {
         let repository = IndexMetadataRepository::new(&connection);
 
         repository
-            .set_json("apps_last_refresh_status", r#"{"success":true}"#, "2026-06-05T00:00:00Z")
+            .set_json(
+                "apps_last_refresh_status",
+                r#"{"success":true}"#,
+                "2026-06-05T00:00:00Z",
+            )
             .expect("write metadata");
 
-        let metadata = repository.get("apps_last_refresh_status").expect("read metadata").expect("metadata exists");
+        let metadata = repository
+            .get("apps_last_refresh_status")
+            .expect("read metadata")
+            .expect("metadata exists");
         assert_eq!(metadata.key, "apps_last_refresh_status");
         assert_eq!(metadata.value_json, r#"{"success":true}"#);
         assert_eq!(metadata.updated_at, "2026-06-05T00:00:00Z");
