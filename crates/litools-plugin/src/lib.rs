@@ -11,6 +11,7 @@ pub use ids::{
 };
 pub use manager::{InstalledPlugin, PluginManager, PluginSource};
 pub use manifest::{
-    PluginCommand, PluginCommandMode, PluginManifest, RuntimePolicy, plugin_command_mode_from_str,
+    PluginCommand, PluginCommandMode, PluginDevelopment, PluginManifest, RuntimePolicy,
+    plugin_command_mode_from_str,
 };
 pub use permission::{PermissionDecision, PermissionEngine};

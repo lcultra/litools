@@ -99,10 +99,14 @@ pub fn add_plugin_runtime_webview(
     initialization_script: String,
 ) -> Result<(Webview, PluginRuntimeBounds), String> {
     let url = tauri::Url::parse(entry_url).map_err(|error| error.to_string())?;
+    let webview_url = match url.scheme() {
+        "http" | "https" => WebviewUrl::External(url),
+        _ => WebviewUrl::CustomProtocol(url),
+    };
     let bounds = plugin_runtime_content_bounds(window)?;
     let webview = window
         .add_child(
-            WebviewBuilder::new(webview_label, WebviewUrl::CustomProtocol(url))
+            WebviewBuilder::new(webview_label, webview_url)
                 .initialization_script(initialization_script)
                 .transparent(true),
             LogicalPosition::new(bounds.x, bounds.y),

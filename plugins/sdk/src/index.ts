@@ -21,6 +21,10 @@ export type PluginManifest = {
   icon: string;
   commands?: PluginCommand[];
   permissions?: PluginPermission[];
+  development?: {
+    /** dev server 入口 URL，如 "http://127.0.0.1:5173/index.html" */
+    main: string;
+  };
 };
 
 export type PluginCommand = {

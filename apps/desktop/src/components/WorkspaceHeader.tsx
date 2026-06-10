@@ -3,13 +3,14 @@ import { Menu } from '@tauri-apps/api/menu';
 import { resolveResource } from '@tauri-apps/api/path';
 import { EllipsisVertical, X } from 'lucide-solid';
 import { createSignal, For, Show } from 'solid-js';
-import { detachPluginView, startWindowDragging } from '../bridge/commands';
+import { detachPluginView, openPluginDevtools, startWindowDragging } from '../bridge/commands';
 import type { PluginViewState } from '../bridge/types';
 
 const MENU_OFFSET_Y = 8;
 
 const detachIcon = () => resolveResource('resources/menu/split_window.png');
 const closeIcon = () => resolveResource('resources/menu/close.png');
+const debugIcon = () => resolveResource('resources/menu/debug.png');
 
 type WorkspaceHeaderProps = {
     commandId?: string;
@@ -19,6 +20,7 @@ type WorkspaceHeaderProps = {
     ownerReady?: boolean;
     pluginId?: string;
     pluginView: PluginViewState | null;
+    runtimeId: string | null;
 };
 
 export function WorkspaceHeader(props: WorkspaceHeaderProps) {
@@ -49,35 +51,59 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     }
 
     async function dockedMenuItems() {
-        return [
-            {
-                id: 'detach',
-                text: '分离为独立窗口',
-                icon: await detachIcon(),
+        const detach = {
+            id: 'detach',
+            text: '分离为独立窗口',
+            icon: await detachIcon(),
+            action: () => {
+                if (props.pluginId && props.commandId) {
+                    void detachPluginView(props.pluginId, props.commandId);
+                }
+            },
+        };
+        const close = {
+            id: 'close',
+            text: '结束运行',
+            icon: await closeIcon(),
+            action: props.onClose,
+        };
+        if (props.pluginView?.dev) {
+            const devtools = {
+                id: 'devtools',
+                text: '开发者工具',
+                icon: await debugIcon(),
                 action: () => {
-                    if (props.pluginId && props.commandId) {
-                        void detachPluginView(props.pluginId, props.commandId);
+                    if (props.runtimeId) {
+                        void openPluginDevtools(props.runtimeId);
                     }
                 },
-            },
-            {
-                id: 'close',
-                text: '结束运行',
-                icon: await closeIcon(),
-                action: props.onClose,
-            },
-        ];
+            };
+            return [detach, devtools, close];
+        }
+        return [detach, close];
     }
 
     async function detachedMenuItems() {
-        return [
-            {
-                id: 'close',
-                text: '结束运行',
-                icon: await closeIcon(),
-                action: props.onClose,
-            },
-        ];
+        const close = {
+            id: 'close',
+            text: '结束运行',
+            icon: await closeIcon(),
+            action: props.onClose,
+        };
+        if (props.pluginView?.dev) {
+            const devtools = {
+                id: 'devtools',
+                text: '开发者工具',
+                icon: await debugIcon(),
+                action: () => {
+                    if (props.runtimeId) {
+                        void openPluginDevtools(props.runtimeId);
+                    }
+                },
+            };
+            return [devtools, close];
+        }
+        return [close];
     }
 
     return (
@@ -86,11 +112,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
                 <Show when={props.icon}>
                     <img alt="" class="ml-2 size-6 shrink-0 object-contain" draggable={false} onPointerDown={handleDragPointerDown} src={props.icon} />
                 </Show>
-                <div
-                    class="flex items-center gap-2 py-1.5 pr-2 select-none"
-                    classList={{ 'pl-3': !props.icon, 'pl-1.5': !!props.icon }}
-                    onPointerDown={handleDragPointerDown}
-                >
+                <div class="flex items-center gap-2 py-1.5 pr-2 select-none" classList={{ 'pl-3': !props.icon, 'pl-1.5': !!props.icon }} onPointerDown={handleDragPointerDown}>
                     <For each={breadcrumbs()}>
                         {(breadcrumb, index) => (
                             <>

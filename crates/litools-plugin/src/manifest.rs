@@ -22,6 +22,17 @@ impl Default for RuntimePolicy {
     }
 }
 
+/// 插件开发模式配置，仅在 manifest 中声明 `development` 时生效。
+///
+/// 存在 `main` 字段时，插件 webview 直接加载该 URL（通常为本地 dev server），
+/// 跳过 `litools-plugin://` 协议和 `dist/` 目录。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginDevelopment {
+    /// dev server 入口 URL，如 "http://127.0.0.1:5173/index.html"
+    pub main: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PluginManifest {
     pub id: String,
@@ -42,6 +53,10 @@ pub struct PluginManifest {
     pub singleton: bool,
     #[serde(default)]
     pub permissions: Vec<String>,
+    /// 开发模式配置：指定 dev server 地址后，webview 直接加载该 URL。
+    /// 仅开发阶段写入，打包发布时应移除此字段。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub development: Option<PluginDevelopment>,
 }
 
 fn default_singleton() -> bool {
@@ -209,6 +224,7 @@ mod tests {
             }],
             singleton: true,
             permissions: vec!["ui:window".to_string()],
+            development: None,
         }
     }
 
@@ -237,5 +253,44 @@ mod tests {
             manifest.validate(),
             Err(PluginManifestError::DuplicateCommandId(_))
         ));
+    }
+
+    #[test]
+    fn manifest_with_development() {
+        let json = r#"{
+            "id": "dev.litools.example",
+            "name": "Example",
+            "version": "0.1.0",
+            "entry": "dist/index.html",
+            "icon": "dist/icon.svg",
+            "development": {
+                "main": "http://127.0.0.1:5173/index.html"
+            },
+            "commands": []
+        }"#;
+        let manifest: PluginManifest = serde_json::from_str(json).expect("deserialize");
+        let dev = manifest.development.expect("development field");
+        assert_eq!(dev.main, "http://127.0.0.1:5173/index.html");
+    }
+
+    #[test]
+    fn manifest_without_development() {
+        let json = r#"{
+            "id": "dev.litools.example",
+            "name": "Example",
+            "version": "0.1.0",
+            "entry": "dist/index.html",
+            "icon": "dist/icon.svg",
+            "commands": []
+        }"#;
+        let manifest: PluginManifest = serde_json::from_str(json).expect("deserialize");
+        assert!(manifest.development.is_none());
+    }
+
+    #[test]
+    fn development_field_skipped_when_none() {
+        let manifest = valid_manifest();
+        let json = serde_json::to_string(&manifest).expect("serialize");
+        assert!(!json.contains("development"));
     }
 }

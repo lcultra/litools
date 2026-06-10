@@ -132,3 +132,7 @@ export function closePluginViewById(runtimeId: string): Promise<void> {
 export function getPluginViewInfo(runtimeId: string): Promise<PluginViewInfo> {
     return invoke<PluginViewInfo>('get_plugin_view_info', { runtimeId });
 }
+
+export function openPluginDevtools(runtimeId: string): Promise<void> {
+    return invoke<void>('open_plugin_devtools', { runtimeId });
+}

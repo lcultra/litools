@@ -10,7 +10,7 @@ use crate::{
         preload,
         registry::PluginRuntimeRegistration,
     },
-    protocol::plugin::plugin_entry_url,
+    protocol::plugin::resolve_entry_url,
     state::AppState,
     surface::service as surface_service,
     windowing::{labels, native, reparent},
@@ -614,7 +614,7 @@ fn runtime_launch_descriptor(
         command_id: command.id.clone(),
         plugin_name: plugin.manifest.name.clone(),
         title: command.title.clone(),
-        entry_url: plugin_entry_url(&plugin.manifest.id, &plugin.manifest.entry)?,
+        entry_url: resolve_entry_url(&plugin.manifest.id, &plugin.manifest)?,
         permissions: plugin.manifest.permissions.clone(),
         policy: plugin.manifest.runtime_policy(),
     })

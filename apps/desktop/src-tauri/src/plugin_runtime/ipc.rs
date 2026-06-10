@@ -2,7 +2,7 @@ use chrono::Utc;
 use litools_index::repository::PluginStorageRepository;
 use litools_settings::AppSettings;
 use serde_json::{Value, json};
-use tauri::{AppHandle, State, Webview, ipc::InvokeError};
+use tauri::{AppHandle, Manager, State, Webview, ipc::InvokeError};
 
 use crate::{
     plugin_runtime::{
@@ -72,6 +72,23 @@ pub fn get_plugin_view_info(
     state: State<'_, AppState>,
 ) -> Result<PluginRuntimeInfo, String> {
     service::runtime_info(&state, &runtime_id)
+}
+
+/// 打开插件 webview 的开发者工具（仅开发模式）
+#[tauri::command]
+pub fn open_plugin_devtools(
+    runtime_id: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
+    let context = state
+        .plugin_runtime(&runtime_id)
+        .ok_or_else(|| format!("plugin runtime not found: {runtime_id}"))?;
+    let webview = app_handle
+        .get_webview(&context.webview_label)
+        .ok_or_else(|| format!("webview not found: {}", context.webview_label))?;
+    webview.open_devtools();
+    Ok(())
 }
 
 #[tauri::command]

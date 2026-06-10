@@ -77,6 +77,8 @@ export type PluginViewDescriptor = {
     entryUrl: string;
     icon: string;
     permissions: string[];
+    /** 是否处于开发模式（manifest 中有 development 字段） */
+    dev: boolean;
 };
 
 export type PluginViewPlacement = 'docked' | 'detached';
@@ -114,6 +116,8 @@ export type PluginViewState = {
     lifecycle: PluginViewLifecycle;
     placement: PluginViewPlacement;
     runtimeId: string | null;
+    /** 是否处于开发模式 */
+    dev: boolean;
 };
 
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };

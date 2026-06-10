@@ -31,6 +31,7 @@ export function WorkspacePage() {
                 lifecycle: 'created',
                 placement: isDetachedWindow() ? 'detached' : 'docked',
                 runtimeId: runtimeId() ?? null,
+                dev: desc.dev,
             });
         }
     });
@@ -101,6 +102,7 @@ export function WorkspacePage() {
                         pluginId={params.pluginId}
                         commandId={params.commandId}
                         pluginView={pluginView()}
+                        runtimeId={runtimeId() ?? null}
                     />
                     <div class="flex min-h-0 flex-1">
                         <section class="min-w-0 flex-1" />

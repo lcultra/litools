@@ -141,6 +141,7 @@ fn main() {
             plugin_runtime::ipc::close_plugin_view,
             plugin_runtime::ipc::close_plugin_view_by_id,
             plugin_runtime::ipc::get_plugin_view_info,
+            plugin_runtime::ipc::open_plugin_devtools,
             plugin_runtime::ipc::plugin_view_call,
             ipc::diagnostics::get_diagnostics
         ])

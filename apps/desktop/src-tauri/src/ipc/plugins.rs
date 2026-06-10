@@ -2,7 +2,8 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::{
-    plugin_runtime::service::find_enabled_plugin_command, protocol::plugin::plugin_entry_url,
+    plugin_runtime::service::find_enabled_plugin_command,
+    protocol::plugin::resolve_entry_url,
     state::AppState,
 };
 
@@ -43,6 +44,8 @@ pub struct PluginViewDescriptor {
     entry_url: String,
     icon: String,
     permissions: Vec<String>,
+    /// 是否处于开发模式（manifest 中有 development 字段）
+    dev: bool,
 }
 
 #[tauri::command]
@@ -92,7 +95,8 @@ pub fn get_plugin_view_descriptor(
 
     let app = state.app().lock().map_err(|error| error.to_string())?;
     let plugin = app.context().plugins.find_plugin(&plugin_id).unwrap();
-    let entry_url = plugin_entry_url(&plugin.manifest.id, &plugin.manifest.entry)?;
+    let dev = plugin.manifest.development.is_some();
+    let entry_url = resolve_entry_url(&plugin.manifest.id, &plugin.manifest)?;
 
     let icon = format!(
         "litools-plugin://{}/{}",
@@ -107,6 +111,7 @@ pub fn get_plugin_view_descriptor(
         entry_url,
         icon,
         permissions,
+        dev,
     })
 }
 
