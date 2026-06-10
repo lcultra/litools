@@ -119,7 +119,6 @@ fn main() {
             ipc::launcher::execute_result,
             ipc::surface::detach_route,
             ipc::surface::update_surface_route,
-            ipc::surface::open_route,
             ipc::surface::list_windows,
             ipc::surface::get_current_window_metadata,
             ipc::surface::hide_window,

@@ -45,10 +45,6 @@ export function updateSurfaceRoute(route: AppRoutePath): Promise<SurfaceMetadata
     return invoke<SurfaceMetadata>('update_surface_route', { route });
 }
 
-export function openRoute(route: AppRoutePath, target?: WindowHostKind): Promise<void> {
-    return invoke<void>('open_route', { route, target });
-}
-
 export function hideSurface(target?: WindowHostKind | string): Promise<void> {
     return invoke<void>('hide_window', { target });
 }

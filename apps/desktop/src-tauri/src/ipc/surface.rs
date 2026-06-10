@@ -1,10 +1,8 @@
 use tauri::{AppHandle, Manager, State, Webview};
 
 use crate::{
-    plugin_runtime,
     state::AppState,
     surface::{model::SurfaceMetadata, service},
-    view::registry,
     windowing::{labels, native},
 };
 
@@ -26,28 +24,6 @@ pub fn update_surface_route(
     app_handle: AppHandle,
 ) -> Result<SurfaceMetadata, String> {
     service::update_surface_route(&app_handle, &state, webview.label(), &route)
-}
-
-#[tauri::command]
-pub fn open_route(
-    route: String,
-    target: Option<String>,
-    state: State<'_, AppState>,
-    app_handle: AppHandle,
-) -> Result<(), String> {
-    if target.as_deref() == Some("detached") {
-        return Err("open_route with detached target does not move the current page; use detach_route from the current surface".to_string());
-    }
-
-    if target.as_deref() == Some("runtime") {
-        let Some((plugin_id, command_id)) = registry::plugin_route_parts(&route) else {
-            return Err(format!("runtime target requires a plugin route: {route}"));
-        };
-        plugin_runtime::service::dock_plugin_runtime(&app_handle, &state, plugin_id, command_id)?;
-        return Ok(());
-    }
-
-    service::open_view_route(&app_handle, &state, &route)
 }
 
 #[tauri::command]
