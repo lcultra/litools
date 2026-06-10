@@ -54,17 +54,8 @@ pub fn open_view_route(
     let window = ensure_main_launcher_surface(app, state)?;
     native::show_host_for_view(&window, state, &view.kind);
 
-    for webview in window.webviews() {
-        let Some(metadata) = state.surface_metadata_for_webview_label(webview.label()) else {
-            continue;
-        };
-
-        if metadata.host_window_label == window.label() {
-            events::emit_navigate(&webview, &view.route);
-            if view.kind == ViewKind::Launcher {
-                events::emit_focus_search(&webview);
-            }
-        }
+    if view.kind == ViewKind::Launcher {
+        native::emit_focus_to_owned_launcher_surfaces(&window);
     }
 
     Ok(())
@@ -277,8 +268,8 @@ pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<
 
 /// 重置启动器 surface 到首页，可选择显示或隐藏主窗口。
 ///
-/// 通过 `webview.eval` 直接设置 hash 来驱动 HashRouter 导航，同时更新 metadata route
-/// 以保持前后端路由一致（`emit_navigate` 是 no-op，metadata 不会自动同步）。
+/// 通过 `webview.eval` 直接设置 hash 来驱动 HashRouter 导航，
+/// 同时同步 metadata route 保持前后端路由一致。
 pub fn reset_launcher_surface(
     app: &tauri::AppHandle,
     state: &AppState,

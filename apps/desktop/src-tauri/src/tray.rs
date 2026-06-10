@@ -3,16 +3,12 @@ use tauri::{App, Manager, image::Image, menu::Menu, menu::MenuItem, tray::TrayIc
 use crate::{state::AppState, surface::service};
 
 const SHOW_ID: &str = "show";
-const SETTINGS_ID: &str = "settings";
-const DIAGNOSTICS_ID: &str = "diagnostics";
 const QUIT_ID: &str = "quit";
 
 pub fn setup_tray(app: &App) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, SHOW_ID, "显示 litools", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, SETTINGS_ID, "设置", true, None::<&str>)?;
-    let diagnostics = MenuItem::with_id(app, DIAGNOSTICS_ID, "诊断", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, QUIT_ID, "退出", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&show, &settings, &diagnostics, &quit])?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
 
     let mut tray = TrayIconBuilder::new()
         .menu(&menu)
@@ -21,14 +17,6 @@ pub fn setup_tray(app: &App) -> tauri::Result<()> {
             SHOW_ID => {
                 let state = app.state::<AppState>();
                 let _ = service::toggle_main_launcher(app, &state);
-            }
-            SETTINGS_ID => {
-                let state = app.state::<AppState>();
-                let _ = service::open_view_route(app, &state, "/settings");
-            }
-            DIAGNOSTICS_ID => {
-                let state = app.state::<AppState>();
-                let _ = service::open_view_route(app, &state, "/diagnostics");
             }
             QUIT_ID => {
                 if let Some(state) = app.try_state::<AppState>() {

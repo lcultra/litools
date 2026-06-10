@@ -7,8 +7,6 @@
 
 /// 通知前端聚焦搜索输入框。切换回启动器视图时触发。
 pub const FOCUS_SEARCH_EVENT: &str = "focus-search";
-/// 通知前端导航到指定路由。打开插件/回到启动器时触发。
-pub const NAVIGATE_EVENT: &str = "navigate";
 /// 通知前端 Surface 元数据变更（生命周期、焦点、路由等）。
 pub const SURFACE_METADATA_CHANGED_EVENT: &str = "surface-metadata-changed";
 

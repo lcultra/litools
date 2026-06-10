@@ -5,12 +5,6 @@ export function onFocusSearch(handler: () => void): Promise<() => void> {
     return listen('focus-search', handler);
 }
 
-export function onNavigate(handler: (path: string) => void): Promise<() => void> {
-    return listen<string>('navigate', (event) => {
-        handler(event.payload);
-    });
-}
-
 export function onIndexStatusChanged(handler: (status: IndexStatus) => void): Promise<() => void> {
     return listen<IndexStatus>('index-status-changed', (event) => handler(event.payload));
 }
