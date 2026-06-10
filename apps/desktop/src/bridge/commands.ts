@@ -85,6 +85,10 @@ export function resizeMainWindowHeight(height: number): Promise<void> {
     return invoke<void>('resize_main_window_height', { height });
 }
 
+export function revealInFileManager(resultId: string): Promise<void> {
+    return invoke<void>('reveal_in_file_manager', { resultId });
+}
+
 export function reloadIndex(): Promise<IndexStatus> {
     return invoke<IndexStatus>('reload_index');
 }

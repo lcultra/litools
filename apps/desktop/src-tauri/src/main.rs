@@ -129,6 +129,7 @@ fn main() {
             ipc::surface::show_main_window,
             ipc::surface::focus_main_window,
             ipc::surface::resize_main_window_height,
+            ipc::surface::reveal_in_file_manager,
             ipc::diagnostics::reload_index,
             ipc::settings::get_settings,
             ipc::settings::update_settings,

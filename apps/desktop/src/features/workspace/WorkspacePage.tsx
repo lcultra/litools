@@ -94,6 +94,7 @@ export function WorkspacePage() {
             >
                 <Show when={descriptor()} fallback={<PageState title="正在加载插件..." variant="loading" />}>
                     <WorkspaceHeader
+                        icon={descriptor()?.icon}
                         isDetached={isDetachedWindow()}
                         onClose={handleClose}
                         ownerReady={Boolean(hostWindowLabel())}

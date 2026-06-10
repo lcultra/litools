@@ -41,6 +41,7 @@ pub struct PluginViewDescriptor {
     plugin_name: String,
     title: String,
     entry_url: String,
+    icon: String,
     permissions: Vec<String>,
 }
 
@@ -93,12 +94,18 @@ pub fn get_plugin_view_descriptor(
     let plugin = app.context().plugins.find_plugin(&plugin_id).unwrap();
     let entry_url = plugin_entry_url(&plugin.manifest.id, &plugin.manifest.entry)?;
 
+    let icon = format!(
+        "litools-plugin://{}/{}",
+        plugin.manifest.id, plugin.manifest.icon
+    );
+
     Ok(PluginViewDescriptor {
         plugin_id,
         command_id,
         plugin_name,
         title,
         entry_url,
+        icon,
         permissions,
     })
 }

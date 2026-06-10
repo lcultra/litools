@@ -75,6 +75,7 @@ export type PluginViewDescriptor = {
     pluginName: string;
     title: string;
     entryUrl: string;
+    icon: string;
     permissions: string[];
 };
 

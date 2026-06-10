@@ -1,12 +1,11 @@
 import { useNavigate } from '@solidjs/router';
-import { LogicalPosition } from '@tauri-apps/api/dpi';
-import { Menu } from '@tauri-apps/api/menu';
 import { createEffect, createMemo, createSignal, onCleanup, onMount } from 'solid-js';
 import { executeResult, hideMainWindow, launcherPanel, openPluginView, pinResult, reorderPinnedResults, resizeMainWindowHeight, unpinResult } from '../../bridge/commands';
 import { onFocusSearch, onIndexStatusChanged } from '../../bridge/events';
 import type { LauncherItem, LauncherSection, SearchResult } from '../../bridge/types';
 import { type LauncherRenderSection, LauncherView } from './LauncherView';
 import { useLauncherNavigation } from './useLauncherNavigation';
+import { showResultContextMenu } from './useResultContextMenu';
 
 const MIN_LAUNCHER_HEIGHT = 96;
 const MAX_LAUNCHER_HEIGHT = 520;
@@ -193,26 +192,6 @@ export function LauncherPage() {
         }
     }
 
-    async function showResultContextMenu(renderItem: VisibleLauncherItem, position: { x: number; y: number }) {
-        setSelectedIndex(renderItem.globalIndex);
-
-        try {
-            const menu = await Menu.new({
-                items: [
-                    {
-                        id: renderItem.item.isPinned ? 'unpin-from-search-bar' : 'pin-to-search-bar',
-                        text: renderItem.item.isPinned ? '从搜索栏取消固定' : '固定到搜索栏',
-                        action: () => void togglePinned(renderItem.item),
-                    },
-                ],
-            });
-
-            await menu.popup(new LogicalPosition(position.x, position.y));
-        } catch (menuError) {
-            setError(`打开菜单失败：${String(menuError)}`);
-        }
-    }
-
     function handleSubmit(event: SubmitEvent) {
         event.preventDefault();
         void runResult(visibleFlatItems()[selectedIndex()]?.result);
@@ -290,7 +269,13 @@ export function LauncherPage() {
             onKeyDown={navigation.handleKeyDown}
             onPinnedDragEnd={navigation.refocusAfterDrag}
             onPinnedReorder={(resultIds) => void reorderPinnedSection(resultIds)}
-            onResultContextMenu={(renderItem, position) => void showResultContextMenu(renderItem, position)}
+            onResultContextMenu={(renderItem, position) => {
+                setSelectedIndex(renderItem.globalIndex);
+                void showResultContextMenu(renderItem, position, {
+                    onTogglePin: (item) => void togglePinned(item),
+                    onError: (message) => setError(message),
+                });
+            }}
             onResultRun={(result) => void runResult(result)}
             onSectionExpandedToggle={toggleSectionExpanded}
             onSubmit={handleSubmit}

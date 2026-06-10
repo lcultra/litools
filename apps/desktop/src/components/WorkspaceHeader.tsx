@@ -1,14 +1,19 @@
 import { LogicalPosition } from '@tauri-apps/api/dpi';
 import { Menu } from '@tauri-apps/api/menu';
-import { Ellipsis, X } from 'lucide-solid';
+import { resolveResource } from '@tauri-apps/api/path';
+import { EllipsisVertical, X } from 'lucide-solid';
 import { createSignal, For, Show } from 'solid-js';
 import { detachPluginView, startWindowDragging } from '../bridge/commands';
 import type { PluginViewState } from '../bridge/types';
 
 const MENU_OFFSET_Y = 8;
 
+const detachIcon = () => resolveResource('resources/menu/split_window.png');
+const closeIcon = () => resolveResource('resources/menu/close.png');
+
 type WorkspaceHeaderProps = {
     commandId?: string;
+    icon?: string;
     isDetached?: boolean;
     onClose: () => void;
     ownerReady?: boolean;
@@ -19,7 +24,6 @@ type WorkspaceHeaderProps = {
 export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     const [menuError, setMenuError] = createSignal<string | null>(null);
     const breadcrumbs = () => (props.pluginView ? [props.pluginView.pluginName, props.pluginView.title] : ['插件']);
-    const canDetach = () => Boolean(props.ownerReady) && !props.isDetached && Boolean(props.pluginId);
 
     function handleDragPointerDown(event: PointerEvent) {
         if (event.button !== 0) {
@@ -30,26 +34,12 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
     }
 
     async function showMenu(event: MouseEvent) {
-        if (!canDetach()) {
-            return;
-        }
-
         const rect = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
         setMenuError(null);
 
         try {
             const menu = await Menu.new({
-                items: [
-                    {
-                        action: () => {
-                            if (props.pluginId && props.commandId) {
-                                void detachPluginView(props.pluginId, props.commandId);
-                            }
-                        },
-                        id: 'detach',
-                        text: '分离为独立窗口',
-                    },
-                ],
+                items: props.isDetached ? await detachedMenuItems() : await dockedMenuItems(),
             });
 
             await menu.popup(new LogicalPosition(rect.left, rect.bottom + MENU_OFFSET_Y));
@@ -58,10 +48,49 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
         }
     }
 
+    async function dockedMenuItems() {
+        return [
+            {
+                id: 'detach',
+                text: '分离为独立窗口',
+                icon: await detachIcon(),
+                action: () => {
+                    if (props.pluginId && props.commandId) {
+                        void detachPluginView(props.pluginId, props.commandId);
+                    }
+                },
+            },
+            {
+                id: 'close',
+                text: '结束运行',
+                icon: await closeIcon(),
+                action: props.onClose,
+            },
+        ];
+    }
+
+    async function detachedMenuItems() {
+        return [
+            {
+                id: 'close',
+                text: '结束运行',
+                icon: await closeIcon(),
+                action: props.onClose,
+            },
+        ];
+    }
+
     return (
         <header class="flex h-17 shrink-0 items-center gap-2 border-border border-b px-3 box-border">
             <div class="flex items-center overflow-hidden rounded-full border border-border bg-surface-muted text-sm">
-                <div class="flex items-center gap-2 py-1.5 pl-3 pr-2" onPointerDown={handleDragPointerDown}>
+                <Show when={props.icon}>
+                    <img alt="" class="ml-2 size-6 shrink-0 object-contain" draggable={false} onPointerDown={handleDragPointerDown} src={props.icon} />
+                </Show>
+                <div
+                    class="flex items-center gap-2 py-1.5 pr-2 select-none"
+                    classList={{ 'pl-3': !props.icon, 'pl-1.5': !!props.icon }}
+                    onPointerDown={handleDragPointerDown}
+                >
                     <For each={breadcrumbs()}>
                         {(breadcrumb, index) => (
                             <>
@@ -83,17 +112,15 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
                 </button>
             </div>
             <div aria-hidden="true" class="min-w-0 flex-1 self-stretch cursor-grab active:cursor-grabbing" onPointerDown={handleDragPointerDown} />
-            <Show when={canDetach()}>
-                <button
-                    aria-label="打开菜单"
-                    class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
-                    onClick={showMenu}
-                    title={menuError() ?? '更多操作'}
-                    type="button"
-                >
-                    <Ellipsis size={16} strokeWidth={2} />
-                </button>
-            </Show>
+            <button
+                aria-label="打开菜单"
+                class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+                onClick={showMenu}
+                title={menuError() ?? '更多操作'}
+                type="button"
+            >
+                <EllipsisVertical size={16} strokeWidth={2} />
+            </button>
         </header>
     );
 }
