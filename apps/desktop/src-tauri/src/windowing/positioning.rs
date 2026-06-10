@@ -131,7 +131,7 @@ fn position_launcher_on_target_monitor(window: &Window, state: &AppState) -> Res
 fn centered_target_position(window: &Window) -> Result<Point, String> {
     let target_monitor = target_monitor_bounds(window)?;
     let window_size = window_logical_size(window)?;
-    Ok(centered_window_position(target_monitor, window_size))
+    Ok(default_window_position(target_monitor, window_size))
 }
 
 fn set_window_position(window: &Window, position: Point) -> Result<(), String> {
@@ -305,11 +305,30 @@ fn launcher_show_position(
     }
 
     LauncherShowPosition {
-        position: centered_window_position(monitor, window),
+        position: default_window_position(monitor, window),
         should_forget_saved_position: true,
     }
 }
 
+/// 窗口默认位置：窗口顶部在屏幕高度 1/3 处，水平居中。所有窗口类型共用。
+const DEFAULT_WINDOW_TOP_Y_RATIO_NUMER: i32 = 1;
+const DEFAULT_WINDOW_TOP_Y_RATIO_DENOM: i32 = 3;
+
+fn default_window_position(monitor: MonitorBounds, window: WindowSize) -> Point {
+    let monitor_size = monitor.logical_size();
+    let max_x = monitor.logical_rect.x + (monitor_size.width - window.width).max(0);
+    let max_y = monitor.logical_rect.y + (monitor_size.height - window.height).max(0);
+    let x = monitor.logical_rect.x + (monitor_size.width - window.width) / 2;
+    let y = monitor.logical_rect.y
+        + monitor_size.height * DEFAULT_WINDOW_TOP_Y_RATIO_NUMER / DEFAULT_WINDOW_TOP_Y_RATIO_DENOM;
+
+    Point {
+        x: x.clamp(monitor.logical_rect.x, max_x),
+        y: y.clamp(monitor.logical_rect.y, max_y),
+    }
+}
+
+#[allow(dead_code)]
 fn centered_window_position(monitor: MonitorBounds, window: WindowSize) -> Point {
     let monitor_size = monitor.logical_size();
     let max_x = monitor.logical_rect.x + (monitor_size.width - window.width).max(0);
@@ -552,7 +571,7 @@ mod tests {
     }
 
     #[test]
-    fn centers_and_forgets_saved_position_on_different_monitor() {
+    fn anchors_and_forgets_saved_position_on_different_monitor() {
         let saved_monitor = monitor(0, 0, 1920, 1080);
         let target_monitor = monitor(1920, 0, 1920, 1080);
 
@@ -566,14 +585,14 @@ mod tests {
                 Some(saved(saved_monitor, 80, 120)),
             ),
             LauncherShowPosition {
-                position: Point { x: 2470, y: 260 },
+                position: Point { x: 2470, y: 360 },
                 should_forget_saved_position: true,
             }
         );
     }
 
     #[test]
-    fn centers_and_forgets_saved_position_when_monitor_size_changes() {
+    fn anchors_and_forgets_saved_position_when_monitor_size_changes() {
         let saved_monitor = monitor(0, 0, 1920, 1080);
         let target_monitor = monitor(0, 0, 2560, 1440);
 
@@ -587,14 +606,14 @@ mod tests {
                 Some(saved(saved_monitor, 80, 120)),
             ),
             LauncherShowPosition {
-                position: Point { x: 870, y: 440 },
+                position: Point { x: 870, y: 480 },
                 should_forget_saved_position: true,
             }
         );
     }
 
     #[test]
-    fn centers_and_forgets_saved_position_when_mostly_invisible() {
+    fn anchors_and_forgets_saved_position_when_mostly_invisible() {
         let target_monitor = monitor(0, 0, 1920, 1080);
 
         assert_eq!(
@@ -607,9 +626,25 @@ mod tests {
                 Some(saved(target_monitor, 1600, 900)),
             ),
             LauncherShowPosition {
-                position: Point { x: 550, y: 260 },
+                position: Point { x: 550, y: 360 },
                 should_forget_saved_position: true,
             }
+        );
+    }
+
+    #[test]
+    fn default_window_position_anchors_at_one_third_of_monitor() {
+        let target_monitor = monitor(0, 0, 1920, 1080);
+
+        assert_eq!(
+            default_window_position(
+                target_monitor,
+                WindowSize {
+                    width: 820,
+                    height: 560
+                },
+            ),
+            Point { x: 550, y: 360 }
         );
     }
 }
