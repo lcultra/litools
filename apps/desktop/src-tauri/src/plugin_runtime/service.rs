@@ -7,6 +7,7 @@ use crate::{
         model::{
             PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle, PluginRuntimePlacement,
         },
+        permissions,
         preload,
         registry::PluginRuntimeRegistration,
     },
@@ -525,6 +526,25 @@ fn ensure_docked_runtime_webview(
             Some(bounds),
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
+
+    // 为新创建的 webview 动态授予 Tauri 插件能力
+    let plugin_perms: Vec<String> = context
+        .permissions
+        .iter()
+        .filter(|p| p.contains(':'))
+        .cloned()
+        .collect();
+    if !plugin_perms.is_empty() {
+        permissions::setup_plugin_capability(
+            app,
+            &context.webview_label,
+            &plugin_perms,
+            context.trusted,
+        )
+        .map_err(|e| eprintln!("failed to setup plugin capability: {e}"))
+        .ok();
+    }
+
     enter_runtime(app, state, &context.id)
 }
 

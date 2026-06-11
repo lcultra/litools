@@ -117,44 +117,6 @@ pub fn initialization_script() -> String {
     configurable: false,
     enumerable: true
   }});
-
-  // ---- invoke 拦截器 ----
-  // 拦截 __TAURI_INTERNALS__.invoke，对 plugin:* 命令做运行时权限检查。
-  (function () {{
-    var internals = window.__TAURI_INTERNALS__;
-    if (!internals || typeof internals.invoke !== 'function') {{
-      return;
-    }}
-
-    var _orig = internals.invoke;
-
-    internals.invoke = function (cmd, args) {{
-      // 白名单：自己的 runtime bridge 不拦截
-      if (cmd === 'plugin_view_call') {{
-        return _orig.call(internals, cmd, args);
-      }}
-
-      // 仅检查 plugin:* 命令
-      if (typeof cmd === 'string' && cmd.indexOf('plugin:') === 0) {{
-        return _orig
-          .call(internals, 'plugin_view_call', {{
-            method: 'permissions.check',
-            params: {{ command: cmd }}
-          }})
-          .then(function (result) {{
-            if (result && result.allowed) {{
-              return _orig.call(internals, cmd, args);
-            }}
-            return Promise.reject(
-              'Permission denied: this plugin has not declared the ' + cmd + ' permission'
-            );
-          }});
-      }}
-
-      // 非 plugin: 命令直通
-      return _orig.call(internals, cmd, args);
-    }};
-  }})();
 }})();"#,
         enter_event = LIFECYCLE_ENTER_EVENT,
         leave_event = LIFECYCLE_LEAVE_EVENT,

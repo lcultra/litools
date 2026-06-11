@@ -1,4 +1,6 @@
 use crate::plugin_runtime::model::{PermissionQueryState, PluginRuntimeContext};
+use tauri::ipc::CapabilityBuilder;
+use tauri::Manager;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RuntimePermissionRequirement {
@@ -8,7 +10,7 @@ pub enum RuntimePermissionRequirement {
 
 pub fn required_permission_for_method(method: &str) -> Option<RuntimePermissionRequirement> {
     match method {
-        "runtime.ready" | "runtime.getInfo" | "permissions.query" | "permissions.check" => {
+        "runtime.ready" | "runtime.getInfo" | "permissions.query" => {
             Some(RuntimePermissionRequirement::Intrinsic)
         }
         "ui.close" | "ui.setTitle" => Some(RuntimePermissionRequirement::Permission("ui:window")),
@@ -78,6 +80,72 @@ pub fn check_toplevel_invoke(context: &PluginRuntimeContext, command: &str) -> b
     }
 
     false
+}
+
+/// 命令分类。
+pub enum CommandCategory {
+    Host,
+    Internal,
+    Sdk,
+}
+
+/// 根据 IPC 方法名返回命令分类。将来拆 crate 后用权限前缀判断，现阶段用显式列表。
+pub fn categorize_method(method: &str) -> CommandCategory {
+    match method {
+        // Host — 启动器控制面，仅主窗口
+        "search" | "launcher_panel" | "pin_result" | "unpin_result"
+        | "reorder_pinned_results" | "execute_result"
+        | "hide_main_window" | "show_main_window" | "focus_main_window"
+        | "resize_main_window_height" | "start_window_dragging"
+        | "hide_window" | "focus_window" | "destroy_window"
+        | "list_windows" | "get_current_window_metadata"
+        | "detach_route" | "update_surface_route"
+        | "reveal_in_file_manager"
+        | "reload_index" | "get_diagnostics"
+        | "get_settings" | "update_settings"
+        | "list_plugins" | "get_plugin_view_descriptor"
+        | "open_plugin_view" | "hide_plugin_view" | "detach_plugin_view"
+        | "close_plugin_view" | "close_plugin_view_by_id"
+        | "get_plugin_view_info" | "open_plugin_devtools" => CommandCategory::Host,
+
+        // Internal — 仅 trusted 插件
+        "plugins.list" | "diagnostics.get" | "settings.update" => CommandCategory::Internal,
+
+        // Sdk — 公开，按 plugin.json 声明决定是否授予
+        _ => CommandCategory::Sdk,
+    }
+}
+
+/// 根据插件的 manifest 权限声明和 trusted 状态，构建并注册 capability。
+pub fn setup_plugin_capability(
+    app: &tauri::AppHandle,
+    webview_label: &str,
+    declared_permissions: &[String],
+    trusted: bool,
+) -> Result<(), String> {
+    let cap_id = format!("plugin-cap-{webview_label}");
+    let mut builder = CapabilityBuilder::new(cap_id).webview(webview_label);
+
+    for perm in declared_permissions {
+        // 内部权限：仅 trusted 插件
+        if perm.starts_with("litools-sdk:allow-diagnostics")
+            || perm.starts_with("litools-sdk:allow-plugins")
+            || perm.starts_with("litools-sdk:allow-settings-update")
+            || perm.starts_with("litools-internal:")
+        {
+            if !trusted {
+                continue;
+            }
+        }
+        // Host 权限：绝不给插件
+        if perm.starts_with("litools-host:") {
+            continue;
+        }
+        builder = builder.permission(perm);
+    }
+
+    app.add_capability(builder)
+        .map_err(|e| format!("failed to add capability: {e}"))
 }
 
 #[cfg(test)]
