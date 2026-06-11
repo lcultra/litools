@@ -1,6 +1,10 @@
 {
   "name": "litools",
   "private": true,
+  "scripts": {
+    "plugins:build": "pnpm -r --filter './plugins/bundled/*' build",
+    "plugins:dev": "pnpm -r --filter './plugins/bundled/*' dev"
+  },
   "dependencies": {
     "solid-js": "^1.9.0",
     "@solidjs/router": "^0.16.1",
