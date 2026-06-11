@@ -15,5 +15,8 @@
       "mode": "view"
     }
   ],
-  "permissions": ["ui:window", "ui:toast", "storage:plugin"]
+  "permissions": ["ui:window", "ui:toast", "storage:plugin"],
+  "development": {
+    "main": "http://localhost:5173/"
+  }
 }
