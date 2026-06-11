@@ -19,6 +19,7 @@ pub struct DiscoveredApp {
 }
 
 /// RAII guard：drop 时自动停止应用目录监听。
+#[allow(dead_code)]
 pub struct AppWatchGuard {
     pub(crate) inner: Box<dyn std::any::Any + Send>,
 }

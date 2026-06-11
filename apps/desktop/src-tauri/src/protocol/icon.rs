@@ -75,7 +75,7 @@ impl IconProtocol {
         }
 
         let bytes =
-            app_icon_png(&app_path, icon_path.as_deref()).map_err(|_| StatusCode::NOT_FOUND)?;
+            app_icon_png(&app_path, icon_path.as_deref(), state).map_err(|_| StatusCode::NOT_FOUND)?;
         let _ = write_disk_cache(&disk_cache_path, &bytes);
         self.put_memory_cache(cache_key, bytes.clone());
         Ok(bytes)
@@ -128,27 +128,18 @@ fn cache_key(app_id: &str, app_path: &Path, icon_path: Option<&Path>) -> std::io
     Ok(format!("{:x}", hasher.finish()))
 }
 
-fn app_icon_png(app_path: &Path, icon_path: Option<&Path>) -> std::io::Result<Vec<u8>> {
+fn app_icon_png(
+    app_path: &Path,
+    icon_path: Option<&Path>,
+    state: &crate::state::AppState,
+) -> std::io::Result<Vec<u8>> {
     if let Some(icon_path) = icon_path
         && let Ok(bytes) = icns_to_png(icon_path)
     {
         return Ok(bytes);
     }
 
-    platform_app_icon_png(app_path)
-}
-
-#[cfg(target_os = "macos")]
-fn platform_app_icon_png(app_path: &Path) -> std::io::Result<Vec<u8>> {
-    crate::macos_icon::app_icon_png(app_path)
-}
-
-#[cfg(not(target_os = "macos"))]
-fn platform_app_icon_png(_app_path: &Path) -> std::io::Result<Vec<u8>> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        "platform app icon fallback is unavailable",
-    ))
+    state.app_icon_png(app_path)
 }
 
 fn icns_to_png(path: &Path) -> std::io::Result<Vec<u8>> {

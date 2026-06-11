@@ -75,9 +75,7 @@ impl SystemAdapter for MacosSystemAdapter {
         for dir in &dirs {
             let _ = watcher.watch(dir, RecursiveMode::Recursive);
         }
-        Ok(AppWatchGuard {
-            inner: Box::new(watcher),
-        })
+        Ok(AppWatchGuard::new(Box::new(watcher)))
     }
 }
 

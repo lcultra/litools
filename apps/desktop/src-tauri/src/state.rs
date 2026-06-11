@@ -8,10 +8,11 @@ use std::{
 };
 
 use litools_core::{AppBootstrapPaths, LitoolsApp, LitoolsResult, ReloadIndexSummary};
+use litools_system::SystemAdapter;
 use serde::Serialize;
 
 use crate::{
-    app_watcher::{AppWatcherHandle, AppWatcherState, AppWatcherStatus},
+    app_watcher::{AppWatcherState, AppWatcherStatus},
     index_refresh::IndexStatus,
     core::plugins::runtime::{
         model::{
@@ -81,7 +82,6 @@ pub struct AppState {
     shortcut_status: Mutex<ShortcutStatus>,
     index_status: Mutex<IndexStatus>,
     app_watcher: AppWatcherState,
-    app_watcher_handle: Mutex<Option<AppWatcherHandle>>,
     surfaces: Mutex<SurfaceRegistry>,
     plugin_runtimes: Mutex<PluginRuntimeRegistry>,
     launcher_positioning: Mutex<LauncherPositioningState>,
@@ -99,7 +99,6 @@ impl AppState {
             shortcut_status: Mutex::new(ShortcutStatus::default()),
             index_status: Mutex::new(IndexStatus::default()),
             app_watcher: AppWatcherState::default(),
-            app_watcher_handle: Mutex::new(None),
             surfaces: Mutex::new(SurfaceRegistry::default()),
             plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
             launcher_positioning: Mutex::new(LauncherPositioningState::default()),
@@ -113,6 +112,29 @@ impl AppState {
 
     pub fn data_dir(&self) -> &Path {
         &self.data_dir
+    }
+
+    pub fn app_icon_png(&self, path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+        self.app
+            .lock()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+            .system_adapter()
+            .app_icon_png(path)
+    }
+
+    pub fn watch_app_dirs(
+        &self,
+        on_change: Box<dyn Fn() + Send + 'static>,
+    ) -> std::io::Result<litools_system::adapter::AppWatchGuard> {
+        let app = self
+            .app
+            .lock()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        app.system_adapter().watch_app_dirs(on_change)
+    }
+
+    pub fn set_app_watcher_status(&self, status: AppWatcherStatus) {
+        self.app_watcher.set_status(status);
     }
 
     pub fn request_quit(&self) {
@@ -459,13 +481,6 @@ impl AppState {
             .lock()
             .map(|status| status.clone())
             .unwrap_or_default()
-    }
-
-    pub fn set_app_watcher(&self, handle: AppWatcherHandle) {
-        self.app_watcher.set_status(handle.status());
-        if let Ok(mut current) = self.app_watcher_handle.lock() {
-            *current = Some(handle);
-        }
     }
 
     pub fn app_watcher_status(&self) -> AppWatcherStatus {

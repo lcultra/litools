@@ -61,7 +61,13 @@ impl LitoolsApp {
         log::info!("应用启动完成");
 
         Ok(Self {
-            context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
+            context: AppContext::new(
+                database,
+                search,
+                plugins,
+                SettingsStore::new(settings),
+                litools_system::NativeSystemAdapter::default(),
+            ),
             paths,
             plugin_command_provider,
         })
@@ -77,7 +83,13 @@ impl LitoolsApp {
             crate::app::search::default_search_engine(database.clone());
 
         Ok(Self {
-            context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
+            context: AppContext::new(
+                database,
+                search,
+                plugins,
+                SettingsStore::new(settings),
+                litools_system::NativeSystemAdapter::default(),
+            ),
             paths: AppBootstrapPaths::new(""),
             plugin_command_provider,
         })
@@ -87,6 +99,9 @@ impl LitoolsApp {
         &self.context
     }
 
+    pub fn system_adapter(&self) -> &litools_system::NativeSystemAdapter {
+        &self.context.system_adapter
+    }
     pub fn settings(&self) -> &litools_settings::AppSettings {
         self.context.settings.get()
     }

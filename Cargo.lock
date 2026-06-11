@@ -2726,10 +2726,6 @@ dependencies = [
  "litools-system",
  "log",
  "lru",
- "notify",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
  "rusqlite",
  "serde",
  "serde_json",
@@ -2801,6 +2797,11 @@ dependencies = [
 name = "litools-system"
 version = "0.1.0"
 dependencies = [
+ "image",
+ "notify",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "pinyin",
  "plist",
  "serde",

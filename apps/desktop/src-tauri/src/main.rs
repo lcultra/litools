@@ -1,8 +1,6 @@
 mod app_watcher;
 mod core;
 mod index_refresh;
-#[cfg(target_os = "macos")]
-mod macos_icon;
 mod sdk;
 mod protocol;
 mod shortcut;
@@ -125,8 +123,9 @@ fn main() {
                 app.handle(),
                 &app.state::<AppState>().global_hotkey(),
             );
-            let app_watcher = app_watcher::start_app_watcher(app.handle().clone());
-            app.state::<AppState>().set_app_watcher(app_watcher);
+            // start_app_watcher 内部已设置 AppState 中的状态，
+            // 返回的 guard 需保持存活以维持监听。
+            let _app_watch_guard = app_watcher::start_app_watcher(app.handle().clone());
             index_refresh::request_index_refresh(
                 app.handle(),
                 index_refresh::IndexRefreshTrigger::Startup,
