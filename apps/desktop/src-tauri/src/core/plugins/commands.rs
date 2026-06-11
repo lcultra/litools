@@ -61,7 +61,7 @@ pub fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, St
             version: plugin.manifest.version.clone(),
             description: plugin.manifest.description.clone(),
             author: plugin.manifest.author.clone(),
-            icon: plugin.manifest.icon.clone(),
+            icon: format!("litools-plugin://{}/{}", plugin.manifest.id, plugin.manifest.icon),
             enabled: plugin.enabled,
             trusted: plugin.trusted,
             source: plugin.source.as_str().to_string(),
