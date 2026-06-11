@@ -58,6 +58,8 @@ impl LitoolsApp {
         let (search, plugin_command_provider) =
             crate::app::search::default_search_engine(database.clone());
 
+        log::info!("应用启动完成");
+
         Ok(Self {
             context: AppContext::new(database, search, plugins, SettingsStore::new(settings)),
             paths,

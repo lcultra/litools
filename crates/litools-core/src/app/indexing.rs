@@ -82,6 +82,12 @@ impl LitoolsApp {
         )?;
         transaction.commit()?;
 
+        log::info!(
+            "索引重建完成: {} 个应用, {} 个命令, 耗时 {}ms",
+            summary.apps_upserted,
+            summary.commands_upserted,
+            summary.duration_ms,
+        );
         Ok(summary)
     }
 

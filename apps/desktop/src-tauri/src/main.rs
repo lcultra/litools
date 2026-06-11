@@ -133,6 +133,7 @@ fn main() {
                 app.handle(),
                 index_refresh::IndexRefreshTrigger::Startup,
             );
+            log::info!("应用已就绪");
             Ok(())
         })
         .on_window_event(windowing::lifecycle::handle_window_event)

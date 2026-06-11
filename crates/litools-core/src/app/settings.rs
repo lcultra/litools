@@ -10,6 +10,7 @@ impl LitoolsApp {
         let settings = settings.normalized();
         persist_settings(&self.context.database, &settings)?;
         self.context.settings.replace(settings.clone());
+        log::info!("设置已更新");
         Ok(settings)
     }
 }

@@ -112,6 +112,7 @@ pub fn dock_plugin_runtime(
         webview_label,
     )?;
 
+    log::info!("打开插件视图: {plugin_id}:{command_id}");
     ensure_docked_runtime_webview(app, state, context)
 }
 
@@ -143,6 +144,7 @@ pub fn detach_plugin_runtime(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<PluginRuntimeContext, String> {
+    log::info!("分离插件视图: {plugin_id}:{command_id}");
     let context = state
         .plugin_runtime_for_plugin_command(plugin_id, command_id)
         .ok_or_else(|| format!("plugin runtime not found: {plugin_id}:{command_id}"))?;
@@ -341,6 +343,7 @@ pub fn close_plugin_runtime_by_plugin_command(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<(), String> {
+    log::info!("关闭插件视图: {plugin_id}:{command_id}");
     let context = state
         .plugin_runtime_for_plugin_command(plugin_id, command_id)
         .ok_or_else(|| format!("plugin runtime not found: {plugin_id}:{command_id}"))?;
