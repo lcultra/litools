@@ -1,4 +1,6 @@
-export type ThemeValue = 'system' | 'light' | 'dark';
+import type { ThemeValue } from '@litools/plugin-core';
+
+export type { ThemeValue };
 
 export type ThemeOption = {
     label: string;
