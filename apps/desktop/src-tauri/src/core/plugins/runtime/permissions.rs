@@ -138,7 +138,27 @@ pub fn validate_declared_permissions(perms: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// litools 内部权限前缀。这些权限字符串用于 SDK dispatch 层的
+/// `is_permission_granted` 检查，不注册到 Tauri ACL。
+const INTERNAL_PERMISSION_PREFIXES: &[&str] = &[
+    "settings:",
+    "plugins:",
+    "diagnostics:",
+    "ui:",
+    "storage:",
+];
+
+fn is_internal_permission(perm: &str) -> bool {
+    INTERNAL_PERMISSION_PREFIXES
+        .iter()
+        .any(|prefix| perm.starts_with(prefix))
+}
+
 /// 根据插件的 manifest 权限声明和 trusted 状态，构建并注册 capability。
+///
+/// 权限分为两类：
+/// - **Tauri ACL 权限**（如 clip_man:default、litools-sdk:*）：注册到 Tauri capability
+/// - **litools 内部权限**（如 settings:read、plugins:list）：仅用于 SDK dispatch 层检查，不注册到 Tauri
 pub fn setup_plugin_capability(
     app: &tauri::AppHandle,
     webview_label: &str,
@@ -152,6 +172,10 @@ pub fn setup_plugin_capability(
     let mut builder = CapabilityBuilder::new(cap_id).webview(webview_label);
 
     for perm in declared_permissions {
+        // litools 内部权限跳过 Tauri ACL 注册
+        if is_internal_permission(perm) {
+            continue;
+        }
         match categorize_permission(perm) {
             PermissionDomain::Host | PermissionDomain::Unknown => {
                 continue; // 已在 validate 中拒绝，此处兜底
