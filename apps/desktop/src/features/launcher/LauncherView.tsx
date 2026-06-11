@@ -1,6 +1,6 @@
 import { createEffect, For, Show } from 'solid-js';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
-import ResultIcon from '../../components/ResultIcon';
+import { ResultIcon } from '../../components/ResultIcon';
 import { WindowFrame } from '../../components/WindowFrame';
 import { stopEvent } from '../../shared/events';
 import { HighlightedText } from './HighlightedText';

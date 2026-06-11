@@ -17,7 +17,6 @@ type WorkspaceHeaderProps = {
     icon?: string;
     isDetached?: boolean;
     onClose: () => void;
-    ownerReady?: boolean;
     pluginId?: string;
     pluginView: PluginViewState | null;
     runtimeId: string | null;

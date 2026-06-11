@@ -2,7 +2,7 @@ import type { JSX } from 'solid-js';
 import { Show } from 'solid-js';
 import { Button } from './Button';
 
-type PageStateVariant = 'empty' | 'error' | 'loading' | 'success';
+type PageStateVariant = 'empty' | 'error' | 'loading';
 
 type PageStateProps = {
     action?: {
@@ -19,7 +19,6 @@ const variantClasses: Record<PageStateVariant, string> = {
     empty: 'text-muted',
     error: 'text-danger',
     loading: 'text-muted',
-    success: 'text-success',
 };
 
 export function PageState(props: PageStateProps) {

@@ -6,7 +6,7 @@ import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader';
 import { useGlobalKey } from '../../shared/keyboard';
-import { hostWindowLabel, isDetachedWindow } from '../../shared/store';
+import { isDetachedWindow } from '../../shared/store';
 
 export function WorkspacePage() {
     const params = useParams<{ pluginId: string; commandId: string }>();
@@ -96,7 +96,6 @@ export function WorkspacePage() {
                         icon={descriptor()?.icon}
                         isDetached={isDetachedWindow()}
                         onClose={handleClose}
-                        ownerReady={Boolean(hostWindowLabel())}
                         pluginId={params.pluginId}
                         commandId={params.commandId}
                         pluginView={pluginView()}

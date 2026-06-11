@@ -2,7 +2,7 @@ import { createSignal, Show } from 'solid-js';
 import type { SearchResult } from '../bridge/types';
 import { providerLabel } from '../shared/strings';
 
-export default function ResultIcon(props: { result: SearchResult }) {
+export function ResultIcon(props: { result: SearchResult }) {
     const [failed, setFailed] = createSignal(false);
     const fallback = () => providerLabel(props.result.provider).slice(0, 1);
 

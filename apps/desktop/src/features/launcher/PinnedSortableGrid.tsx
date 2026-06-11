@@ -2,7 +2,7 @@ import { move } from '@dnd-kit/helpers';
 import { DragDropProvider } from '@dnd-kit/solid';
 import { useSortable } from '@dnd-kit/solid/sortable';
 import { createEffect, createSignal, For } from 'solid-js';
-import ResultIcon from '../../components/ResultIcon';
+import { ResultIcon } from '../../components/ResultIcon';
 import { preventDefault } from '../../shared/events';
 import { HighlightedText } from './HighlightedText';
 import type { LauncherRenderItem } from './LauncherView';
