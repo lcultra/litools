@@ -14,15 +14,27 @@ pub fn required_permission_for_method(method: &str) -> Option<RuntimePermissionR
         "runtime.ready" | "runtime.getInfo" | "permissions.query" => {
             Some(RuntimePermissionRequirement::Intrinsic)
         }
-        "ui.close" | "ui.setTitle" => Some(RuntimePermissionRequirement::Permission("ui:window")),
-        "ui.toast" => Some(RuntimePermissionRequirement::Permission("ui:toast")),
-        "storage.get" | "storage.set" | "storage.remove" | "storage.clear" => {
-            Some(RuntimePermissionRequirement::Permission("storage:plugin"))
+        "ui.close" | "ui.setTitle" => {
+            Some(RuntimePermissionRequirement::Permission("litools-sdk:allow-ui-close"))
         }
-        "settings.get" => Some(RuntimePermissionRequirement::Permission("settings:read")),
-        "settings.update" => Some(RuntimePermissionRequirement::Permission("settings:write")),
-        "diagnostics.get" => Some(RuntimePermissionRequirement::Permission("diagnostics:read")),
-        "plugins.list" => Some(RuntimePermissionRequirement::Permission("plugins:list")),
+        "ui.toast" => Some(RuntimePermissionRequirement::Permission(
+            "litools-sdk:allow-ui-toast",
+        )),
+        "storage.get" | "storage.set" | "storage.remove" | "storage.clear" => {
+            Some(RuntimePermissionRequirement::Permission("litools-sdk:allow-storage"))
+        }
+        "settings.get" => Some(RuntimePermissionRequirement::Permission(
+            "litools-sdk:allow-settings-read",
+        )),
+        "settings.update" => Some(RuntimePermissionRequirement::Permission(
+            "litools-sdk:allow-settings-write",
+        )),
+        "diagnostics.get" => Some(RuntimePermissionRequirement::Permission(
+            "litools-sdk:allow-diagnostics",
+        )),
+        "plugins.list" => Some(RuntimePermissionRequirement::Permission(
+            "litools-sdk:allow-plugins-list",
+        )),
         _ => None,
     }
 }
@@ -138,27 +150,12 @@ pub fn validate_declared_permissions(perms: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// litools 内部权限前缀。这些权限字符串用于 SDK dispatch 层的
-/// `is_permission_granted` 检查，不注册到 Tauri ACL。
-const INTERNAL_PERMISSION_PREFIXES: &[&str] = &[
-    "settings:",
-    "plugins:",
-    "diagnostics:",
-    "ui:",
-    "storage:",
-];
-
-fn is_internal_permission(perm: &str) -> bool {
-    INTERNAL_PERMISSION_PREFIXES
-        .iter()
-        .any(|prefix| perm.starts_with(prefix))
-}
-
 /// 根据插件的 manifest 权限声明和 trusted 状态，构建并注册 capability。
 ///
-/// 权限分为两类：
-/// - **Tauri ACL 权限**（如 clip_man:default、litools-sdk:*）：注册到 Tauri capability
-/// - **litools 内部权限**（如 settings:read、plugins:list）：仅用于 SDK dispatch 层检查，不注册到 Tauri
+/// 所有权限均为 Tauri ACL 格式（`plugin:permission`）。
+/// - `litools-core:*` 仅授予受信任的内置插件
+/// - `litools-sdk:*` 敏感权限仅授予受信任插件
+/// - 其他官方 Tauri 插件权限直接授予
 pub fn setup_plugin_capability(
     app: &tauri::AppHandle,
     webview_label: &str,
@@ -172,13 +169,12 @@ pub fn setup_plugin_capability(
     let mut builder = CapabilityBuilder::new(cap_id).webview(webview_label);
 
     for perm in declared_permissions {
-        // litools 内部权限跳过 Tauri ACL 注册
-        if is_internal_permission(perm) {
-            continue;
-        }
         match categorize_permission(perm) {
-            PermissionDomain::Host | PermissionDomain::Unknown => {
-                continue; // 已在 validate 中拒绝，此处兜底
+            PermissionDomain::Host => {
+                // litools-core:* 权限仅授予受信任的内置插件
+                if trusted {
+                    builder = builder.permission(perm);
+                }
             }
             PermissionDomain::Sdk => {
                 if is_internal_sdk_perm(perm) && !trusted {
@@ -189,6 +185,9 @@ pub fn setup_plugin_capability(
             PermissionDomain::Official => {
                 builder = builder.permission(perm);
             }
+            PermissionDomain::Unknown => {
+                continue; // 已在 validate 中拒绝，此处兜底
+            }
         }
     }
 
@@ -196,13 +195,11 @@ pub fn setup_plugin_capability(
         .map_err(|e| format!("failed to add capability: {e}"))
 }
 
-/// 判断是否为 litools-sdk 的内部权限（仅 trusted 插件可授予）。
-/// 判断是否为 litools-sdk 的内部权限（仅 trusted 插件可授予）。
-/// 后续 Phase 4 引入 litools-internal 插件后，此处改为前缀匹配。
+/// 判断是否为 litools-sdk 的敏感权限（仅 trusted 插件可授予）。
 fn is_internal_sdk_perm(perm: &str) -> bool {
-    perm.starts_with("litools-sdk:allow-diagnostics")
-        || perm.starts_with("litools-sdk:allow-plugins")
-        || perm.starts_with("litools-sdk:allow-settings-update")
+    perm == "litools-sdk:allow-diagnostics"
+        || perm == "litools-sdk:allow-plugins-list"
+        || perm == "litools-sdk:allow-settings-write"
 }
 
 #[cfg(test)]
@@ -241,7 +238,7 @@ mod tests {
     #[test]
     fn denies_unknown_methods() {
         assert!(!can_call_method(
-            &context(vec!["ui:window"]),
+            &context(vec!["litools-sdk:allow-ui-close"]),
             "window.invoke"
         ));
     }
@@ -249,10 +246,16 @@ mod tests {
     #[test]
     fn requires_declared_permissions() {
         assert!(!can_call_method(&context(vec![]), "ui.close"));
-        assert!(can_call_method(&context(vec!["ui:window"]), "ui.close"));
-        assert!(!can_call_method(&context(vec!["ui:window"]), "storage.get"));
         assert!(can_call_method(
-            &context(vec!["storage:plugin"]),
+            &context(vec!["litools-sdk:allow-ui-close"]),
+            "ui.close"
+        ));
+        assert!(!can_call_method(
+            &context(vec!["litools-sdk:allow-ui-close"]),
+            "storage.get"
+        ));
+        assert!(can_call_method(
+            &context(vec!["litools-sdk:allow-storage"]),
             "storage.get"
         ));
     }

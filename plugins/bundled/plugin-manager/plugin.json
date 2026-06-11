@@ -15,7 +15,12 @@
             "mode": "view"
         }
     ],
-    "permissions": ["plugins:list", "plugins:manage"],
+    "permissions": [
+        "litools-sdk:allow-runtime",
+        "litools-sdk:allow-plugins-list",
+        "litools-core:allow-plugins",
+        "litools-core:allow-plugins-manage"
+    ],
     "development": {
         "main": "http://localhost:5174/"
     }

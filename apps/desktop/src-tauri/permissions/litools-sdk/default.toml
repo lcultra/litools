@@ -1,0 +1,7 @@
+[default]
+description = "litools-sdk default permissions — runtime + ui close only"
+
+permissions = [
+    "allow-runtime",
+    "allow-ui-close",
+]

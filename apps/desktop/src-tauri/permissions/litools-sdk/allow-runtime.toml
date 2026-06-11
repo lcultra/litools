@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-runtime"
+description = "Enables runtime lifecycle commands: ready, getInfo, permissions.query"
+
+commands.allow = [
+    "sdk_runtime_ready",
+    "sdk_runtime_get_info",
+    "sdk_permissions_query",
+]

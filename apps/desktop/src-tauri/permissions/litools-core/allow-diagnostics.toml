@@ -1,0 +1,8 @@
+[[permission]]
+identifier = "allow-diagnostics"
+description = "Enables diagnostics and index reload commands"
+
+commands.allow = [
+    "reload_index",
+    "get_diagnostics",
+]

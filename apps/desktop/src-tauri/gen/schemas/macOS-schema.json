@@ -6741,10 +6741,10 @@
           "markdownDescription": "Denies the fetch_send command without any pre-configured scope."
         },
         {
-          "description": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-search`\n- `allow-launcher-panel`\n- `allow-pin-result`\n- `allow-unpin-result`\n- `allow-reorder-pinned-results`\n- `allow-execute-result`\n- `allow-detach-route`\n- `allow-update-surface-route`\n- `allow-list-windows`\n- `allow-get-current-window-metadata`\n- `allow-hide-window`\n- `allow-focus-window`\n- `allow-destroy-window`\n- `allow-start-window-dragging`\n- `allow-hide-main-window`\n- `allow-show-main-window`\n- `allow-focus-main-window`\n- `allow-resize-main-window-height`\n- `allow-reveal-in-file-manager`\n- `allow-reload-index`\n- `allow-get-diagnostics`\n- `allow-get-settings`\n- `allow-update-settings`\n- `allow-list-plugins`\n- `allow-get-plugin-view-descriptor`\n- `allow-open-plugin-view`\n- `allow-hide-plugin-view`\n- `allow-detach-plugin-view`\n- `allow-close-plugin-view`\n- `allow-close-plugin-view-by-id`\n- `allow-get-plugin-view-info`\n- `allow-open-plugin-devtools`",
+          "description": "litools-core default permissions — none",
           "type": "string",
           "const": "litools-core:default",
-          "markdownDescription": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-search`\n- `allow-launcher-panel`\n- `allow-pin-result`\n- `allow-unpin-result`\n- `allow-reorder-pinned-results`\n- `allow-execute-result`\n- `allow-detach-route`\n- `allow-update-surface-route`\n- `allow-list-windows`\n- `allow-get-current-window-metadata`\n- `allow-hide-window`\n- `allow-focus-window`\n- `allow-destroy-window`\n- `allow-start-window-dragging`\n- `allow-hide-main-window`\n- `allow-show-main-window`\n- `allow-focus-main-window`\n- `allow-resize-main-window-height`\n- `allow-reveal-in-file-manager`\n- `allow-reload-index`\n- `allow-get-diagnostics`\n- `allow-get-settings`\n- `allow-update-settings`\n- `allow-list-plugins`\n- `allow-get-plugin-view-descriptor`\n- `allow-open-plugin-view`\n- `allow-hide-plugin-view`\n- `allow-detach-plugin-view`\n- `allow-close-plugin-view`\n- `allow-close-plugin-view-by-id`\n- `allow-get-plugin-view-info`\n- `allow-open-plugin-devtools`"
+          "markdownDescription": "litools-core default permissions — none"
         },
         {
           "description": "Enables the close_plugin_view command without any pre-configured scope.",
@@ -6775,6 +6775,12 @@
           "type": "string",
           "const": "litools-core:allow-detach-route",
           "markdownDescription": "Enables the detach_route command without any pre-configured scope."
+        },
+        {
+          "description": "Enables diagnostics and index reload commands",
+          "type": "string",
+          "const": "litools-core:allow-diagnostics",
+          "markdownDescription": "Enables diagnostics and index reload commands"
         },
         {
           "description": "Enables the execute_result command without any pre-configured scope.",
@@ -6843,6 +6849,18 @@
           "markdownDescription": "Enables the hide_window command without any pre-configured scope."
         },
         {
+          "description": "Enables the install_plugin command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-core:allow-install-plugin",
+          "markdownDescription": "Enables the install_plugin command without any pre-configured scope."
+        },
+        {
+          "description": "Enables launcher search, pin, and execute commands",
+          "type": "string",
+          "const": "litools-core:allow-launcher",
+          "markdownDescription": "Enables launcher search, pin, and execute commands"
+        },
+        {
           "description": "Enables the launcher_panel command without any pre-configured scope.",
           "type": "string",
           "const": "litools-core:allow-launcher-panel",
@@ -6879,6 +6897,18 @@
           "markdownDescription": "Enables the pin_result command without any pre-configured scope."
         },
         {
+          "description": "Enables plugin listing and lifecycle commands (open/hide/detach/close)",
+          "type": "string",
+          "const": "litools-core:allow-plugins",
+          "markdownDescription": "Enables plugin listing and lifecycle commands (open/hide/detach/close)"
+        },
+        {
+          "description": "Enables plugin install/uninstall/toggle commands",
+          "type": "string",
+          "const": "litools-core:allow-plugins-manage",
+          "markdownDescription": "Enables plugin install/uninstall/toggle commands"
+        },
+        {
           "description": "Enables the reload_index command without any pre-configured scope.",
           "type": "string",
           "const": "litools-core:allow-reload-index",
@@ -6909,6 +6939,12 @@
           "markdownDescription": "Enables the search command without any pre-configured scope."
         },
         {
+          "description": "Enables get_settings and update_settings commands",
+          "type": "string",
+          "const": "litools-core:allow-settings",
+          "markdownDescription": "Enables get_settings and update_settings commands"
+        },
+        {
           "description": "Enables the show_main_window command without any pre-configured scope.",
           "type": "string",
           "const": "litools-core:allow-show-main-window",
@@ -6919,6 +6955,24 @@
           "type": "string",
           "const": "litools-core:allow-start-window-dragging",
           "markdownDescription": "Enables the start_window_dragging command without any pre-configured scope."
+        },
+        {
+          "description": "Enables surface/window management commands",
+          "type": "string",
+          "const": "litools-core:allow-surface",
+          "markdownDescription": "Enables surface/window management commands"
+        },
+        {
+          "description": "Enables the toggle_plugin command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-core:allow-toggle-plugin",
+          "markdownDescription": "Enables the toggle_plugin command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the uninstall_plugin command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-core:allow-uninstall-plugin",
+          "markdownDescription": "Enables the uninstall_plugin command without any pre-configured scope."
         },
         {
           "description": "Enables the unpin_result command without any pre-configured scope.",
@@ -7035,6 +7089,12 @@
           "markdownDescription": "Denies the hide_window command without any pre-configured scope."
         },
         {
+          "description": "Denies the install_plugin command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-core:deny-install-plugin",
+          "markdownDescription": "Denies the install_plugin command without any pre-configured scope."
+        },
+        {
           "description": "Denies the launcher_panel command without any pre-configured scope.",
           "type": "string",
           "const": "litools-core:deny-launcher-panel",
@@ -7113,6 +7173,18 @@
           "markdownDescription": "Denies the start_window_dragging command without any pre-configured scope."
         },
         {
+          "description": "Denies the toggle_plugin command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-core:deny-toggle-plugin",
+          "markdownDescription": "Denies the toggle_plugin command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the uninstall_plugin command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-core:deny-uninstall-plugin",
+          "markdownDescription": "Denies the uninstall_plugin command without any pre-configured scope."
+        },
+        {
           "description": "Denies the unpin_result command without any pre-configured scope.",
           "type": "string",
           "const": "litools-core:deny-unpin-result",
@@ -7131,10 +7203,28 @@
           "markdownDescription": "Denies the update_surface_route command without any pre-configured scope."
         },
         {
-          "description": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`",
+          "description": "litools-sdk default permissions — runtime + ui close only\n#### This default permission set includes:\n\n- `allow-runtime`\n- `allow-ui-close`",
           "type": "string",
           "const": "litools-sdk:default",
-          "markdownDescription": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`"
+          "markdownDescription": "litools-sdk default permissions — runtime + ui close only\n#### This default permission set includes:\n\n- `allow-runtime`\n- `allow-ui-close`"
+        },
+        {
+          "description": "Enables reading diagnostics data",
+          "type": "string",
+          "const": "litools-sdk:allow-diagnostics",
+          "markdownDescription": "Enables reading diagnostics data"
+        },
+        {
+          "description": "Enables listing installed plugins",
+          "type": "string",
+          "const": "litools-sdk:allow-plugins-list",
+          "markdownDescription": "Enables listing installed plugins"
+        },
+        {
+          "description": "Enables runtime lifecycle commands: ready, getInfo, permissions.query",
+          "type": "string",
+          "const": "litools-sdk:allow-runtime",
+          "markdownDescription": "Enables runtime lifecycle commands: ready, getInfo, permissions.query"
         },
         {
           "description": "Enables the sdk_diagnostics_get command without any pre-configured scope.",
@@ -7219,6 +7309,36 @@
           "type": "string",
           "const": "litools-sdk:allow-sdk-ui-toast",
           "markdownDescription": "Enables the sdk_ui_toast command without any pre-configured scope."
+        },
+        {
+          "description": "Enables reading app settings",
+          "type": "string",
+          "const": "litools-sdk:allow-settings-read",
+          "markdownDescription": "Enables reading app settings"
+        },
+        {
+          "description": "Enables updating app settings",
+          "type": "string",
+          "const": "litools-sdk:allow-settings-write",
+          "markdownDescription": "Enables updating app settings"
+        },
+        {
+          "description": "Enables plugin storage get/set/remove/clear commands",
+          "type": "string",
+          "const": "litools-sdk:allow-storage",
+          "markdownDescription": "Enables plugin storage get/set/remove/clear commands"
+        },
+        {
+          "description": "Enables close and setTitle commands",
+          "type": "string",
+          "const": "litools-sdk:allow-ui-close",
+          "markdownDescription": "Enables close and setTitle commands"
+        },
+        {
+          "description": "Enables the toast command",
+          "type": "string",
+          "const": "litools-sdk:allow-ui-toast",
+          "markdownDescription": "Enables the toast command"
         },
         {
           "description": "Denies the sdk_diagnostics_get command without any pre-configured scope.",

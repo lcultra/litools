@@ -1,0 +1,8 @@
+[[permission]]
+identifier = "allow-settings"
+description = "Enables get_settings and update_settings commands"
+
+commands.allow = [
+    "get_settings",
+    "update_settings",
+]

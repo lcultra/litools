@@ -1,0 +1,19 @@
+[[permission]]
+identifier = "allow-surface"
+description = "Enables surface/window management commands"
+
+commands.allow = [
+    "detach_route",
+    "update_surface_route",
+    "list_windows",
+    "get_current_window_metadata",
+    "hide_window",
+    "focus_window",
+    "destroy_window",
+    "start_window_dragging",
+    "hide_main_window",
+    "show_main_window",
+    "focus_main_window",
+    "resize_main_window_height",
+    "reveal_in_file_manager",
+]

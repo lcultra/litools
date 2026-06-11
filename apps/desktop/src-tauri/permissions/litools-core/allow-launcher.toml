@@ -1,0 +1,12 @@
+[[permission]]
+identifier = "allow-launcher"
+description = "Enables launcher search, pin, and execute commands"
+
+commands.allow = [
+    "search",
+    "launcher_panel",
+    "pin_result",
+    "unpin_result",
+    "reorder_pinned_results",
+    "execute_result",
+]

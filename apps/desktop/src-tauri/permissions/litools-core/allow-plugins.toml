@@ -1,0 +1,15 @@
+[[permission]]
+identifier = "allow-plugins"
+description = "Enables plugin listing and lifecycle commands (open/hide/detach/close)"
+
+commands.allow = [
+    "list_plugins",
+    "get_plugin_view_descriptor",
+    "open_plugin_view",
+    "hide_plugin_view",
+    "detach_plugin_view",
+    "close_plugin_view",
+    "close_plugin_view_by_id",
+    "get_plugin_view_info",
+    "open_plugin_devtools",
+]

@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-plugins-manage"
+description = "Enables plugin install/uninstall/toggle commands"
+
+commands.allow = [
+    "install_plugin",
+    "uninstall_plugin",
+    "toggle_plugin",
+]

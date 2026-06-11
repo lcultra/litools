@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-settings-write"
+description = "Enables updating app settings"
+
+commands.allow = [
+    "sdk_settings_update",
+]

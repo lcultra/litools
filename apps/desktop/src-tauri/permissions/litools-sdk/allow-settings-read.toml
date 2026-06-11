@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-settings-read"
+description = "Enables reading app settings"
+
+commands.allow = [
+    "sdk_settings_get",
+]

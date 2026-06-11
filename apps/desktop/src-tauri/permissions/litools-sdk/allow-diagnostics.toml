@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-diagnostics"
+description = "Enables reading diagnostics data"
+
+commands.allow = [
+    "sdk_diagnostics_get",
+]

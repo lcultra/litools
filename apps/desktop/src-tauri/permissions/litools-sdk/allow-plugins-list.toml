@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-plugins-list"
+description = "Enables listing installed plugins"
+
+commands.allow = [
+    "sdk_plugins_list",
+]

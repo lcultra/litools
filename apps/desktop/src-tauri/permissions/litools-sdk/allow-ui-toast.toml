@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-ui-toast"
+description = "Enables the toast command"
+
+commands.allow = [
+    "sdk_ui_toast",
+]

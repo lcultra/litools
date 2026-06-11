@@ -1,0 +1,8 @@
+[[permission]]
+identifier = "allow-ui-close"
+description = "Enables close and setTitle commands"
+
+commands.allow = [
+    "sdk_ui_close",
+    "sdk_ui_set_title",
+]

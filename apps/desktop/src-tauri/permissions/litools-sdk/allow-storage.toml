@@ -1,0 +1,10 @@
+[[permission]]
+identifier = "allow-storage"
+description = "Enables plugin storage get/set/remove/clear commands"
+
+commands.allow = [
+    "sdk_storage_get",
+    "sdk_storage_set",
+    "sdk_storage_remove",
+    "sdk_storage_clear",
+]
