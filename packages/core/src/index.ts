@@ -159,3 +159,6 @@ export function closePluginView(pluginId: string, commandId: string): Promise<vo
 export function closePluginViewById(runtimeId: string): Promise<void> { return invokeCore('close_plugin_view_by_id', { runtimeId }); }
 export function getPluginViewInfo(runtimeId: string): Promise<PluginViewInfo> { return invokeCore('get_plugin_view_info', { runtimeId }); }
 export function openPluginDevtools(runtimeId: string): Promise<void> { return invokeCore('open_plugin_devtools', { runtimeId }); }
+export function togglePlugin(pluginId: string, enabled: boolean): Promise<void> { return invokeCore('toggle_plugin', { pluginId, enabled }); }
+export function installPlugin(filePath: string): Promise<PluginSummary> { return invokeCore('install_plugin', { filePath }); }
+export function uninstallPlugin(pluginId: string): Promise<void> { return invokeCore('uninstall_plugin', { pluginId }); }
