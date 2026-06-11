@@ -105,6 +105,12 @@ export function LauncherView(props: LauncherViewProps) {
         event.preventDefault();
     }
 
+    function handleFocusIn(event: FocusEvent) {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+        event.preventDefault();
+    }
+
     function handleResultClick(renderItem: LauncherRenderItem) {
         props.onResultRun(renderItem.result);
     }
@@ -126,8 +132,8 @@ export function LauncherView(props: LauncherViewProps) {
                 <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">
                     <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
                         <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
-                            {/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown handler 仅用于阻止焦点转移，非用户交互功能 */}
-                            <div class="grid gap-3" role="presentation" onMouseDown={handleMouseDown}>
+                            {/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown/focusin handler 仅用于阻止焦点转移，非用户交互功能 */}
+                            <div class="grid gap-3" role="presentation" onMouseDown={handleMouseDown} onFocusIn={handleFocusIn}>
                                 <For each={props.renderSections}>
                                     {(section) => (
                                         <section class="grid gap-2">

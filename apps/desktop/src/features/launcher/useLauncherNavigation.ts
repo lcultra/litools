@@ -20,7 +20,13 @@ export function useLauncherNavigation(options: LauncherNavigationOptions) {
 
     // 拖拽结束后恢复焦点（dnd-kit 排序 / 窗口拖拽）
     function refocus() {
-        queueMicrotask(() => inputElement()?.focus({ preventScroll: true }));
+        queueMicrotask(() => {
+            const el = inputElement();
+            // blur + focus 强制重置浏览器内部焦点状态，
+            // 解决 dnd-kit setPointerCapture 残留导致的键盘输入无法到达输入框
+            el?.blur();
+            el?.focus({ preventScroll: true });
+        });
     }
 
     function selectAdjacent(offset: number) {
