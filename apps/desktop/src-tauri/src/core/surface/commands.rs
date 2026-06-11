@@ -4,8 +4,8 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     state::AppState,
-    surface::{model::SurfaceMetadata, service},
-    windowing::{labels, native},
+    core::surface::{model::SurfaceMetadata, service},
+    windowing::{labels, factory},
 };
 
 #[tauri::command]
@@ -51,8 +51,8 @@ pub fn hide_window(
     let target = target.unwrap_or_else(|| webview.label().to_string());
 
     if target == labels::MAIN_WINDOW_LABEL {
-        if let Some(window) = native::main_window(&app_handle) {
-            native::hide_window(&window);
+        if let Some(window) = factory::main_window(&app_handle) {
+            factory::hide_window(&window);
         }
         return Ok(());
     }
@@ -89,8 +89,8 @@ pub fn start_window_dragging(webview: Webview) -> Result<(), String> {
 
 #[tauri::command]
 pub fn hide_main_window(app_handle: AppHandle) -> Result<(), String> {
-    if let Some(window) = native::main_window(&app_handle) {
-        native::hide_window(&window);
+    if let Some(window) = factory::main_window(&app_handle) {
+        factory::hide_window(&window);
     }
 
     Ok(())
@@ -107,14 +107,14 @@ pub fn focus_main_window(app_handle: AppHandle) -> Result<(), String> {
     let state = app_handle.state::<AppState>();
     let window = service::ensure_main_launcher_surface(&app_handle, &state)?;
     window.set_focus().map_err(|error| error.to_string())?;
-    native::emit_focus_to_owned_launcher_surfaces(&window);
+    factory::emit_focus_to_owned_launcher_surfaces(&window);
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(), String> {
-    native::resize_main_window_height(&app_handle, height)
+    factory::resize_main_window_height(&app_handle, height)
 }
 
 #[tauri::command]

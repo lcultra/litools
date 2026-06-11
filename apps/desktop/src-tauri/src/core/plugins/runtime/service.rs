@@ -3,7 +3,7 @@ use litools_plugin::PluginCommandMode;
 use tauri::Manager;
 
 use crate::{
-    plugin_runtime::{
+    core::plugins::runtime::{
         model::{
             PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle, PluginRuntimePlacement,
         },
@@ -13,8 +13,8 @@ use crate::{
     },
     protocol::plugin::resolve_entry_url,
     state::AppState,
-    surface::service as surface_service,
-    windowing::{labels, native, reparent},
+    core::surface::service as surface_service,
+    windowing::{labels, factory, webview},
 };
 
 /// 定义启动时的操作类型。
@@ -131,7 +131,7 @@ pub fn hide_docked_plugin_runtime(
 
     let _ = leave_runtime(app, state, &context.id);
     if let Some(webview) = app.get_webview(&context.webview_label) {
-        let _ = native::hide_plugin_runtime_webview(&webview);
+        let _ = webview::hide_plugin_runtime_webview(&webview);
     }
     state
         .mark_plugin_runtime_bounds(&context.id, None)
@@ -177,7 +177,7 @@ pub fn detach_plugin_runtime(
                 .clone()
                 .unwrap_or_else(|| labels::plugin_window_label(&context.id));
             let window =
-                native::create_plugin_runtime_detached_host(app, label.clone(), &context.title)?;
+                factory::create_plugin_runtime_detached_host(app, label.clone(), &context.title)?;
             (window, label, false)
         };
 
@@ -190,20 +190,20 @@ pub fn detach_plugin_runtime(
             let _ = wv.eval(&format!("window.location.hash = '#{}';", plugin_route));
         }
     } else {
-        native::add_surface_webview(
+        webview::add_surface_webview(
             &detached_window,
-            &crate::surface::model::SurfaceMetadata {
+            &crate::core::surface::model::SurfaceMetadata {
                 id: format!("detached_{}", context.id),
                 webview_label: labels::surface_webview_label(&context.id),
                 view_id: "plugin".to_string(),
-                provider: crate::view::model::ViewProvider::Plugin {
+                provider: crate::view::ViewProvider::Plugin {
                     plugin_id: context.plugin_id.clone(),
                 },
                 route: plugin_route.clone(),
                 title: context.title.clone(),
                 host_window_label: actual_label.clone(),
-                host_kind: crate::view::model::WindowHostKind::Detached,
-                lifecycle: crate::surface::model::SurfaceLifecycle::Active,
+                host_kind: crate::view::WindowHostKind::Detached,
+                lifecycle: crate::core::surface::model::SurfaceLifecycle::Active,
                 focused: true,
                 created_at: chrono::Utc::now().to_rfc3339(),
                 updated_at: chrono::Utc::now().to_rfc3339(),
@@ -213,12 +213,12 @@ pub fn detach_plugin_runtime(
     }
 
     // Reparent plugin content webview into detached window.
-    reparent::reparent_webview_to_window(&webview, &detached_window)?;
+    webview::reparent_webview_to_window(&webview, &detached_window)?;
     webview
         .set_auto_resize(false)
         .map_err(|error| error.to_string())?;
-    let bounds = native::set_plugin_runtime_content_bounds(&detached_window, &webview)?;
-    native::show_plugin_runtime_webview(&webview)?;
+    let bounds = webview::set_plugin_runtime_content_bounds(&detached_window, &webview)?;
+    webview::show_plugin_runtime_webview(&webview)?;
 
     state.mark_plugin_runtime_detached_window(&context.id, Some(actual_label.clone()));
     let context = state
@@ -231,8 +231,8 @@ pub fn detach_plugin_runtime(
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
     // 整个 detach 流程内的 Moved 由 begin_programmatic_layout 统一过滤
     state.begin_programmatic_layout();
-    native::show_panel_host(&detached_window);
-    let _ = crate::surface::service::reset_launcher_surface(app, state, false);
+    factory::show_panel_host(&detached_window);
+    let _ = crate::core::surface::service::reset_launcher_surface(app, state, false);
     enter_runtime(app, state, &context.id)
 }
 
@@ -267,12 +267,12 @@ fn dock_detached_runtime(
     let main_window = surface_service::ensure_main_launcher_surface(app, state)?;
 
     // 3. Reparent webview 回主窗口
-    reparent::reparent_webview_to_window(&webview, &main_window)?;
+    webview::reparent_webview_to_window(&webview, &main_window)?;
     webview
         .set_auto_resize(false)
         .map_err(|error| error.to_string())?;
-    let bounds = native::set_plugin_runtime_content_bounds(&main_window, &webview)?;
-    native::show_plugin_runtime_webview(&webview)?;
+    let bounds = webview::set_plugin_runtime_content_bounds(&main_window, &webview)?;
+    webview::show_plugin_runtime_webview(&webview)?;
 
     // 4. 先更新 runtime 状态再销毁分离窗口。
     //    必须放在 destroy 之前——destroy 会同步触发 Destroyed 事件，
@@ -293,7 +293,7 @@ fn dock_detached_runtime(
         .map_err(|error| error.to_string())?;
 
     // 6. 显示主窗口
-    native::show_main_panel_host(&main_window, state);
+    factory::show_main_panel_host(&main_window, state);
     enter_runtime(app, state, &context.id)
 }
 
@@ -309,7 +309,7 @@ fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
     };
 
     let Ok(window) =
-        native::create_plugin_runtime_detached_host(app, pooled_label.clone(), "litools")
+        factory::create_plugin_runtime_detached_host(app, pooled_label.clone(), "litools")
     else {
         return;
     };
@@ -318,21 +318,21 @@ fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
     // Pre-warm: load SolidJS app at /pooled (no route matches → empty page).
     // SolidJS boots but renders nothing visible, so when the window is later
     // shown after navigating to the plugin route, the user never sees the launcher.
-    let metadata = crate::surface::model::SurfaceMetadata {
+    let metadata = crate::core::surface::model::SurfaceMetadata {
         id: format!("detached_pool_{}", pooled_label.strip_prefix(labels::DETACHED_PANEL_WINDOW_PREFIX).unwrap_or("unknown")),
         webview_label: labels::surface_webview_label(&format!("pool_{}", pooled_label.strip_prefix(labels::DETACHED_PANEL_WINDOW_PREFIX).unwrap_or("unknown"))),
         view_id: "core.launcher".to_string(),
-        provider: crate::view::model::ViewProvider::Core,
+        provider: crate::view::ViewProvider::Core,
         route: "/pooled".to_string(),
         title: "litools".to_string(),
         host_window_label: pooled_label.clone(),
-        host_kind: crate::view::model::WindowHostKind::Detached,
-        lifecycle: crate::surface::model::SurfaceLifecycle::Active,
+        host_kind: crate::view::WindowHostKind::Detached,
+        lifecycle: crate::core::surface::model::SurfaceLifecycle::Active,
         focused: false,
         created_at: chrono::Utc::now().to_rfc3339(),
         updated_at: chrono::Utc::now().to_rfc3339(),
     };
-    if native::add_surface_webview(&window, &metadata, "/pooled").is_ok() {
+    if webview::add_surface_webview(&window, &metadata, "/pooled").is_ok() {
         state.return_pooled_detached(pooled_label);
     }
 }
@@ -481,7 +481,7 @@ pub fn layout_runtime_window(
     let Some(webview) = app.get_webview(&context.webview_label) else {
         return Ok(Some(context));
     };
-    let bounds = native::set_plugin_runtime_content_bounds(&window, &webview)?;
+    let bounds = webview::set_plugin_runtime_content_bounds(&window, &webview)?;
     Ok(state.mark_plugin_runtime_bounds(&context.id, Some(bounds)))
 }
 
@@ -498,26 +498,26 @@ fn ensure_docked_runtime_webview(
     context: PluginRuntimeContext,
 ) -> Result<PluginRuntimeContext, String> {
     let window = surface_service::ensure_main_launcher_surface(app, state)?;
-    native::show_main_panel_host(&window, state);
+    factory::show_main_panel_host(&window, state);
 
     let bounds = if let Some(webview) = app.get_webview(&context.webview_label) {
         if webview.window().label() != labels::MAIN_WINDOW_LABEL {
-            reparent::reparent_webview_to_window(&webview, &window)?;
+            webview::reparent_webview_to_window(&webview, &window)?;
         }
         webview
             .set_auto_resize(false)
             .map_err(|error| error.to_string())?;
-        let bounds = native::set_plugin_runtime_content_bounds(&window, &webview)?;
-        native::show_plugin_runtime_webview(&webview)?;
+        let bounds = webview::set_plugin_runtime_content_bounds(&window, &webview)?;
+        webview::show_plugin_runtime_webview(&webview)?;
         bounds
     } else {
-        let (webview, bounds) = native::add_plugin_runtime_webview(
+        let (webview, bounds) = webview::add_plugin_runtime_webview(
             &window,
             context.webview_label.clone(),
             &context.entry_url,
             preload::initialization_script(),
         )?;
-        native::show_plugin_runtime_webview(&webview)?;
+        webview::show_plugin_runtime_webview(&webview)?;
         bounds
     };
 
@@ -561,7 +561,7 @@ fn focus_runtime_host(
             context.host_window_label
         )
     })?;
-    native::focus_window(&window)
+    factory::focus_window(&window)
 }
 
 fn emit_lifecycle_event(

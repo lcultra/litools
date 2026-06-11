@@ -1,6 +1,6 @@
 use tauri::{App, Manager, image::Image, menu::Menu, menu::MenuItem, tray::TrayIconBuilder};
 
-use crate::{state::AppState, surface::service};
+use crate::{state::AppState, core::surface::service};
 
 const SHOW_ID: &str = "show";
 const QUIT_ID: &str = "quit";

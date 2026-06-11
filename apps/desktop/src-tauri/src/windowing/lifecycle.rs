@@ -1,10 +1,9 @@
 use tauri::{Manager, Window, WindowEvent};
 
 use crate::{
-    plugin_runtime,
+    core::surface::{events, model::SurfaceLifecycle},
     state::{AppState, LauncherWindowPosition},
-    surface::{events, model::SurfaceLifecycle},
-    windowing::{labels, native},
+    windowing::{labels, factory},
 };
 
 pub fn handle_window_event(window: &Window, event: &WindowEvent) {
@@ -29,13 +28,13 @@ fn handle_main_window_event(window: &Window, event: &WindowEvent, state: &AppSta
         WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
             if state.close_to_tray() {
                 api.prevent_close();
-                native::hide_window(window);
+                factory::hide_window(window);
             } else {
                 state.request_quit();
             }
         }
         WindowEvent::Focused(false) if !state.is_quitting() && state.hide_on_blur() => {
-            native::hide_window(window);
+            factory::hide_window(window);
         }
         WindowEvent::Moved(position) => {
             // 程序化布局窗口内（show/resize/set_position）的所有 Moved 忽略，
@@ -60,7 +59,7 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
     match event {
         WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
             api.prevent_close();
-            native::hide_window(window);
+            factory::hide_window(window);
             if let Some(metadata) =
                 state.mark_surface_lifecycle(window.label(), SurfaceLifecycle::Hidden)
             {
@@ -90,24 +89,24 @@ fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &App
         WindowEvent::Focused(true) => {
             if let Some(context) = state.plugin_runtime_for_window_label(window.label()) {
                 let _ =
-                    plugin_runtime::service::enter_runtime(window.app_handle(), state, &context.id);
+                    crate::core::plugins::runtime::service::enter_runtime(window.app_handle(), state, &context.id);
             }
         }
         WindowEvent::Focused(false) => {
             if let Some(context) = state.plugin_runtime_for_window_label(window.label()) {
                 let _ =
-                    plugin_runtime::service::leave_runtime(window.app_handle(), state, &context.id);
+                    crate::core::plugins::runtime::service::leave_runtime(window.app_handle(), state, &context.id);
             }
         }
         WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-            let _ = plugin_runtime::service::layout_runtime_window(
+            let _ = crate::core::plugins::runtime::service::layout_runtime_window(
                 window.app_handle(),
                 state,
                 window.label(),
             );
         }
         WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
-            let _ = plugin_runtime::service::cleanup_runtime_window(
+            let _ = crate::core::plugins::runtime::service::cleanup_runtime_window(
                 window.app_handle(),
                 state,
                 window.label(),

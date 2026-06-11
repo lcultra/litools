@@ -6,7 +6,7 @@ use tauri::{Manager, State};
 use crate::{
     app_watcher::AppWatcherStatus,
     index_refresh::{IndexRefreshTrigger, IndexStatus, request_index_refresh},
-    protocol::icon_cache::{IconCacheSummary, icon_cache_summary},
+    protocol::icon_disk_cache::{IconCacheSummary, icon_cache_summary},
     state::AppState,
 };
 

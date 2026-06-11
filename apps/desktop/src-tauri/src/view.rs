@@ -1,4 +1,45 @@
-use crate::view::model::{ViewDefinition, ViewKind, ViewProvider, WindowHostKind};
+// view.rs — 合并自 view/model.rs + view/registry.rs
+
+use serde::Serialize;
+
+// === 原 model.rs ===
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ViewProvider {
+    Core,
+    Plugin { plugin_id: String },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ViewKind {
+    Launcher,
+    Plugin,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WindowHostKind {
+    Main,
+    Detached,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewDefinition {
+    pub id: String,
+    pub provider: ViewProvider,
+    pub kind: ViewKind,
+    pub route: String,
+    pub title: String,
+    pub default_host: WindowHostKind,
+    pub allowed_hosts: Vec<WindowHostKind>,
+    pub detachable: bool,
+}
+
+// === 原 registry.rs ===
+
 pub use litools_config::labels::CORE_LAUNCHER_VIEW_ID;
 
 pub fn core_views() -> Vec<ViewDefinition> {

@@ -13,21 +13,18 @@ use serde::Serialize;
 use crate::{
     app_watcher::{AppWatcherHandle, AppWatcherState, AppWatcherStatus},
     index_refresh::IndexStatus,
-    plugin_runtime::{
+    core::plugins::runtime::{
         model::{
             PluginRuntimeBounds, PluginRuntimeContext, PluginRuntimeLifecycle,
             PluginRuntimePlacement,
         },
         registry::{PluginRuntimeRegistration, PluginRuntimeRegistry},
     },
-    surface::{
+    core::surface::{
         model::{SurfaceLifecycle, SurfaceMetadata},
         registry::SurfaceRegistry,
     },
-    view::{
-        model::{ViewDefinition, WindowHostKind},
-        registry,
-    },
+    view::{ViewDefinition, WindowHostKind},
     windowing::labels::MAIN_WINDOW_LABEL,
 };
 
@@ -208,7 +205,7 @@ impl AppState {
 
     pub fn register_main_launcher_surface(&self) -> Result<SurfaceMetadata, String> {
         self.register_surface(
-            registry::validate_route("/")?,
+            crate::view::validate_route("/")?,
             MAIN_WINDOW_LABEL.to_string(),
             WindowHostKind::Main,
         )

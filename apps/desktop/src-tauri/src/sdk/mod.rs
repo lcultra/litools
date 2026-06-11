@@ -1,12 +1,14 @@
+// litools-sdk Tauri 插件：所有插件（含第三方）都能调用的能力
+
 use serde_json::{Value, json};
 use tauri::{AppHandle, State, Webview, ipc::InvokeError};
 use tauri::plugin::{Builder, TauriPlugin};
 
-use super::constants::SDK_PLUGIN;
-use crate::plugin_runtime::ipc::route_plugin_view_call_inner;
+use crate::core::plugins::runtime::commands::route_plugin_view_call_inner;
 use crate::state::AppState;
 
-/// litools-sdk：唯一允许第三方插件访问的宿主能力入口。
+pub const SDK_PLUGIN: &str = "litools-sdk";
+
 pub fn init() -> TauriPlugin<tauri::Wry> {
     Builder::new(SDK_PLUGIN)
         .invoke_handler(tauri::generate_handler![

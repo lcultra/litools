@@ -1,6 +1,6 @@
 use tauri::{Emitter, Manager, Webview};
 
-use crate::surface::model::SurfaceMetadata;
+use crate::core::surface::model::SurfaceMetadata;
 pub use litools_config::events::{FOCUS_SEARCH_EVENT, SURFACE_METADATA_CHANGED_EVENT};
 
 pub fn emit_metadata_changed(app: &tauri::AppHandle, metadata: &SurfaceMetadata) {

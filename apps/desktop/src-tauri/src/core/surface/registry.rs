@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use chrono::Utc;
 
 use crate::{
-    surface::model::{SurfaceLifecycle, SurfaceMetadata},
-    view::model::{ViewDefinition, WindowHostKind},
+    core::surface::model::{SurfaceLifecycle, SurfaceMetadata},
+    view::{ViewDefinition, WindowHostKind},
     windowing::labels::{MAIN_WINDOW_LABEL, surface_webview_label},
 };
 pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
@@ -172,7 +172,7 @@ impl SurfaceRegistry {
 
 #[cfg(test)]
 mod tests {
-    use crate::view::model::{ViewDefinition, ViewKind, ViewProvider, WindowHostKind};
+    use crate::view::{ViewDefinition, ViewKind, ViewProvider, WindowHostKind};
 
     use super::*;
 

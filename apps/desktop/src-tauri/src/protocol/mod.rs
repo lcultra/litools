@@ -1,5 +1,5 @@
 pub mod icon;
-pub mod icon_cache;
+pub mod icon_disk_cache;
 pub mod plugin;
 
 use tauri::http::{Response, StatusCode};

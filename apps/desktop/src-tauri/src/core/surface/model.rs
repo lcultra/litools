@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::view::model::{ViewProvider, WindowHostKind};
+use crate::view::{ViewProvider, WindowHostKind};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

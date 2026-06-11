@@ -1,24 +1,15 @@
-use std::path::PathBuf;
-
-use tauri::{
-    LogicalPosition, LogicalSize, Manager, Position, Size, Webview, WebviewUrl, Window,
-    webview::WebviewBuilder, window::WindowBuilder,
-};
+use tauri::{Manager, Size, Window, LogicalSize, window::WindowBuilder};
 
 use crate::{
-    plugin_runtime::model::PluginRuntimeBounds,
     state::AppState,
-    surface::{events, model::SurfaceMetadata},
-    view::model::ViewKind,
+    view::ViewKind,
     windowing::labels::MAIN_WINDOW_LABEL,
 };
 
 use super::positioning::{center_window_on_show, position_launcher_on_show};
 pub use litools_config::window::{
-    CHROME_INSET, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH, TITLEBAR_HEIGHT,
+    DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH,
 };
-
-/// 1px WindowFrame p-px + 1px Panel border
 
 pub fn main_window(app: &tauri::AppHandle) -> Option<Window> {
     app.get_window(MAIN_WINDOW_LABEL)
@@ -90,102 +81,6 @@ pub fn create_plugin_runtime_detached_host(
     configure_space_behavior(&window);
     center_window_on_show(&window);
     Ok(window)
-}
-
-pub fn add_plugin_runtime_webview(
-    window: &Window,
-    webview_label: String,
-    entry_url: &str,
-    initialization_script: String,
-) -> Result<(Webview, PluginRuntimeBounds), String> {
-    let url = tauri::Url::parse(entry_url).map_err(|error| error.to_string())?;
-    let webview_url = match url.scheme() {
-        "http" | "https" => WebviewUrl::External(url),
-        _ => WebviewUrl::CustomProtocol(url),
-    };
-    let bounds = plugin_runtime_content_bounds(window)?;
-    let webview = window
-        .add_child(
-            WebviewBuilder::new(webview_label, webview_url)
-                .initialization_script(initialization_script)
-                .transparent(true),
-            LogicalPosition::new(bounds.x, bounds.y),
-            Size::Logical(LogicalSize {
-                width: bounds.width,
-                height: bounds.height,
-            }),
-        )
-        .map_err(|error| error.to_string())?;
-    webview
-        .set_auto_resize(false)
-        .map_err(|error| error.to_string())?;
-    Ok((webview, bounds))
-}
-
-pub fn set_plugin_runtime_content_bounds(
-    window: &Window,
-    webview: &Webview,
-) -> Result<PluginRuntimeBounds, String> {
-    let bounds = plugin_runtime_content_bounds(window)?;
-    webview
-        .set_position(Position::Logical(LogicalPosition::new(bounds.x, bounds.y)))
-        .map_err(|error| error.to_string())?;
-    webview
-        .set_size(Size::Logical(LogicalSize {
-            width: bounds.width,
-            height: bounds.height,
-        }))
-        .map_err(|error| error.to_string())?;
-    Ok(bounds)
-}
-
-pub fn hide_plugin_runtime_webview(webview: &Webview) -> Result<(), String> {
-    webview.hide().map_err(|error| error.to_string())
-}
-
-pub fn show_plugin_runtime_webview(webview: &Webview) -> Result<(), String> {
-    webview.show().map_err(|error| error.to_string())
-}
-
-pub fn plugin_runtime_content_bounds(window: &Window) -> Result<PluginRuntimeBounds, String> {
-    let size = window_inner_logical_size(window)?;
-    Ok(PluginRuntimeBounds {
-        x: CHROME_INSET,
-        y: TITLEBAR_HEIGHT + CHROME_INSET,
-        width: (size.width - CHROME_INSET * 2.0).max(0.0),
-        height: (size.height - TITLEBAR_HEIGHT - CHROME_INSET * 2.0).max(0.0),
-    })
-}
-
-fn window_inner_logical_size(window: &Window) -> Result<LogicalSize<f64>, String> {
-    let size = window.inner_size().map_err(|error| error.to_string())?;
-    let scale_factor = window.scale_factor().map_err(|error| error.to_string())?;
-    Ok(size.to_logical::<f64>(scale_factor))
-}
-
-pub fn add_surface_webview(
-    window: &Window,
-    metadata: &SurfaceMetadata,
-    route: &str,
-) -> Result<Webview, String> {
-    let url = format!("index.html#{route}");
-    let size = window.inner_size().map_err(|error| error.to_string())?;
-    let webview = window
-        .add_child(
-            WebviewBuilder::new(
-                metadata.webview_label.clone(),
-                WebviewUrl::App(PathBuf::from(url)),
-            )
-            .transparent(true)
-            .auto_resize(),
-            LogicalPosition::new(0, 0),
-            size,
-        )
-        .map_err(|error| error.to_string())?;
-    webview
-        .set_auto_resize(true)
-        .map_err(|error| error.to_string())?;
-    Ok(webview)
 }
 
 pub fn show_launcher_host(window: &Window, state: &AppState) {
@@ -268,7 +163,7 @@ pub fn emit_focus_to_owned_launcher_surfaces(window: &Window) {
         };
 
         if metadata.host_window_label == window.label() {
-            events::emit_focus_search(&webview);
+            crate::core::surface::events::emit_focus_search(&webview);
         }
     }
 }

@@ -1,14 +1,12 @@
 mod app_watcher;
+mod core;
 mod index_refresh;
-mod ipc;
 #[cfg(target_os = "macos")]
 mod macos_icon;
-mod plugin_runtime;
-mod tauri_plugins;
+mod sdk;
 mod protocol;
 mod shortcut;
 mod state;
-mod surface;
 mod tray;
 mod view;
 mod windowing;
@@ -83,7 +81,7 @@ fn main() {
                     if event.state() == ShortcutState::Pressed
                         && shortcut::matches_palette_shortcut(shortcut, &state)
                     {
-                        let _ = surface::service::toggle_main_launcher(app, &state);
+                        let _ = core::surface::service::toggle_main_launcher(app, &state);
                     }
                 })
                 .build(),
@@ -111,8 +109,8 @@ fn main() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugins::core::init())
-        .plugin(tauri_plugins::sdk::init())
+        .plugin(core::init())
+        .plugin(sdk::init())
         .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             let bundled_plugins_dir = bundled_plugins_dir(app);
@@ -120,8 +118,8 @@ fn main() {
                 data_dir,
                 bundled_plugins_dir,
             })?);
-            surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
-            plugin_runtime::service::warm_detached_pool(app.handle(), &app.state::<AppState>());
+            core::surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
+            core::plugins::runtime::service::warm_detached_pool(app.handle(), &app.state::<AppState>());
             tray::setup_tray(app)?;
             shortcut::register_global_shortcut(
                 app.handle(),

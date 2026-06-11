@@ -2,22 +2,19 @@ use tauri::{Manager, Webview, Window};
 
 use crate::{
     state::AppState,
-    surface::{
+    core::surface::{
         events,
         model::{SurfaceLifecycle, SurfaceMetadata},
     },
-    view::{
-        model::{ViewKind, WindowHostKind},
-        registry,
-    },
-    windowing::{labels::MAIN_WINDOW_LABEL, native, reparent},
+    view::{self, ViewKind, WindowHostKind},
+    windowing::{labels::MAIN_WINDOW_LABEL, factory, webview},
 };
 
 pub fn bootstrap_main_surface(app: &tauri::AppHandle, state: &AppState) -> Result<Window, String> {
-    let window = native::create_main_host(app)?;
+    let window = factory::create_main_host(app)?;
     if window.webviews().is_empty() {
         let metadata = state.register_main_launcher_surface()?;
-        native::add_surface_webview(&window, &metadata, "/")?;
+        webview::add_surface_webview(&window, &metadata, "/")?;
     }
     Ok(window)
 }
@@ -26,7 +23,7 @@ pub fn ensure_main_launcher_surface(
     app: &tauri::AppHandle,
     state: &AppState,
 ) -> Result<Window, String> {
-    let window = native::main_window(app).ok_or_else(|| "main window not found".to_string())?;
+    let window = factory::main_window(app).ok_or_else(|| "main window not found".to_string())?;
     let has_main_surface = window.webviews().iter().any(|webview| {
         state
             .surface_metadata_for_webview_label(webview.label())
@@ -39,7 +36,7 @@ pub fn ensure_main_launcher_surface(
 
     if !has_main_surface {
         let metadata = state.register_main_launcher_surface()?;
-        native::add_surface_webview(&window, &metadata, "/")?;
+        webview::add_surface_webview(&window, &metadata, "/")?;
     }
     Ok(window)
 }
@@ -50,12 +47,12 @@ pub fn open_view_route(
     route: &str,
 ) -> Result<(), String> {
     let view = resolve_view_route(state, route)?;
-    registry::validate_host_allowed(&view, &WindowHostKind::Main)?;
+    view::validate_host_allowed(&view, &WindowHostKind::Main)?;
     let window = ensure_main_launcher_surface(app, state)?;
-    native::show_host_for_view(&window, state, &view.kind);
+    factory::show_host_for_view(&window, state, &view.kind);
 
     if view.kind == ViewKind::Launcher {
-        native::emit_focus_to_owned_launcher_surfaces(&window);
+        factory::emit_focus_to_owned_launcher_surfaces(&window);
     }
 
     Ok(())
@@ -68,7 +65,7 @@ pub fn detach_current_surface(
     route: &str,
 ) -> Result<SurfaceMetadata, String> {
     let view = resolve_view_route(state, route)?;
-    registry::validate_detachable(&view)?;
+    view::validate_detachable(&view)?;
 
     let current_metadata = state
         .surface_metadata_for_webview_label(webview.label())
@@ -84,10 +81,10 @@ pub fn detach_current_surface(
 
     let source_window_label = current_metadata.host_window_label.clone();
     let detached_label = state.next_detached_host_label()?;
-    let detached_window = native::create_detached_panel_host(app, detached_label)?;
+    let detached_window = factory::create_detached_panel_host(app, detached_label)?;
     let detached_window_label = detached_window.label().to_string();
 
-    reparent::reparent_surface_webview(webview, &detached_window)?;
+    webview::reparent_surface_webview(webview, &detached_window)?;
 
     let metadata = state
         .move_surface_to_host(
@@ -105,13 +102,13 @@ pub fn detach_current_surface(
         .mark_surface_route(webview.label(), view)
         .unwrap_or(metadata);
 
-    native::show_panel_host(&detached_window);
+    factory::show_panel_host(&detached_window);
     events::emit_metadata_changed(app, &metadata);
 
     if source_window_label == MAIN_WINDOW_LABEL {
         match create_replacement_main_surface(app, state) {
             Ok((main_window, main_webview)) => {
-                native::show_launcher_host(&main_window, state);
+                factory::show_launcher_host(&main_window, state);
                 events::emit_focus_search(&main_webview);
             }
             Err(error) => {
@@ -136,7 +133,7 @@ pub fn update_surface_route(
     let current_metadata = state
         .surface_metadata_for_webview_label(webview_label)
         .ok_or_else(|| format!("surface metadata not found: {webview_label}"))?;
-    registry::validate_host_allowed(&view, &current_metadata.host_kind)?;
+    view::validate_host_allowed(&view, &current_metadata.host_kind)?;
     if current_metadata.route == view.route {
         return Ok(current_metadata);
     }
@@ -151,16 +148,16 @@ pub fn update_surface_route(
 fn resolve_view_route(
     state: &AppState,
     route: &str,
-) -> Result<crate::view::model::ViewDefinition, String> {
-    if let Some(view) = registry::view_for_route(route) {
+) -> Result<crate::view::ViewDefinition, String> {
+    if let Some(view) = view::view_for_route(route) {
         return Ok(view);
     }
 
-    if registry::plugin_route_parts(route).is_some() {
-        return crate::ipc::plugins::validate_plugin_view_route(state, route);
+    if view::plugin_route_parts(route).is_some() {
+        return crate::core::plugins::commands::validate_plugin_view_route(state, route);
     }
 
-    registry::validate_route(route)
+    view::validate_route(route)
 }
 
 pub fn list_surfaces(state: &AppState) -> Vec<SurfaceMetadata> {
@@ -178,7 +175,7 @@ pub fn hide_surface(app: &tauri::AppHandle, state: &AppState, target: &str) -> R
     let window = app
         .get_window(&metadata.host_window_label)
         .ok_or_else(|| format!("window not found: {}", metadata.host_window_label))?;
-    native::hide_window(&window);
+    factory::hide_window(&window);
     if let Some(metadata) =
         state.mark_surface_lifecycle(&metadata.webview_label, SurfaceLifecycle::Hidden)
     {
@@ -194,13 +191,13 @@ pub fn focus_surface_or_host(
     fallback_window: Window,
 ) -> Result<(), String> {
     let target_window = match target {
-        Some("main") => native::main_window(app),
+        Some("main") => factory::main_window(app),
         Some(target) => host_by_surface_id_or_label(app, state, target),
         None => Some(fallback_window),
     };
 
     if let Some(target_window) = target_window {
-        native::focus_window(&target_window)?;
+        factory::focus_window(&target_window)?;
         if let Some(metadata) =
             state.mark_surface_lifecycle(target_window.label(), SurfaceLifecycle::Active)
         {
@@ -245,7 +242,7 @@ pub fn destroy_surface(
 pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<(), String> {
     let window = ensure_main_launcher_surface(app, state)?;
     if window.is_visible().unwrap_or(false) {
-        native::hide_window(&window);
+        factory::hide_window(&window);
     } else {
         // Just show the window — don't force navigate to /.
         // The surface retains whatever route the user was on (launcher or plugin view).
@@ -256,11 +253,11 @@ pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<
             .map(|metadata| metadata.route)
             .unwrap_or_else(|| "/".to_string());
         let view = resolve_view_route(state, &current_route)?;
-        native::show_host_for_view(&window, state, &view.kind);
+        factory::show_host_for_view(&window, state, &view.kind);
 
         // 仅在从隐藏→显示 且 当前为启动器页面时聚焦搜索框，避免抢插件焦点
         if view.kind == ViewKind::Launcher {
-            native::emit_focus_to_owned_launcher_surfaces(&window);
+            factory::emit_focus_to_owned_launcher_surfaces(&window);
         }
     }
     Ok(())
@@ -282,7 +279,7 @@ pub fn reset_launcher_surface(
                 // 同步 metadata route，让 toggle_main_launcher 能读到正确的当前路由
                 let _ = state.mark_surface_route(
                     webview.label(),
-                    registry::validate_route("/")?,
+                    view::validate_route("/")?,
                 );
                 // 实际驱动前端 HashRouter 导航
                 let _ = webview.eval("window.location.hash = '#/'");
@@ -291,10 +288,10 @@ pub fn reset_launcher_surface(
         }
     }
     if show {
-        let view = registry::validate_route("/")?;
-        native::show_host_for_view(&window, state, &view.kind);
+        let view = view::validate_route("/")?;
+        factory::show_host_for_view(&window, state, &view.kind);
     } else {
-        native::hide_window(&window);
+        factory::hide_window(&window);
     }
     Ok(())
 }
@@ -305,7 +302,7 @@ pub fn host_by_surface_id_or_label(
     target: &str,
 ) -> Option<Window> {
     if target == MAIN_WINDOW_LABEL {
-        return native::main_window(app);
+        return factory::main_window(app);
     }
 
     state
@@ -318,8 +315,8 @@ fn create_replacement_main_surface(
     app: &tauri::AppHandle,
     state: &AppState,
 ) -> Result<(Window, Webview), String> {
-    let window = native::main_window(app).ok_or_else(|| "main window not found".to_string())?;
+    let window = factory::main_window(app).ok_or_else(|| "main window not found".to_string())?;
     let metadata = state.register_main_launcher_surface()?;
-    let webview = native::add_surface_webview(&window, &metadata, "/")?;
+    let webview = webview::add_surface_webview(&window, &metadata, "/")?;
     Ok((window, webview))
 }

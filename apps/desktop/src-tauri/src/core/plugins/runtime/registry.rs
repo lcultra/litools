@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::Utc;
 use litools_plugin::RuntimePolicy;
 
-use crate::plugin_runtime::model::{
+use crate::core::plugins::runtime::model::{
     PluginRuntimeBounds, PluginRuntimeContext, PluginRuntimeLifecycle, PluginRuntimePlacement,
 };
 pub use litools_config::labels::RUNTIME_ID_PREFIX;

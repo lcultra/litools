@@ -1,5 +1,5 @@
-use crate::plugin_runtime::model::{PermissionQueryState, PluginRuntimeContext};
-use crate::tauri_plugins::constants::{CORE_PREFIX, SDK_PREFIX};
+use crate::core::plugins::runtime::model::{PermissionQueryState, PluginRuntimeContext};
+use crate::core::{CORE_PREFIX, SDK_PREFIX};
 use tauri::ipc::CapabilityBuilder;
 use tauri::Manager;
 
@@ -183,7 +183,7 @@ fn is_internal_sdk_perm(perm: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::plugin_runtime::model::{
+    use crate::core::plugins::runtime::model::{
         PluginRuntimeContext, PluginRuntimeLifecycle, PluginRuntimePlacement,
     };
 
