@@ -3,6 +3,7 @@
   "description": "插件 webview 的基础能力（运行时通过 add_capability 动态授予插件权限）",
   "webviews": ["plugin-*"],
   "permissions": [
-    "core:event:default"
+    "core:event:default",
+    "litools-sdk:default"
   ]
 }

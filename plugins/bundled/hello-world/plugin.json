@@ -15,7 +15,10 @@
       "mode": "view"
     }
   ],
-  "permissions": ["ui:window", "ui:toast", "storage:plugin"],
+  "permissions": [
+    "litools-sdk:default",
+    "clipboard-manager:default"
+  ],
   "development": {
     "main": "http://localhost:5173/"
   }

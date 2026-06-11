@@ -10,5 +10,5 @@
     "jsxImportSource": "solid-js",
     "skipLibCheck": true
   },
-  "include": ["src", "../../sdk/src/index.ts"]
+  "include": ["src"]
 }

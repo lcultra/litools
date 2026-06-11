@@ -1,4 +1,5 @@
 use crate::plugin_runtime::model::{PermissionQueryState, PluginRuntimeContext};
+use crate::tauri_plugins::constants::{CORE_PREFIX, SDK_PREFIX};
 use tauri::ipc::CapabilityBuilder;
 use tauri::Manager;
 
@@ -52,8 +53,8 @@ pub fn query_permission(context: &PluginRuntimeContext, permission: &str) -> Per
 }
 
 /// 检查插件 webview 发出的顶层 invoke('plugin:xxx|yyy') 是否有权限。
-///
-/// `command` 格式: "plugin:{plugin_name}|{action}"
+/// 用于 JS 拦截器阶段的权限检查，当前由 Tauri ACL add_capability 替代。
+#[allow(dead_code)]
 pub fn check_toplevel_invoke(context: &PluginRuntimeContext, command: &str) -> bool {
     // 仅处理 plugin:* 命令，其他的直接放行
     let rest = match command.strip_prefix("plugin:") {
@@ -82,38 +83,59 @@ pub fn check_toplevel_invoke(context: &PluginRuntimeContext, command: &str) -> b
     false
 }
 
-/// 命令分类。
-pub enum CommandCategory {
+/// 权限域：确定一个 ACL permission identifier 属于哪个信任域。
+pub enum PermissionDomain {
+    /// litools-core:*，仅宿主主窗口。
     Host,
-    Internal,
+    /// litools-sdk:*，第三方可按策略授予。
     Sdk,
+    /// 非 builtin 的合法 permission identifier（如 `clipboard-manager:default`）。
+    /// 是否真实存在由 Tauri ACL 校验。
+    Official,
+    /// 格式非法（不是合法的 `plugin:name` 格式）。
+    Unknown,
 }
 
-/// 根据 IPC 方法名返回命令分类。将来拆 crate 后用权限前缀判断，现阶段用显式列表。
-pub fn categorize_method(method: &str) -> CommandCategory {
-    match method {
-        // Host — 启动器控制面，仅主窗口
-        "search" | "launcher_panel" | "pin_result" | "unpin_result"
-        | "reorder_pinned_results" | "execute_result"
-        | "hide_main_window" | "show_main_window" | "focus_main_window"
-        | "resize_main_window_height" | "start_window_dragging"
-        | "hide_window" | "focus_window" | "destroy_window"
-        | "list_windows" | "get_current_window_metadata"
-        | "detach_route" | "update_surface_route"
-        | "reveal_in_file_manager"
-        | "reload_index" | "get_diagnostics"
-        | "get_settings" | "update_settings"
-        | "list_plugins" | "get_plugin_view_descriptor"
-        | "open_plugin_view" | "hide_plugin_view" | "detach_plugin_view"
-        | "close_plugin_view" | "close_plugin_view_by_id"
-        | "get_plugin_view_info" | "open_plugin_devtools" => CommandCategory::Host,
-
-        // Internal — 仅 trusted 插件
-        "plugins.list" | "diagnostics.get" | "settings.update" => CommandCategory::Internal,
-
-        // Sdk — 公开，按 plugin.json 声明决定是否授予
-        _ => CommandCategory::Sdk,
+/// 校验是否为合法的 permission identifier —— 恰好一个 `:`，两侧非空。
+fn is_permission_identifier(perm: &str) -> bool {
+    // Permission identifier 不含 |
+    if perm.contains('|') {
+        return false;
     }
+    let mut parts = perm.split(':');
+    let left = parts.next();
+    let right = parts.next();
+    left.is_some_and(|l| !l.is_empty())
+        && right.is_some_and(|r| !r.is_empty())
+        && parts.next().is_none()
+}
+
+pub fn categorize_permission(perm: &str) -> PermissionDomain {
+    if perm.starts_with(CORE_PREFIX) {
+        PermissionDomain::Host
+    } else if perm.starts_with(SDK_PREFIX) {
+        PermissionDomain::Sdk
+    } else if is_permission_identifier(perm) {
+        PermissionDomain::Official
+    } else {
+        PermissionDomain::Unknown
+    }
+}
+
+/// 插件 manifest 权限声明验证：拒绝 Builtin 权限和格式非法的字符串。
+pub fn validate_declared_permissions(perms: &[String]) -> Result<(), String> {
+    for perm in perms {
+        match categorize_permission(perm) {
+            PermissionDomain::Host => {
+                return Err(format!("plugin cannot request internal permission: {perm}"));
+            }
+            PermissionDomain::Unknown => {
+                return Err(format!("malformed permission: {perm}"));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// 根据插件的 manifest 权限声明和 trusted 状态，构建并注册 capability。
@@ -123,29 +145,40 @@ pub fn setup_plugin_capability(
     declared_permissions: &[String],
     trusted: bool,
 ) -> Result<(), String> {
+    // 前置验证：非法声明直接拒绝
+    validate_declared_permissions(declared_permissions)?;
+
     let cap_id = format!("plugin-cap-{webview_label}");
     let mut builder = CapabilityBuilder::new(cap_id).webview(webview_label);
 
     for perm in declared_permissions {
-        // 内部权限：仅 trusted 插件
-        if perm.starts_with("litools-sdk:allow-diagnostics")
-            || perm.starts_with("litools-sdk:allow-plugins")
-            || perm.starts_with("litools-sdk:allow-settings-update")
-            || perm.starts_with("litools-internal:")
-        {
-            if !trusted {
-                continue;
+        match categorize_permission(perm) {
+            PermissionDomain::Host | PermissionDomain::Unknown => {
+                continue; // 已在 validate 中拒绝，此处兜底
+            }
+            PermissionDomain::Sdk => {
+                if is_internal_sdk_perm(perm) && !trusted {
+                    continue;
+                }
+                builder = builder.permission(perm);
+            }
+            PermissionDomain::Official => {
+                builder = builder.permission(perm);
             }
         }
-        // Host 权限：绝不给插件
-        if perm.starts_with("litools-host:") {
-            continue;
-        }
-        builder = builder.permission(perm);
     }
 
     app.add_capability(builder)
         .map_err(|e| format!("failed to add capability: {e}"))
+}
+
+/// 判断是否为 litools-sdk 的内部权限（仅 trusted 插件可授予）。
+/// 判断是否为 litools-sdk 的内部权限（仅 trusted 插件可授予）。
+/// 后续 Phase 4 引入 litools-internal 插件后，此处改为前缀匹配。
+fn is_internal_sdk_perm(perm: &str) -> bool {
+    perm.starts_with("litools-sdk:allow-diagnostics")
+        || perm.starts_with("litools-sdk:allow-plugins")
+        || perm.starts_with("litools-sdk:allow-settings-update")
 }
 
 #[cfg(test)]
@@ -206,6 +239,8 @@ mod tests {
         ));
     }
 
+    // -- check_toplevel_invoke tests (reserved for fallback) --
+
     #[test]
     fn toplevel_allow_exact_match() {
         let ctx = context(vec!["clipboard-manager:allow-write_text"]);
@@ -234,5 +269,52 @@ mod tests {
     fn toplevel_deny_malformed() {
         let ctx = context(vec!["anything:default"]);
         assert!(!check_toplevel_invoke(&ctx, "plugin:no_pipe"));
+    }
+
+    // -- validate_declared_permissions tests --
+
+    fn s(v: &str) -> String {
+        v.to_string()
+    }
+
+    #[test]
+    fn validate_allows_official_plugins() {
+        assert!(validate_declared_permissions(&[s("clipboard-manager:default")]).is_ok());
+        assert!(validate_declared_permissions(&[s("fs:allow-read-text-file")]).is_ok());
+        assert!(validate_declared_permissions(&[s("shell:allow-open")]).is_ok());
+        // 格式合法但可能不存在 → 由 Tauri add_capability 校验
+        assert!(validate_declared_permissions(&[s("unknown-plugin:allow-foo")]).is_ok());
+    }
+
+    #[test]
+    fn validate_allows_sdk_permissions() {
+        assert!(validate_declared_permissions(&[s("litools-sdk:allow-storage")]).is_ok());
+        assert!(validate_declared_permissions(&[s("litools-sdk:allow-runtime")]).is_ok());
+        assert!(validate_declared_permissions(&[s("litools-sdk:allow-ui")]).is_ok());
+    }
+
+    #[test]
+    fn validate_rejects_host() {
+        assert!(validate_declared_permissions(&[s("litools-core:allow-search")]).is_err());
+        assert!(validate_declared_permissions(&[s("litools-core:allow-window")]).is_err());
+        assert!(validate_declared_permissions(&[s("litools-core:allow-settings")]).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_malformed() {
+        assert!(validate_declared_permissions(&[s("plugin:unknown-plugin|foo")]).is_err());
+        assert!(validate_declared_permissions(&[s("random-string")]).is_err());
+        assert!(validate_declared_permissions(&[s("foo:bar:baz")]).is_err());
+        assert!(validate_declared_permissions(&[s(":abc")]).is_err());
+        assert!(validate_declared_permissions(&[s("abc:")]).is_err());
+    }
+
+    #[test]
+    fn validate_rejects_mixed() {
+        assert!(validate_declared_permissions(&[
+            s("clipboard-manager:default"),
+            s("litools-core:allow-search"), // 非法
+        ])
+        .is_err());
     }
 }

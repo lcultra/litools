@@ -1,0 +1,11 @@
+{
+  "identifier": "main-capability",
+  "description": "主窗口能力",
+  "windows": ["main", "detached-panel-*"],
+  "permissions": [
+    "core:default",
+    "litools-core:default",
+    "global-shortcut:default",
+    "litools-sdk:default"
+  ]
+}

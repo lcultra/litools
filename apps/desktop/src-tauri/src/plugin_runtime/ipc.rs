@@ -2,7 +2,7 @@ use chrono::Utc;
 use litools_index::repository::PluginStorageRepository;
 use litools_settings::AppSettings;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Manager, State, Webview, ipc::InvokeError};
+use tauri::{AppHandle, Manager, State, Webview};
 
 use crate::{
     plugin_runtime::{
@@ -15,7 +15,7 @@ use crate::{
 pub use litools_config::plugin::{MAX_STORAGE_KEY_LEN, MAX_STORAGE_VALUE_LEN};
 
 #[tauri::command]
-pub fn open_plugin_view(
+pub async fn open_plugin_view(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
@@ -37,7 +37,7 @@ pub fn hide_plugin_view(
 }
 
 #[tauri::command]
-pub fn detach_plugin_view(
+pub async fn detach_plugin_view(
     plugin_id: String,
     command_id: String,
     state: State<'_, AppState>,
@@ -91,16 +91,15 @@ pub fn open_plugin_devtools(
     Ok(())
 }
 
-#[tauri::command]
-pub fn plugin_view_call(
-    method: String,
+/// 公开入口，供 SDK 命令复用 dispatch 逻辑。
+pub fn route_plugin_view_call_inner(
+    method: &str,
     params: Value,
-    webview: Webview,
-    state: State<'_, AppState>,
-    app_handle: AppHandle,
-) -> Result<Value, InvokeError> {
-    route_plugin_view_call(&method, params, &webview, &state, &app_handle)
-        .map_err(InvokeError::from)
+    webview: &Webview,
+    state: &AppState,
+    app_handle: &AppHandle,
+) -> Result<Value, PluginRuntimeError> {
+    route_plugin_view_call(method, params, webview, state, app_handle)
 }
 
 fn route_plugin_view_call(

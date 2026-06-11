@@ -4,6 +4,7 @@ mod ipc;
 #[cfg(target_os = "macos")]
 mod macos_icon;
 mod plugin_runtime;
+mod tauri_plugins;
 mod protocol;
 mod shortcut;
 mod state;
@@ -103,6 +104,8 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_positioner::init())
+        .plugin(tauri_plugins::core::init())
+        .plugin(tauri_plugins::sdk::init())
         .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             let bundled_plugins_dir = bundled_plugins_dir(app);
@@ -126,41 +129,6 @@ fn main() {
             Ok(())
         })
         .on_window_event(windowing::lifecycle::handle_window_event)
-        .invoke_handler(tauri::generate_handler![
-            ipc::launcher::search,
-            ipc::launcher::launcher_panel,
-            ipc::launcher::pin_result,
-            ipc::launcher::unpin_result,
-            ipc::launcher::reorder_pinned_results,
-            ipc::launcher::execute_result,
-            ipc::surface::detach_route,
-            ipc::surface::update_surface_route,
-            ipc::surface::list_windows,
-            ipc::surface::get_current_window_metadata,
-            ipc::surface::hide_window,
-            ipc::surface::focus_window,
-            ipc::surface::destroy_window,
-            ipc::surface::start_window_dragging,
-            ipc::surface::hide_main_window,
-            ipc::surface::show_main_window,
-            ipc::surface::focus_main_window,
-            ipc::surface::resize_main_window_height,
-            ipc::surface::reveal_in_file_manager,
-            ipc::diagnostics::reload_index,
-            ipc::settings::get_settings,
-            ipc::settings::update_settings,
-            ipc::plugins::list_plugins,
-            ipc::plugins::get_plugin_view_descriptor,
-            plugin_runtime::ipc::open_plugin_view,
-            plugin_runtime::ipc::hide_plugin_view,
-            plugin_runtime::ipc::detach_plugin_view,
-            plugin_runtime::ipc::close_plugin_view,
-            plugin_runtime::ipc::close_plugin_view_by_id,
-            plugin_runtime::ipc::get_plugin_view_info,
-            plugin_runtime::ipc::open_plugin_devtools,
-            plugin_runtime::ipc::plugin_view_call,
-            ipc::diagnostics::get_diagnostics
-        ])
         .run(tauri::generate_context!())
         .expect("failed to run litools");
 }

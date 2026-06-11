@@ -3,9 +3,11 @@
 docs/superpowers
 /target/
 **/target/
+**/dist/
 **/node_modules/
 /apps/desktop/dist/
 .DS_Store
 .env
 .env.*
 !.env.example
+**/dist/
