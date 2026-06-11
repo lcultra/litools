@@ -3,6 +3,7 @@ import { DragDropProvider } from '@dnd-kit/solid';
 import { useSortable } from '@dnd-kit/solid/sortable';
 import { createEffect, createSignal, For, Show } from 'solid-js';
 import type { SearchResult } from '../../bridge/types';
+import { preventDefault } from '../../shared/events';
 import { providerLabel } from '../../shared/strings';
 import { HighlightedText } from './HighlightedText';
 import type { LauncherRenderItem } from './LauncherView';
@@ -101,12 +102,12 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
                 'pointer-events-none opacity-45 will-change-transform': sortable.isDragging(),
                 'border-accent/70': sortable.isDropTarget() && !sortable.isDragging(),
             }}
-            data-launcher-interactive
+            data-interactive
             onClick={handleClick}
             onContextMenu={(event) => props.onResultContextMenu(props.item, event)}
             onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
+                    preventDefault(event);
                     handleClick();
                 }
             }}

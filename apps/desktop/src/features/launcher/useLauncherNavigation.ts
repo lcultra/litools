@@ -1,4 +1,5 @@
 import type { Accessor, Setter } from 'solid-js';
+import { preventDefault } from '../../shared/events';
 import type { VisibleLauncherItem, VisibleRow } from './LauncherPage';
 
 type LauncherNavigationOptions = {
@@ -56,28 +57,27 @@ export function useLauncherNavigation(options: LauncherNavigationOptions) {
     function handleKeyDown(event: KeyboardEvent) {
         switch (event.key) {
             case 'Tab':
-                event.preventDefault();
-                event.stopPropagation();
+                preventDefault(event);
                 selectAdjacent(event.shiftKey ? -1 : 1);
                 return;
             case 'ArrowRight':
-                event.preventDefault();
+                preventDefault(event);
                 selectAdjacent(1);
                 return;
             case 'ArrowLeft':
-                event.preventDefault();
+                preventDefault(event);
                 selectAdjacent(-1);
                 return;
             case 'ArrowDown':
-                event.preventDefault();
+                preventDefault(event);
                 selectVertical(1);
                 return;
             case 'ArrowUp':
-                event.preventDefault();
+                preventDefault(event);
                 selectVertical(-1);
                 return;
             case 'Escape':
-                event.preventDefault();
+                preventDefault(event);
                 onEscape();
                 return;
         }

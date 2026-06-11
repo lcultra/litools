@@ -1,10 +1,11 @@
 import { useLocation, useNavigate, useParams } from '@solidjs/router';
-import { createEffect, createResource, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js';
 import { closePluginView, closePluginViewById, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader';
+import { useGlobalKey } from '../../shared/keyboard';
 import { hostWindowLabel, isDetachedWindow } from '../../shared/store';
 
 export function WorkspacePage() {
@@ -58,17 +59,6 @@ export function WorkspacePage() {
         }
     });
 
-    onMount(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                handleClose();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        onCleanup(() => window.removeEventListener('keydown', handleKeyDown));
-    });
-
     function handleClose() {
         const rid = runtimeId();
         if (rid) {
@@ -82,6 +72,8 @@ export function WorkspacePage() {
             navigate('/');
         }
     }
+
+    useGlobalKey('Escape', handleClose, { prevent: true });
 
     return (
         <WindowFrame class="flex h-[calc(100vh-2px)] flex-col">

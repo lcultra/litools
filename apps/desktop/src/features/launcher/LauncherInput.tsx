@@ -1,6 +1,7 @@
 import { useNavigate } from '@solidjs/router';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
 import { openPluginView, startWindowDragging } from '../../bridge/commands';
+import { preventDefault } from '../../shared/events';
 import { generatePluginPath } from '../../shared/routes';
 
 const SETTINGS_PLUGIN_ID = 'dev.litools.settings';
@@ -96,7 +97,7 @@ export function LauncherInput(props: LauncherInputProps) {
 
     async function handleActionClick(event: MouseEvent) {
         if (actionDragStarted) {
-            event.preventDefault();
+            preventDefault(event);
             actionDragStarted = false;
             return;
         }
@@ -127,7 +128,7 @@ export function LauncherInput(props: LauncherInputProps) {
                 autocorrect="off"
                 autofocus
                 class="h-full w-full border-0 bg-transparent py-2 pl-4 pr-[60px] text-2xl leading-[2rem] text-fg outline-none placeholder:text-muted"
-                data-launcher-no-drag
+                data-no-drag
                 id="launcher-search"
                 inputmode="search"
                 name="launcher-search"
@@ -147,7 +148,7 @@ export function LauncherInput(props: LauncherInputProps) {
             <button
                 aria-label="打开设置"
                 class="absolute right-3 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-border bg-surface-muted text-sm font-semibold text-muted transition-colors hover:border-accent/30 hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
-                data-launcher-interactive
+                data-interactive
                 onClick={handleActionClick}
                 onPointerCancel={handleActionPointerUp}
                 onPointerDown={handleActionPointerDown}

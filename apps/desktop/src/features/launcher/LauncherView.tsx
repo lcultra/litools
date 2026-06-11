@@ -1,6 +1,7 @@
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
 import { WindowFrame } from '../../components/WindowFrame';
+import { stopEvent } from '../../shared/events';
 import { providerLabel } from '../../shared/strings';
 import { HighlightedText } from './HighlightedText';
 import { LauncherInput } from './LauncherInput';
@@ -96,11 +97,6 @@ function ResultButton(props: ResultButtonProps) {
     );
 }
 
-function stopInteractiveEvent(event: Event) {
-    event.preventDefault();
-    event.stopPropagation();
-}
-
 export function LauncherView(props: LauncherViewProps) {
     let selectedResultElement: HTMLElement | undefined;
     const totalVisibleItems = () => props.renderSections.reduce((count, section) => count + section.items.length, 0);
@@ -115,14 +111,10 @@ export function LauncherView(props: LauncherViewProps) {
         });
     });
 
-    function handlePanelContextMenu(event: MouseEvent) {
-        event.preventDefault();
-    }
-
     function handlePanelPointerDown(event: PointerEvent) {
         const target = event.target;
 
-        if (!(target instanceof HTMLElement) || target.closest('input, textarea, [contenteditable="true"], [data-launcher-no-drag], [data-launcher-interactive]')) {
+        if (!(target instanceof HTMLElement) || target.closest('input, textarea, [contenteditable="true"], [data-no-drag], [data-interactive]')) {
             return;
         }
 
@@ -134,8 +126,7 @@ export function LauncherView(props: LauncherViewProps) {
     }
 
     function handleResultContextMenu(renderItem: LauncherRenderItem, event: MouseEvent) {
-        event.preventDefault();
-        event.stopPropagation();
+        stopEvent(event);
         props.onResultContextMenu(renderItem, { x: event.clientX, y: event.clientY });
     }
 
@@ -146,94 +137,92 @@ export function LauncherView(props: LauncherViewProps) {
     }
 
     return (
-        <div on:contextmenu={handlePanelContextMenu}>
-            <WindowFrame ref={handleContentElement} class="grid grid-rows-[auto_auto]">
-                <LauncherInput
-                    inputRef={props.inputRef}
-                    onInput={props.onInput}
-                    onInputBlur={props.onInputBlur}
-                    onKeyDown={props.onKeyDown}
-                    onSubmit={props.onSubmit}
-                    query={props.query}
-                />
+        <WindowFrame ref={handleContentElement} class="grid grid-rows-[auto_auto]">
+            <LauncherInput
+                inputRef={props.inputRef}
+                onInput={props.onInput}
+                onInputBlur={props.onInputBlur}
+                onKeyDown={props.onKeyDown}
+                onSubmit={props.onSubmit}
+                query={props.query}
+            />
 
-                <Show when={shouldShowResults()}>
-                    <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">
-                        <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
-                            <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
-                                <div class="grid gap-3">
-                                    <For each={props.renderSections}>
-                                        {(section) => (
-                                            <section class="grid gap-2">
-                                                <div class="flex h-6 items-center justify-between px-2 text-xs font-medium text-muted">
-                                                    <span class="leading-none">{section.title}</span>
-                                                    <div class="flex h-full items-center gap-2">
-                                                        <Show when={section.totalCount > section.shownCount}>
-                                                            <span>
-                                                                {section.shownCount} / {section.totalCount}
-                                                            </span>
-                                                        </Show>
-                                                        <Show when={section.canExpand && !section.expanded}>
-                                                            <button
-                                                                class="h-5 rounded-md px-2 text-xs leading-none text-accent hover:bg-surface-muted"
-                                                                onClick={(event) => {
-                                                                    stopInteractiveEvent(event);
-                                                                    props.onSectionExpandedToggle(section.id);
-                                                                }}
-                                                                onPointerDown={stopInteractiveEvent}
-                                                                data-no-drag
-                                                                tabindex={-1}
-                                                                type="button"
-                                                            >
-                                                                更多
-                                                            </button>
-                                                        </Show>
-                                                    </div>
+            <Show when={shouldShowResults()}>
+                <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">
+                    <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
+                        <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
+                            <div class="grid gap-3">
+                                <For each={props.renderSections}>
+                                    {(section) => (
+                                        <section class="grid gap-2">
+                                            <div class="flex h-6 items-center justify-between px-2 text-xs font-medium text-muted">
+                                                <span class="leading-none">{section.title}</span>
+                                                <div class="flex h-full items-center gap-2">
+                                                    <Show when={section.totalCount > section.shownCount}>
+                                                        <span>
+                                                            {section.shownCount} / {section.totalCount}
+                                                        </span>
+                                                    </Show>
+                                                    <Show when={section.canExpand && !section.expanded}>
+                                                        <button
+                                                            class="h-5 rounded-md px-2 text-xs leading-none text-accent hover:bg-surface-muted"
+                                                            onClick={(event) => {
+                                                                stopEvent(event);
+                                                                props.onSectionExpandedToggle(section.id);
+                                                            }}
+                                                            onPointerDown={stopEvent}
+                                                            data-interactive
+                                                            tabindex={-1}
+                                                            type="button"
+                                                        >
+                                                            更多
+                                                        </button>
+                                                    </Show>
                                                 </div>
+                                            </div>
 
-                                                <Show
-                                                    when={section.id === 'pinned' && section.items.length > 1}
-                                                    fallback={
-                                                        <div class="grid auto-rows-[82px] grid-cols-9 gap-2">
-                                                            <For each={section.items}>
-                                                                {(renderItem) => (
-                                                                    <ResultButton
-                                                                        onClick={() => handleResultClick(renderItem)}
-                                                                        onContextMenu={(event) => handleResultContextMenu(renderItem, event)}
-                                                                        onSelectedElement={(element) => {
-                                                                            if (props.selectedIndex === renderItem.globalIndex) {
-                                                                                selectedResultElement = element;
-                                                                            }
-                                                                        }}
-                                                                        renderItem={renderItem}
-                                                                        selected={props.selectedIndex === renderItem.globalIndex}
-                                                                    />
-                                                                )}
-                                                            </For>
-                                                        </div>
-                                                    }
-                                                >
-                                                    <PinnedSortableGrid
-                                                        items={section.items}
-                                                        selectedIndex={props.selectedIndex}
-                                                        onDragEnd={props.onPinnedDragEnd}
-                                                        onReorder={props.onPinnedReorder}
-                                                        onResultClick={handleResultClick}
-                                                        onResultContextMenu={handleResultContextMenu}
-                                                        onSelectedElement={(element) => {
-                                                            selectedResultElement = element;
-                                                        }}
-                                                    />
-                                                </Show>
-                                            </section>
-                                        )}
-                                    </For>
-                                </div>
-                            </Show>
+                                            <Show
+                                                when={section.id === 'pinned' && section.items.length > 1}
+                                                fallback={
+                                                    <div class="grid auto-rows-[82px] grid-cols-9 gap-2">
+                                                        <For each={section.items}>
+                                                            {(renderItem) => (
+                                                                <ResultButton
+                                                                    onClick={() => handleResultClick(renderItem)}
+                                                                    onContextMenu={(event) => handleResultContextMenu(renderItem, event)}
+                                                                    onSelectedElement={(element) => {
+                                                                        if (props.selectedIndex === renderItem.globalIndex) {
+                                                                            selectedResultElement = element;
+                                                                        }
+                                                                    }}
+                                                                    renderItem={renderItem}
+                                                                    selected={props.selectedIndex === renderItem.globalIndex}
+                                                                />
+                                                            )}
+                                                        </For>
+                                                    </div>
+                                                }
+                                            >
+                                                <PinnedSortableGrid
+                                                    items={section.items}
+                                                    selectedIndex={props.selectedIndex}
+                                                    onDragEnd={props.onPinnedDragEnd}
+                                                    onReorder={props.onPinnedReorder}
+                                                    onResultClick={handleResultClick}
+                                                    onResultContextMenu={handleResultContextMenu}
+                                                    onSelectedElement={(element) => {
+                                                        selectedResultElement = element;
+                                                    }}
+                                                />
+                                            </Show>
+                                        </section>
+                                    )}
+                                </For>
+                            </div>
                         </Show>
-                    </div>
-                </Show>
-            </WindowFrame>
-        </div>
+                    </Show>
+                </div>
+            </Show>
+        </WindowFrame>
     );
 }

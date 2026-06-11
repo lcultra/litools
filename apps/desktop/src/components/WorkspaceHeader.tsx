@@ -127,6 +127,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
                 <button
                     aria-label="关闭插件视图"
                     class="grid size-8 cursor-pointer place-items-center border-border border-l text-muted outline-none transition-colors hover:bg-danger/10 hover:text-danger focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+                    data-interactive
                     onClick={props.onClose}
                     type="button"
                 >
@@ -137,6 +138,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
             <button
                 aria-label="打开菜单"
                 class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+                data-interactive
                 onClick={showMenu}
                 title={menuError() ?? '更多操作'}
                 type="button"
