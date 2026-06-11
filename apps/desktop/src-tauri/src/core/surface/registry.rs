@@ -113,11 +113,15 @@ impl SurfaceRegistry {
     }
 
     pub fn host_window_label(&self, id: &str) -> Option<&str> {
-        self.surfaces_by_id.get(id).map(|s| s.host_window_label.as_str())
+        self.surfaces_by_id
+            .get(id)
+            .map(|s| s.host_window_label.as_str())
     }
 
     pub fn webview_label(&self, id: &str) -> Option<&str> {
-        self.surfaces_by_id.get(id).map(|s| s.webview_label.as_str())
+        self.surfaces_by_id
+            .get(id)
+            .map(|s| s.webview_label.as_str())
     }
 
     pub fn host_kind(&self, id: &str) -> Option<crate::view::WindowHostKind> {
@@ -130,7 +134,11 @@ impl SurfaceRegistry {
         self.surfaces_by_id.get(id).cloned()
     }
 
-    pub fn mark_bounds(&mut self, id: &str, bounds: Option<SurfaceBounds>) -> Option<SurfaceMetadata> {
+    pub fn mark_bounds(
+        &mut self,
+        id: &str,
+        bounds: Option<SurfaceBounds>,
+    ) -> Option<SurfaceMetadata> {
         let s = self.surfaces_by_id.get_mut(id)?;
         s.bounds = bounds;
         s.updated_at = Self::now();
@@ -150,7 +158,8 @@ impl SurfaceRegistry {
         let id = self.surface_id_by_webview_label.get(webview_label)?;
         let metadata = self.surfaces_by_id.get_mut(id)?;
         // 移除旧的 window_label → id 映射
-        self.surface_id_by_window_label.remove(&metadata.host_window_label);
+        self.surface_id_by_window_label
+            .remove(&metadata.host_window_label);
         metadata.host_window_label = host_window_label;
         metadata.host_kind = host_kind;
         metadata.lifecycle = SurfaceLifecycle::Active;
@@ -209,8 +218,10 @@ impl SurfaceRegistry {
         };
 
         let context = self.surfaces_by_id.remove(&id)?;
-        self.surface_id_by_webview_label.remove(&context.webview_label);
-        self.surface_id_by_window_label.remove(&context.host_window_label);
+        self.surface_id_by_webview_label
+            .remove(&context.webview_label);
+        self.surface_id_by_window_label
+            .remove(&context.host_window_label);
         Some(context)
     }
 
@@ -292,8 +303,11 @@ mod tests {
     #[test]
     fn finds_by_window_label() {
         let mut registry = SurfaceRegistry::default();
-        let metadata =
-            registry.register_surface(test_view("/"), "my-window".to_string(), WindowHostKind::Detached);
+        let metadata = registry.register_surface(
+            test_view("/"),
+            "my-window".to_string(),
+            WindowHostKind::Detached,
+        );
 
         let found = registry.metadata_for_window_label("my-window");
         assert!(found.is_some());
@@ -307,7 +321,10 @@ mod tests {
             registry.register_surface(test_view("/"), "main".to_string(), WindowHostKind::Main);
 
         assert_eq!(registry.host_window_label(&metadata.id), Some("main"));
-        assert_eq!(registry.webview_label(&metadata.id), Some(metadata.webview_label.as_str()));
+        assert_eq!(
+            registry.webview_label(&metadata.id),
+            Some(metadata.webview_label.as_str())
+        );
     }
 
     #[test]
@@ -320,7 +337,11 @@ mod tests {
         assert!(registry.metadata_for_window_label("new-host").is_none());
 
         let moved = registry
-            .move_to_host(&metadata.webview_label, "new-host".to_string(), WindowHostKind::Detached)
+            .move_to_host(
+                &metadata.webview_label,
+                "new-host".to_string(),
+                WindowHostKind::Detached,
+            )
             .expect("move to host");
         assert_eq!(moved.host_window_label, "new-host");
         assert_eq!(moved.host_kind, WindowHostKind::Detached);
@@ -335,11 +356,20 @@ mod tests {
         let metadata =
             registry.register_surface(test_view("/"), "main".to_string(), WindowHostKind::Main);
 
-        let bounds = SurfaceBounds { x: 0.0, y: 68.0, width: 820.0, height: 492.0 };
-        let updated = registry.mark_bounds(&metadata.id, Some(bounds)).expect("mark bounds");
+        let bounds = SurfaceBounds {
+            x: 0.0,
+            y: 68.0,
+            width: 820.0,
+            height: 492.0,
+        };
+        let updated = registry
+            .mark_bounds(&metadata.id, Some(bounds))
+            .expect("mark bounds");
         assert_eq!(updated.bounds, Some(bounds));
 
-        let cleared = registry.mark_bounds(&metadata.id, None).expect("clear bounds");
+        let cleared = registry
+            .mark_bounds(&metadata.id, None)
+            .expect("clear bounds");
         assert_eq!(cleared.bounds, None);
     }
 

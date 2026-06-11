@@ -1,21 +1,18 @@
-use litools_plugin::RuntimePolicy;
 use litools_plugin::PluginCommandMode;
+use litools_plugin::RuntimePolicy;
 use tauri::Manager;
 
 use crate::{
     core::plugins::runtime::{
-        model::{
-            PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle,
-        },
-        permissions,
-        preload,
+        model::{PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle},
+        permissions, preload,
         registry::PluginRuntimeRegistration,
     },
+    core::surface::{model::SurfaceBounds, service as surface_service},
     protocol::plugin::resolve_entry_url,
     state::AppState,
-    core::surface::{model::SurfaceBounds, service as surface_service},
     view::WindowHostKind,
-    windowing::{labels, factory, webview},
+    windowing::{factory, labels, webview},
 };
 
 /// 定义启动时的操作类型。
@@ -43,11 +40,7 @@ fn resolve_launch_action(
                 .lock()
                 .ok()?
                 .runtime_for_plugin_command(plugin_id, command_id)?;
-            let host_kind = state
-                .surfaces
-                .lock()
-                .ok()?
-                .host_kind(&context.surface_id)?;
+            let host_kind = state.surfaces.lock().ok()?.host_kind(&context.surface_id)?;
             match host_kind {
                 WindowHostKind::Detached => Some(LaunchAction::FocusDetached(context)),
                 WindowHostKind::Main => Some(LaunchAction::EnsureVisible(context)),
@@ -108,12 +101,17 @@ pub fn dock_plugin_runtime(
         .next_runtime_id();
 
     // 1. 先注册 surface
-    let surface_view = crate::view::plugin_view_definition(plugin_id, command_id, &descriptor.title);
+    let surface_view =
+        crate::view::plugin_view_definition(plugin_id, command_id, &descriptor.title);
     let surface = state
         .surfaces
         .lock()
         .map_err(|e| e.to_string())?
-        .register_surface(surface_view, labels::MAIN_WINDOW_LABEL.to_string(), WindowHostKind::Main);
+        .register_surface(
+            surface_view,
+            labels::MAIN_WINDOW_LABEL.to_string(),
+            WindowHostKind::Main,
+        );
 
     // 2. 注册 runtime，绑定 surface_id
     let context = state
@@ -214,9 +212,9 @@ pub fn detach_plugin_runtime(
         .webview_label(&context.surface_id)
         .ok_or_else(|| format!("surface not found: {}", context.surface_id))?
         .to_string();
-    let webview = app.get_webview(&webview_label).ok_or_else(|| {
-        format!("plugin runtime webview not found: {}", webview_label)
-    })?;
+    let webview = app
+        .get_webview(&webview_label)
+        .ok_or_else(|| format!("plugin runtime webview not found: {}", webview_label))?;
 
     // Use a preloaded window if available, otherwise create one.
     let (detached_window, actual_label, was_preloaded) =
@@ -281,18 +279,25 @@ pub fn detach_plugin_runtime(
         .surfaces
         .lock()
         .map_err(|e| e.to_string())?
-        .move_to_host(&webview_label, actual_label.clone(), WindowHostKind::Detached)
+        .move_to_host(
+            &webview_label,
+            actual_label.clone(),
+            WindowHostKind::Detached,
+        )
         .ok_or_else(|| format!("surface not found by webview: {}", webview_label))?;
     state
         .surfaces
         .lock()
         .map_err(|e| e.to_string())?
-        .mark_bounds(&context.surface_id, Some(SurfaceBounds {
-            x: bounds.x,
-            y: bounds.y,
-            width: bounds.width,
-            height: bounds.height,
-        }))
+        .mark_bounds(
+            &context.surface_id,
+            Some(SurfaceBounds {
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+            }),
+        )
         .ok_or_else(|| format!("surface not found: {}", context.surface_id))?;
 
     // 整个 detach 流程内的 Moved 由 begin_programmatic_layout 统一过滤
@@ -492,7 +497,10 @@ pub fn close_runtime(
     let surface_id = context.surface_id.clone();
     let webview_label = {
         let surfaces = state.surfaces.lock().map_err(|e| e.to_string())?;
-        surfaces.webview_label(&surface_id).ok_or_else(|| format!("surface not found: {surface_id}"))?.to_string()
+        surfaces
+            .webview_label(&surface_id)
+            .ok_or_else(|| format!("surface not found: {surface_id}"))?
+            .to_string()
     };
     let host_kind = state
         .surfaces
@@ -525,8 +533,16 @@ pub fn close_runtime(
         .lock()
         .map_err(|e| e.to_string())?
         .mark_lifecycle(runtime_id, PluginRuntimeLifecycle::Closed);
-    state.plugin_runtimes.lock().map_err(|e| e.to_string())?.remove(runtime_id);
-    state.surfaces.lock().map_err(|e| e.to_string())?.remove(&surface_id);
+    state
+        .plugin_runtimes
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(runtime_id);
+    state
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(&surface_id);
     Ok(())
 }
 
@@ -555,8 +571,16 @@ pub fn cleanup_runtime_window(
         .lock()
         .map_err(|e| e.to_string())?
         .mark_lifecycle(&context.id, PluginRuntimeLifecycle::Closed);
-    state.plugin_runtimes.lock().map_err(|e| e.to_string())?.remove(&context.id);
-    state.surfaces.lock().map_err(|e| e.to_string())?.remove(&context.surface_id);
+    state
+        .plugin_runtimes
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(&context.id);
+    state
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(&context.surface_id);
     Ok(())
 }
 
@@ -597,12 +621,15 @@ pub fn layout_runtime_window(
         .surfaces
         .lock()
         .map_err(|e| e.to_string())?
-        .mark_bounds(&context.surface_id, Some(SurfaceBounds {
-            x: bounds.x,
-            y: bounds.y,
-            width: bounds.width,
-            height: bounds.height,
-        }))
+        .mark_bounds(
+            &context.surface_id,
+            Some(SurfaceBounds {
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+            }),
+        )
         .ok_or_else(|| format!("surface not found: {}", context.surface_id))?;
     Ok(Some(context))
 }
@@ -660,18 +687,25 @@ fn ensure_docked_runtime_webview(
         .surfaces
         .lock()
         .map_err(|e| e.to_string())?
-        .move_to_host(&webview_label, labels::MAIN_WINDOW_LABEL.to_string(), WindowHostKind::Main)
+        .move_to_host(
+            &webview_label,
+            labels::MAIN_WINDOW_LABEL.to_string(),
+            WindowHostKind::Main,
+        )
         .ok_or_else(|| format!("surface not found by webview: {}", webview_label))?;
     state
         .surfaces
         .lock()
         .map_err(|e| e.to_string())?
-        .mark_bounds(&surface_id, Some(SurfaceBounds {
-            x: bounds.x,
-            y: bounds.y,
-            width: bounds.width,
-            height: bounds.height,
-        }))
+        .mark_bounds(
+            &surface_id,
+            Some(SurfaceBounds {
+                x: bounds.x,
+                y: bounds.y,
+                width: bounds.width,
+                height: bounds.height,
+            }),
+        )
         .ok_or_else(|| format!("surface not found: {surface_id}"))?;
 
     // 为新创建的 webview 动态授予 Tauri 插件能力
@@ -682,14 +716,9 @@ fn ensure_docked_runtime_webview(
         .cloned()
         .collect();
     if !plugin_perms.is_empty() {
-        permissions::setup_plugin_capability(
-            app,
-            &webview_label,
-            &plugin_perms,
-            context.trusted,
-        )
-        .map_err(|e| log::warn!("插件权限配置失败: {e}"))
-        .ok();
+        permissions::setup_plugin_capability(app, &webview_label, &plugin_perms, context.trusted)
+            .map_err(|e| log::warn!("插件权限配置失败: {e}"))
+            .ok();
     }
 
     enter_runtime(app, state, &context.id)
@@ -707,12 +736,9 @@ fn focus_runtime_host(
         .host_window_label(&context.surface_id)
         .ok_or_else(|| format!("surface not found: {}", context.surface_id))?
         .to_string();
-    let window = app.get_window(&host_window_label).ok_or_else(|| {
-        format!(
-            "plugin runtime host not found: {}",
-            host_window_label
-        )
-    })?;
+    let window = app
+        .get_window(&host_window_label)
+        .ok_or_else(|| format!("plugin runtime host not found: {}", host_window_label))?;
     factory::focus_window(&window)
 }
 
@@ -738,10 +764,17 @@ fn emit_lifecycle_event(
 }
 
 /// 通过 window_label 查找 PluginRuntimeContext。
-fn find_runtime_by_window_label(state: &AppState, window_label: &str) -> Option<PluginRuntimeContext> {
+fn find_runtime_by_window_label(
+    state: &AppState,
+    window_label: &str,
+) -> Option<PluginRuntimeContext> {
     let surfaces = state.surfaces.lock().ok()?;
     let surface_id = surfaces.surface_id_by_window_label.get(window_label)?;
-    state.plugin_runtimes.lock().ok()?.runtime_for_surface_id(surface_id)
+    state
+        .plugin_runtimes
+        .lock()
+        .ok()?
+        .runtime_for_surface_id(surface_id)
 }
 
 /// 从 PluginRuntimeContext 构建 PluginRuntimeInfo。

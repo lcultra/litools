@@ -12,7 +12,10 @@ use objc2_app_kit::NSWorkspace;
 use objc2_foundation::{NSData, NSString};
 use plist::Value;
 
-use crate::{DiscoveredApp, SystemAdapter, adapter::AppWatchGuard, launcher::LaunchTarget, pinyin::pinyin_aliases};
+use crate::{
+    DiscoveredApp, SystemAdapter, adapter::AppWatchGuard, launcher::LaunchTarget,
+    pinyin::pinyin_aliases,
+};
 
 #[derive(Default)]
 pub struct MacosSystemAdapter;

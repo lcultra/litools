@@ -74,8 +74,8 @@ impl IconProtocol {
             return Ok(bytes);
         }
 
-        let bytes =
-            app_icon_png(&app_path, icon_path.as_deref(), state).map_err(|_| StatusCode::NOT_FOUND)?;
+        let bytes = app_icon_png(&app_path, icon_path.as_deref(), state)
+            .map_err(|_| StatusCode::NOT_FOUND)?;
         let _ = write_disk_cache(&disk_cache_path, &bytes);
         self.put_memory_cache(cache_key, bytes.clone());
         Ok(bytes)

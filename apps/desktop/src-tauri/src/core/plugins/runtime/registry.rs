@@ -3,9 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::Utc;
 use litools_plugin::RuntimePolicy;
 
-use crate::core::plugins::runtime::model::{
-    PluginRuntimeContext, PluginRuntimeLifecycle,
-};
+use crate::core::plugins::runtime::model::{PluginRuntimeContext, PluginRuntimeLifecycle};
 pub use litools_config::labels::RUNTIME_ID_PREFIX;
 
 #[derive(Debug, Default)]
@@ -49,7 +47,10 @@ impl PluginRuntimeRegistry {
         if self.runtimes_by_id.contains_key(&id) {
             return Err(format!("plugin runtime already exists: {id}"));
         }
-        if self.runtime_id_by_surface_id.contains_key(&registration.surface_id) {
+        if self
+            .runtime_id_by_surface_id
+            .contains_key(&registration.surface_id)
+        {
             return Err(format!(
                 "surface already bound to a runtime: {}",
                 registration.surface_id
@@ -61,7 +62,8 @@ impl PluginRuntimeRegistry {
         );
         // 仅 Singleton 策略检查唯一性；MultiInstance 允许多实例
         if registration.policy == RuntimePolicy::Singleton {
-            if let Some(existing_ids) = self.runtime_ids_by_plugin_command.get(&plugin_command_key) {
+            if let Some(existing_ids) = self.runtime_ids_by_plugin_command.get(&plugin_command_key)
+            {
                 if !existing_ids.is_empty() {
                     return Err(format!(
                         "singleton plugin runtime already exists for command: {:?}",
@@ -258,10 +260,7 @@ mod tests {
     fn registers_and_finds_runtime() {
         let mut registry = PluginRuntimeRegistry::default();
         let context = registry
-            .register_runtime(
-                registration(),
-                "runtime_000001".to_string(),
-            )
+            .register_runtime(registration(), "runtime_000001".to_string())
             .expect("runtime registered");
 
         assert_eq!(context.lifecycle, PluginRuntimeLifecycle::Created);
@@ -280,20 +279,14 @@ mod tests {
     fn rejects_duplicate_singleton_runtime() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(
-                registration(),
-                "runtime_000001".to_string(),
-            )
+            .register_runtime(registration(), "runtime_000001".to_string())
             .expect("runtime registered");
 
         let mut reg2 = registration();
         reg2.surface_id = "surface_000002".to_string();
         assert!(
             registry
-                .register_runtime(
-                    reg2,
-                    "runtime_000002".to_string(),
-                )
+                .register_runtime(reg2, "runtime_000002".to_string(),)
                 .is_err()
         );
     }
@@ -302,19 +295,13 @@ mod tests {
     fn allows_multi_instance_runtimes() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(
-                multi_registration(),
-                "runtime_000001".to_string(),
-            )
+            .register_runtime(multi_registration(), "runtime_000001".to_string())
             .expect("first runtime registered");
 
         let mut reg2 = multi_registration();
         reg2.surface_id = "surface_000002_multi".to_string();
         let second = registry
-            .register_runtime(
-                reg2,
-                "runtime_000002".to_string(),
-            )
+            .register_runtime(reg2, "runtime_000002".to_string())
             .expect("second runtime registered");
 
         assert_eq!(second.policy, RuntimePolicy::MultiInstance);
@@ -326,10 +313,7 @@ mod tests {
     fn transitions_lifecycle() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(
-                registration(),
-                "runtime_000001".to_string(),
-            )
+            .register_runtime(registration(), "runtime_000001".to_string())
             .expect("runtime registered");
 
         let context = registry
@@ -351,10 +335,7 @@ mod tests {
     fn removes_runtime_indexes() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(
-                registration(),
-                "runtime_000001".to_string(),
-            )
+            .register_runtime(registration(), "runtime_000001".to_string())
             .expect("runtime registered");
 
         assert!(registry.remove("runtime_000001").is_some());

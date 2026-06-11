@@ -16,7 +16,41 @@ use crate::{
 };
 
 impl LitoolsApp {
-    // Plugin methods are defined in this module.
+    /// 从数据库重新加载 PluginManager 并使搜索缓存失效
+    pub fn reload_plugins(&mut self) -> LitoolsResult<()> {
+        let manager = load_plugins_from_database(&self.context.database)?;
+        self.context.plugins = manager;
+        self.plugin_command_provider.invalidate_cache();
+        Ok(())
+    }
+
+    /// 获取插件的 JSON 摘要
+    pub fn plugin_summary(&self, plugin_id: &str) -> Option<serde_json::Value> {
+        self.context.plugins.find_plugin(plugin_id).map(|p| {
+            serde_json::json!({
+                "id": p.manifest.id,
+                "name": p.manifest.name,
+                "version": p.manifest.version,
+                "description": p.manifest.description,
+                "author": p.manifest.author,
+                "icon": format!("litools-plugin://{}/{}", p.manifest.id, p.manifest.icon),
+                "enabled": p.enabled,
+                "trusted": p.trusted,
+                "source": p.source.as_str(),
+                "path": p.path.to_string_lossy(),
+                "permissions": p.manifest.permissions,
+                "commands": p.manifest.commands.iter().map(|c| {
+                    serde_json::json!({
+                        "id": c.id,
+                        "title": c.title,
+                        "subtitle": c.subtitle,
+                        "keywords": c.keywords,
+                        "mode": c.mode.as_str(),
+                    })
+                }).collect::<Vec<_>>(),
+            })
+        })
+    }
 }
 
 pub(crate) fn sync_and_load_plugins(
@@ -129,9 +163,7 @@ fn dedupe_discovered_plugins(
             }
             _ => {
                 if plugins_by_id.contains_key(&id) {
-                    log::info!(
-                        "插件发现: 用高优先级来源替换重复插件 ID {id}"
-                    );
+                    log::info!("插件发现: 用高优先级来源替换重复插件 ID {id}");
                 }
                 plugins_by_id.insert(id, plugin);
             }

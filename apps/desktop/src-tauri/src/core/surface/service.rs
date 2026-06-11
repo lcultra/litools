@@ -1,13 +1,13 @@
 use tauri::{Manager, Webview, Window};
 
 use crate::{
-    state::AppState,
     core::surface::{
         events,
         model::{SurfaceLifecycle, SurfaceMetadata},
     },
+    state::AppState,
     view::{self, ViewKind, WindowHostKind},
-    windowing::{labels::MAIN_WINDOW_LABEL, factory, webview},
+    windowing::{factory, labels::MAIN_WINDOW_LABEL, webview},
 };
 
 pub fn bootstrap_main_surface(app: &tauri::AppHandle, state: &AppState) -> Result<Window, String> {
@@ -192,12 +192,13 @@ fn resolve_view_route(
     }
 
     if let Some((plugin_id, command_id)) = view::plugin_route_parts(route) {
-        let (_, title, _, _) =
-            crate::core::plugins::runtime::service::find_enabled_plugin_command(
-                state, plugin_id, command_id,
-            )
-            .map_err(|_| format!("unknown plugin route: {route}"))?;
-        return Ok(crate::view::plugin_view_definition(plugin_id, command_id, title));
+        let (_, title, _, _) = crate::core::plugins::runtime::service::find_enabled_plugin_command(
+            state, plugin_id, command_id,
+        )
+        .map_err(|_| format!("unknown plugin route: {route}"))?;
+        return Ok(crate::view::plugin_view_definition(
+            plugin_id, command_id, title,
+        ));
     }
 
     view::validate_route(route)
@@ -211,10 +212,7 @@ pub fn list_surfaces(state: &AppState) -> Vec<SurfaceMetadata> {
         .unwrap_or_default()
 }
 
-pub fn current_surface_metadata(
-    state: &AppState,
-    webview_label: &str,
-) -> Option<SurfaceMetadata> {
+pub fn current_surface_metadata(state: &AppState, webview_label: &str) -> Option<SurfaceMetadata> {
     state
         .surfaces
         .lock()
@@ -309,7 +307,11 @@ pub fn destroy_surface(
     if let Some(window) = app.get_window(&metadata.host_window_label) {
         window.destroy().map_err(|error| error.to_string())?;
     }
-    state.surfaces.lock().map_err(|e| e.to_string())?.remove(&metadata.webview_label);
+    state
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .remove(&metadata.webview_label);
     Ok(())
 }
 

@@ -108,7 +108,10 @@ fn position_launcher_on_target_monitor(window: &Window, state: &AppState) -> Res
 fn centered_target_position(window: &Window) -> Result<Point, String> {
     let target_monitor = target_monitor_bounds(window)?;
     let window_size = window_logical_size(window)?;
-    Ok(launcher_default_anchor_position(target_monitor, window_size))
+    Ok(launcher_default_anchor_position(
+        target_monitor,
+        window_size,
+    ))
 }
 
 fn set_window_position(window: &Window, position: Point) -> Result<(), String> {

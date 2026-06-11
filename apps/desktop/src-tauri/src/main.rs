@@ -1,8 +1,8 @@
 mod app_watcher;
 mod core;
 mod index_refresh;
-mod sdk;
 mod protocol;
+mod sdk;
 mod shortcut;
 mod state;
 mod tray;
@@ -117,7 +117,10 @@ fn main() {
                 bundled_plugins_dir,
             })?);
             core::surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
-            core::plugins::runtime::service::warm_detached_pool(app.handle(), &app.state::<AppState>());
+            core::plugins::runtime::service::warm_detached_pool(
+                app.handle(),
+                &app.state::<AppState>(),
+            );
             tray::setup_tray(app)?;
             shortcut::register_global_shortcut(
                 app.handle(),

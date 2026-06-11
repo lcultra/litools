@@ -1,10 +1,6 @@
-use tauri::{Manager, Size, Window, LogicalSize, window::WindowBuilder};
+use tauri::{LogicalSize, Manager, Size, Window, window::WindowBuilder};
 
-use crate::{
-    state::AppState,
-    view::ViewKind,
-    windowing::labels::MAIN_WINDOW_LABEL,
-};
+use crate::{state::AppState, view::ViewKind, windowing::labels::MAIN_WINDOW_LABEL};
 
 use super::positioning::{center_window_on_show, position_launcher_on_show};
 pub use litools_config::window::{
@@ -146,7 +142,10 @@ pub fn resize_main_window_height(app: &tauri::AppHandle, height: f64) -> Result<
             state.begin_programmatic_layout();
         }
         window
-            .set_size(Size::Logical(LogicalSize { width: old_size.width, height }))
+            .set_size(Size::Logical(LogicalSize {
+                width: old_size.width,
+                height,
+            }))
             .map_err(|error| error.to_string())?;
     }
 

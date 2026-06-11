@@ -6,13 +6,10 @@ use tauri::{
 };
 
 use crate::{
-    core::plugins::runtime::model::PluginRuntimeBounds,
-    core::surface::model::SurfaceMetadata,
+    core::plugins::runtime::model::PluginRuntimeBounds, core::surface::model::SurfaceMetadata,
 };
 
-pub use litools_config::window::{
-    CHROME_INSET, TITLEBAR_HEIGHT,
-};
+pub use litools_config::window::{CHROME_INSET, TITLEBAR_HEIGHT};
 
 // === 原 native.rs webview 相关函数 ===
 

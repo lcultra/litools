@@ -3,9 +3,9 @@ use tauri::{AppHandle, Manager, State, Webview};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::{
-    state::AppState,
     core::surface::{model::SurfaceMetadata, service},
-    windowing::{labels, factory},
+    state::AppState,
+    windowing::{factory, labels},
 };
 
 #[tauri::command]
@@ -118,7 +118,11 @@ pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(
 }
 
 #[tauri::command]
-pub fn reveal_in_file_manager(result_id: String, state: State<'_, AppState>, app_handle: AppHandle) -> Result<(), String> {
+pub fn reveal_in_file_manager(
+    result_id: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<(), String> {
     let app_id = litools_core::app_provider::app_id_from_result_id(&result_id)
         .ok_or_else(|| format!("非应用结果：{result_id}"))?;
 
@@ -130,6 +134,8 @@ pub fn reveal_in_file_manager(result_id: String, state: State<'_, AppState>, app
         .ok_or_else(|| format!("应用未找到：{app_id}"))?;
 
     let app_path = std::path::Path::new(&app.path);
-    app_handle.opener().reveal_item_in_dir(app_path)
+    app_handle
+        .opener()
+        .reveal_item_in_dir(app_path)
         .map_err(|e| format!("无法定位文件：{e}"))
 }

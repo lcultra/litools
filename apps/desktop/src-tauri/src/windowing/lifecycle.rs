@@ -4,7 +4,7 @@ use crate::{
     core::plugins::runtime::model::PluginRuntimeContext,
     core::surface::{events, model::SurfaceLifecycle},
     state::{AppState, LauncherWindowPosition},
-    windowing::{labels, factory},
+    windowing::{factory, labels},
 };
 
 pub fn handle_window_event(window: &Window, event: &WindowEvent) {
@@ -80,11 +80,10 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
                 events::emit_metadata_changed(window.app_handle(), &metadata);
             }
             if *focused
-                && let Some(metadata) = state
-                    .surfaces
-                    .lock()
-                    .ok()
-                    .and_then(|mut r| r.mark_lifecycle(window.label(), SurfaceLifecycle::Active))
+                && let Some(metadata) =
+                    state.surfaces.lock().ok().and_then(|mut r| {
+                        r.mark_lifecycle(window.label(), SurfaceLifecycle::Active)
+                    })
             {
                 events::emit_metadata_changed(window.app_handle(), &metadata);
             }
@@ -104,14 +103,20 @@ fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &App
     match event {
         WindowEvent::Focused(true) => {
             if let Some(context) = find_runtime_by_window_label(state, window.label()) {
-                let _ =
-                    crate::core::plugins::runtime::service::enter_runtime(window.app_handle(), state, &context.id);
+                let _ = crate::core::plugins::runtime::service::enter_runtime(
+                    window.app_handle(),
+                    state,
+                    &context.id,
+                );
             }
         }
         WindowEvent::Focused(false) => {
             if let Some(context) = find_runtime_by_window_label(state, window.label()) {
-                let _ =
-                    crate::core::plugins::runtime::service::leave_runtime(window.app_handle(), state, &context.id);
+                let _ = crate::core::plugins::runtime::service::leave_runtime(
+                    window.app_handle(),
+                    state,
+                    &context.id,
+                );
             }
         }
         WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
@@ -133,8 +138,15 @@ fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &App
 }
 
 /// 通过 window_label 查找 PluginRuntimeContext。
-fn find_runtime_by_window_label(state: &AppState, window_label: &str) -> Option<PluginRuntimeContext> {
+fn find_runtime_by_window_label(
+    state: &AppState,
+    window_label: &str,
+) -> Option<PluginRuntimeContext> {
     let surfaces = state.surfaces.lock().ok()?;
     let surface_id = surfaces.surface_id_by_window_label.get(window_label)?;
-    state.plugin_runtimes.lock().ok()?.runtime_for_surface_id(surface_id)
+    state
+        .plugin_runtimes
+        .lock()
+        .ok()?
+        .runtime_for_surface_id(surface_id)
 }

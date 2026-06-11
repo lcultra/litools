@@ -1,7 +1,7 @@
 use crate::core::plugins::runtime::model::{PermissionQueryState, PluginRuntimeContext};
 use crate::core::{CORE_PREFIX, SDK_PREFIX};
-use tauri::ipc::CapabilityBuilder;
 use tauri::Manager;
+use tauri::ipc::CapabilityBuilder;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RuntimePermissionRequirement {
@@ -183,9 +183,7 @@ fn is_internal_sdk_perm(perm: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::plugins::runtime::model::{
-        PluginRuntimeContext, PluginRuntimeLifecycle,
-    };
+    use crate::core::plugins::runtime::model::{PluginRuntimeContext, PluginRuntimeLifecycle};
 
     use super::*;
 
@@ -240,19 +238,28 @@ mod tests {
     #[test]
     fn toplevel_allow_exact_match() {
         let ctx = context(vec!["clipboard-manager:allow-write_text"]);
-        assert!(check_toplevel_invoke(&ctx, "plugin:clipboard-manager|write_text"));
+        assert!(check_toplevel_invoke(
+            &ctx,
+            "plugin:clipboard-manager|write_text"
+        ));
     }
 
     #[test]
     fn toplevel_allow_default() {
         let ctx = context(vec!["clipboard-manager:default"]);
-        assert!(check_toplevel_invoke(&ctx, "plugin:clipboard-manager|write_text"));
+        assert!(check_toplevel_invoke(
+            &ctx,
+            "plugin:clipboard-manager|write_text"
+        ));
     }
 
     #[test]
     fn toplevel_deny_undeclared() {
         let ctx = context(vec!["clipboard-manager:allow-read_text"]);
-        assert!(!check_toplevel_invoke(&ctx, "plugin:clipboard-manager|write_text"));
+        assert!(!check_toplevel_invoke(
+            &ctx,
+            "plugin:clipboard-manager|write_text"
+        ));
     }
 
     #[test]
@@ -307,10 +314,12 @@ mod tests {
 
     #[test]
     fn validate_rejects_mixed() {
-        assert!(validate_declared_permissions(&[
-            s("clipboard-manager:default"),
-            s("litools-core:allow-search"), // 非法
-        ])
-        .is_err());
+        assert!(
+            validate_declared_permissions(&[
+                s("clipboard-manager:default"),
+                s("litools-core:allow-search"), // 非法
+            ])
+            .is_err()
+        );
     }
 }

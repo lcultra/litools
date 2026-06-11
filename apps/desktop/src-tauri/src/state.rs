@@ -13,9 +13,9 @@ use serde::Serialize;
 
 use crate::{
     app_watcher::{AppWatcherState, AppWatcherStatus},
-    index_refresh::IndexStatus,
     core::plugins::runtime::registry::PluginRuntimeRegistry,
     core::surface::registry::SurfaceRegistry,
+    index_refresh::IndexStatus,
 };
 
 #[derive(Clone, Debug, Serialize)]

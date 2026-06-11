@@ -86,9 +86,13 @@ pub fn open_plugin_devtools(
         .and_then(|r| r.runtime(&runtime_id))
         .ok_or_else(|| format!("plugin runtime not found: {runtime_id}"))?;
     let webview_label = {
-        let surfaces = state.surfaces.lock().ok()
+        let surfaces = state
+            .surfaces
+            .lock()
+            .ok()
             .ok_or_else(|| "failed to lock surfaces".to_string())?;
-        surfaces.webview_label(&context.surface_id)
+        surfaces
+            .webview_label(&context.surface_id)
             .ok_or_else(|| format!("surface not found: {}", context.surface_id))?
             .to_string()
     };

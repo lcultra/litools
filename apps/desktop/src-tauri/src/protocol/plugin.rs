@@ -46,10 +46,7 @@ pub fn plugin_entry_url(plugin_id: &str, entry: &str) -> Result<String, String> 
 ///
 /// - 有 `development.main` → 直接返回 dev server URL
 /// - 无 `development` → 返回 `litools-plugin://` 生产路径
-pub fn resolve_entry_url(
-    plugin_id: &str,
-    manifest: &PluginManifest,
-) -> Result<String, String> {
+pub fn resolve_entry_url(plugin_id: &str, manifest: &PluginManifest) -> Result<String, String> {
     if let Some(ref dev) = manifest.development {
         return Ok(dev.main.clone());
     }

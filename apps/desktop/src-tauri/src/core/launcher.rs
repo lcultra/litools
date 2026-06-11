@@ -62,17 +62,17 @@ pub fn execute_result(
         CommandEffect::QuitApp => app_handle.exit(0),
         CommandEffect::OpenLogsDirectory => {
             let log_dir = log_directory(&app_handle)?;
-            app_handle.opener().open_path(
-                log_dir.to_string_lossy().as_ref(),
-                None::<&str>,
-            ).map_err(|e| e.to_string())?;
+            app_handle
+                .opener()
+                .open_path(log_dir.to_string_lossy().as_ref(), None::<&str>)
+                .map_err(|e| e.to_string())?;
         }
         CommandEffect::OpenDataDirectory => {
             let data_dir = state.data_dir().to_path_buf();
-            app_handle.opener().open_path(
-                data_dir.to_string_lossy().as_ref(),
-                None::<&str>,
-            ).map_err(|e| e.to_string())?;
+            app_handle
+                .opener()
+                .open_path(data_dir.to_string_lossy().as_ref(), None::<&str>)
+                .map_err(|e| e.to_string())?;
         }
         // 前端已改由 openPluginView 驱动——先调 IPC 获取 placement，
         // docked 才 navigate(route)，后端不再在这里操作窗口。
