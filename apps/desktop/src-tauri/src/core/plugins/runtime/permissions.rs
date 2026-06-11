@@ -134,13 +134,11 @@ pub fn categorize_permission(perm: &str) -> PermissionDomain {
     }
 }
 
-/// 插件 manifest 权限声明验证：拒绝 Builtin 权限和格式非法的字符串。
+/// 插件 manifest 权限声明验证：拒绝格式非法的字符串。
+/// `litools-core:*` 权限的信任检查由 `setup_plugin_capability` 的 `trusted` 参数控制。
 pub fn validate_declared_permissions(perms: &[String]) -> Result<(), String> {
     for perm in perms {
         match categorize_permission(perm) {
-            PermissionDomain::Host => {
-                return Err(format!("plugin cannot request internal permission: {perm}"));
-            }
             PermissionDomain::Unknown => {
                 return Err(format!("malformed permission: {perm}"));
             }
@@ -324,10 +322,10 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_host() {
-        assert!(validate_declared_permissions(&[s("litools-core:allow-search")]).is_err());
-        assert!(validate_declared_permissions(&[s("litools-core:allow-window")]).is_err());
-        assert!(validate_declared_permissions(&[s("litools-core:allow-settings")]).is_err());
+    fn validate_allows_host() {
+        // litools-core:* 权限声明允许通过，实际授予由 setup_plugin_capability 的 trusted 检查控制
+        assert!(validate_declared_permissions(&[s("litools-core:allow-search")]).is_ok());
+        assert!(validate_declared_permissions(&[s("litools-core:allow-settings")]).is_ok());
     }
 
     #[test]
@@ -340,13 +338,14 @@ mod tests {
     }
 
     #[test]
-    fn validate_rejects_mixed() {
+    fn validate_allows_mixed() {
+        // litools-core:* + Tauri 官方权限混合声明现在允许
         assert!(
             validate_declared_permissions(&[
                 s("clipboard-manager:default"),
-                s("litools-core:allow-search"), // 非法
+                s("litools-core:allow-search"),
             ])
-            .is_err()
+            .is_ok()
         );
     }
 }
