@@ -8,7 +8,7 @@ use crate::{
 
 use super::positioning::{center_window_on_show, position_launcher_on_show};
 pub use litools_config::window::{
-    DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH,
+    DEFAULT_MAIN_WINDOW_HEIGHT, DEFAULT_WINDOW_HEIGHT, DEFAULT_WINDOW_WIDTH,
 };
 
 pub fn main_window(app: &tauri::AppHandle) -> Option<Window> {
@@ -23,7 +23,7 @@ pub fn create_main_host(app: &tauri::AppHandle) -> Result<Window, String> {
 
     let window = WindowBuilder::new(app, MAIN_WINDOW_LABEL)
         .title("litools")
-        .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
+        .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT)
         .resizable(false)
         .decorations(false)
         .transparent(true)
@@ -157,7 +157,13 @@ pub fn emit_focus_to_owned_launcher_surfaces(window: &Window) {
     for webview in window.webviews() {
         let Some(metadata) = window
             .try_state::<crate::state::AppState>()
-            .and_then(|state| state.surface_metadata_for_webview_label(webview.label()))
+            .and_then(|state| {
+                state
+                    .surfaces
+                    .lock()
+                    .ok()
+                    .and_then(|r| r.metadata_for_webview_label(webview.label()))
+            })
         else {
             continue;
         };

@@ -4,8 +4,11 @@
 
 /// 主窗口默认宽度（像素），未来可由用户配置。
 pub const DEFAULT_WINDOW_WIDTH: f64 = 820.0;
-/// 主窗口默认高度（像素），未来可由用户配置。
+/// 面板/分离窗口默认高度（像素），未来可由用户配置。
 pub const DEFAULT_WINDOW_HEIGHT: f64 = 560.0;
+/// 主窗口（启动器）创建时的初始高度。前端 ResizeObserver 会在页面加载后
+/// 立即调整为真实内容高度（≥ 此值），此值仅用于避免创建时过度分配。
+pub const DEFAULT_MAIN_WINDOW_HEIGHT: f64 = 96.0;
 /// 分离窗口标题栏 webview 的高度（像素）。标题栏包含插件名称、关闭/停靠按钮。
 pub const TITLEBAR_HEIGHT: f64 = 68.0;
 /// 窗口 chrome 内边距：WindowFrame 的 1px 边框 + Panel 的 1px 边框。
