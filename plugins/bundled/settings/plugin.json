@@ -21,6 +21,6 @@
         "litools-sdk:allow-settings-write"
     ],
     "development": {
-        "main": "http://localhost:5173/"
+        "main": "http://localhost:5175/"
     }
 }
