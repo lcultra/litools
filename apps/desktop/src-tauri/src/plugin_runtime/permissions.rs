@@ -8,7 +8,7 @@ pub enum RuntimePermissionRequirement {
 
 pub fn required_permission_for_method(method: &str) -> Option<RuntimePermissionRequirement> {
     match method {
-        "runtime.ready" | "runtime.getInfo" | "permissions.query" => {
+        "runtime.ready" | "runtime.getInfo" | "permissions.query" | "permissions.check" => {
             Some(RuntimePermissionRequirement::Intrinsic)
         }
         "ui.close" | "ui.setTitle" => Some(RuntimePermissionRequirement::Permission("ui:window")),
@@ -49,6 +49,37 @@ pub fn query_permission(context: &PluginRuntimeContext, permission: &str) -> Per
     }
 }
 
+/// 检查插件 webview 发出的顶层 invoke('plugin:xxx|yyy') 是否有权限。
+///
+/// `command` 格式: "plugin:{plugin_name}|{action}"
+pub fn check_toplevel_invoke(context: &PluginRuntimeContext, command: &str) -> bool {
+    // 仅处理 plugin:* 命令，其他的直接放行
+    let rest = match command.strip_prefix("plugin:") {
+        Some(r) => r,
+        None => return true,
+    };
+
+    // 解析 plugin_name 和 action
+    let (plugin_name, action) = match rest.split_once('|') {
+        Some((name, act)) => (name, act),
+        None => return false,
+    };
+
+    // 精确匹配: "{plugin_name}:allow-{action}"
+    let exact = format!("{plugin_name}:allow-{action}");
+    if context.permissions.iter().any(|p| p == &exact) {
+        return true;
+    }
+
+    // default 匹配: "{plugin_name}:default"（Phase 1 简化：default 覆盖该插件全部命令）
+    let default = format!("{plugin_name}:default");
+    if context.permissions.iter().any(|p| p == &default) {
+        return true;
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use crate::plugin_runtime::model::{
@@ -71,6 +102,7 @@ mod tests {
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: permissions.into_iter().map(str::to_string).collect(),
+            trusted: false,
             policy: litools_plugin::RuntimePolicy::Singleton,
             lifecycle: PluginRuntimeLifecycle::Created,
             pending_enter: false,
@@ -104,5 +136,35 @@ mod tests {
             &context(vec!["storage:plugin"]),
             "storage.get"
         ));
+    }
+
+    #[test]
+    fn toplevel_allow_exact_match() {
+        let ctx = context(vec!["clipboard-manager:allow-write_text"]);
+        assert!(check_toplevel_invoke(&ctx, "plugin:clipboard-manager|write_text"));
+    }
+
+    #[test]
+    fn toplevel_allow_default() {
+        let ctx = context(vec!["clipboard-manager:default"]);
+        assert!(check_toplevel_invoke(&ctx, "plugin:clipboard-manager|write_text"));
+    }
+
+    #[test]
+    fn toplevel_deny_undeclared() {
+        let ctx = context(vec!["clipboard-manager:allow-read_text"]);
+        assert!(!check_toplevel_invoke(&ctx, "plugin:clipboard-manager|write_text"));
+    }
+
+    #[test]
+    fn toplevel_passthrough_non_plugin() {
+        let ctx = context(vec![]);
+        assert!(check_toplevel_invoke(&ctx, "core:window|close"));
+    }
+
+    #[test]
+    fn toplevel_deny_malformed() {
+        let ctx = context(vec!["anything:default"]);
+        assert!(!check_toplevel_invoke(&ctx, "plugin:no_pipe"));
     }
 }

@@ -27,6 +27,22 @@ serde_json.workspace = true
 tauri = { version = "2", features = ["unstable", "macos-private-api", "tray-icon", "image-png"] }
 tokio.workspace = true
 uuid.workspace = true
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-http = "2"
+tauri-plugin-store = "2"
+tauri-plugin-upload = "2"
+tauri-plugin-sql = "2"
+tauri-plugin-authenticator = "2.0.0-rc.1"
+tauri-plugin-geolocation = "2"
+tauri-plugin-haptics = "2"
+tauri-plugin-log = "2"
+tauri-plugin-process = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-positioner = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

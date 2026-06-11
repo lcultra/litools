@@ -41,6 +41,8 @@ pub struct PluginRuntimeContext {
     pub placement: PluginRuntimePlacement,
     pub bounds: Option<PluginRuntimeBounds>,
     pub permissions: Vec<String>,
+    /// 是否为 trusted（bundled）插件的运行时。内部权限仅 trusted 插件可用。
+    pub trusted: bool,
     pub policy: RuntimePolicy,
     pub lifecycle: PluginRuntimeLifecycle,
     pub pending_enter: bool,

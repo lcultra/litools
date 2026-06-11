@@ -87,6 +87,22 @@ fn main() {
                 })
                 .build(),
         )
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_upload::init())
+        .plugin(tauri_plugin_sql::Builder::default().build())
+        .plugin(tauri_plugin_authenticator::init())
+        .plugin(tauri_plugin_geolocation::init())
+        .plugin(tauri_plugin_haptics::init())
+        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_positioner::init())
         .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             let bundled_plugins_dir = bundled_plugins_dir(app);

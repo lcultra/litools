@@ -147,6 +147,14 @@ fn route_plugin_view_call(
                 state: permissions::query_permission(&context, &permission),
             }))
         }
+        "permissions.check" => {
+            let command = params
+                .get("command")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let allowed = permissions::check_toplevel_invoke(&context, command);
+            Ok(json!({ "allowed": allowed }))
+        }
         "ui.close" => {
             service::close_runtime(app_handle, state, &context.id)
                 .map_err(PluginRuntimeError::internal)?;

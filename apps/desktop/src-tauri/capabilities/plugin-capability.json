@@ -1,0 +1,31 @@
+{
+  "identifier": "plugin-capability",
+  "description": "全量开放给插件 webview 的能力（运行时由 preload 拦截做权限门控）",
+  "webviews": ["plugin-*"],
+  "permissions": [
+    "core:default",
+    "clipboard-manager:default",
+    "dialog:default",
+    "notification:default",
+    "fs:default",
+    "shell:default",
+    "http:default",
+    "store:default",
+    "upload:default",
+    "sql:default",
+    "authenticator:default",
+    "geolocation:allow-get-current-position",
+    "geolocation:allow-watch-position",
+    "geolocation:allow-clear-watch",
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "haptics:allow-impact-feedback",
+    "haptics:allow-notification-feedback",
+    "haptics:allow-selection-feedback",
+    "log:default",
+    "process:default",
+    "window-state:default",
+    "positioner:default",
+    "global-shortcut:default"
+  ]
+}

@@ -30,6 +30,7 @@ pub struct PluginRuntimeRegistration {
     pub placement: PluginRuntimePlacement,
     pub bounds: Option<PluginRuntimeBounds>,
     pub permissions: Vec<String>,
+    pub trusted: bool,
     pub policy: RuntimePolicy,
 }
 
@@ -90,6 +91,7 @@ impl PluginRuntimeRegistry {
             placement: registration.placement,
             bounds: registration.bounds,
             permissions: registration.permissions,
+            trusted: registration.trusted,
             policy: registration.policy,
             lifecycle: PluginRuntimeLifecycle::Created,
             pending_enter: false,
@@ -301,6 +303,7 @@ mod tests {
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: vec!["ui:window".to_string()],
+            trusted: false,
             policy: RuntimePolicy::Singleton,
         }
     }

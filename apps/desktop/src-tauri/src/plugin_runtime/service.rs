@@ -63,6 +63,7 @@ struct RuntimeLaunchDescriptor {
     title: String,
     entry_url: String,
     permissions: Vec<String>,
+    trusted: bool,
     policy: RuntimePolicy,
 }
 
@@ -103,6 +104,7 @@ pub fn dock_plugin_runtime(
             placement: PluginRuntimePlacement::Docked,
             bounds: None,
             permissions: descriptor.permissions,
+            trusted: descriptor.trusted,
             policy: descriptor.policy,
         },
         runtime_id,
@@ -616,6 +618,7 @@ fn runtime_launch_descriptor(
         title: command.title.clone(),
         entry_url: resolve_entry_url(&plugin.manifest.id, &plugin.manifest)?,
         permissions: plugin.manifest.permissions.clone(),
+        trusted: plugin.trusted,
         policy: plugin.manifest.runtime_policy(),
     })
 }
