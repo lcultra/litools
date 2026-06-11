@@ -1,0 +1,22 @@
+{
+    "id": "dev.litools.settings",
+    "name": "Settings",
+    "version": "0.1.0",
+    "description": "配置 litools 快捷键与主题",
+    "author": "litools contributors",
+    "entry": "dist/index.html",
+    "icon": "dist/icon.svg",
+    "commands": [
+        {
+            "id": "settings",
+            "title": "打开设置",
+            "subtitle": "配置快捷键与主题",
+            "keywords": ["settings", "设置", "配置", "theme", "hotkey"],
+            "mode": "view"
+        }
+    ],
+    "permissions": ["settings:read", "settings:write"],
+    "development": {
+        "main": "http://localhost:5173/"
+    }
+}
