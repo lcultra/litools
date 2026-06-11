@@ -12,6 +12,7 @@ pub struct AppWatcherStatus {
     pub platform: String,
     pub enabled: bool,
     pub status: String,
+    pub watched_paths: Vec<String>,
     pub error: Option<String>,
 }
 
@@ -21,6 +22,7 @@ impl AppWatcherStatus {
             platform: std::env::consts::OS.to_string(),
             enabled: false,
             status: "disabled".to_string(),
+            watched_paths: Vec::new(),
             error: Some(message.into()),
         }
     }
@@ -29,6 +31,11 @@ impl AppWatcherStatus {
 pub fn start_app_watcher(app_handle: AppHandle) -> Option<AppWatchGuard> {
     let state = app_handle.state::<AppState>();
     let app_handle_for_events = app_handle.clone();
+    let watched_paths: Vec<String> = state
+        .application_dirs()
+        .into_iter()
+        .map(|p| p.display().to_string())
+        .collect();
 
     let guard_result = state.watch_app_dirs(Box::new(move || {
         request_index_refresh(&app_handle_for_events, IndexRefreshTrigger::AppWatcher);
@@ -40,12 +47,16 @@ pub fn start_app_watcher(app_handle: AppHandle) -> Option<AppWatchGuard> {
                 platform: std::env::consts::OS.to_string(),
                 enabled: true,
                 status: "running".to_string(),
+                watched_paths,
                 error: None,
             });
             Some(guard)
         }
         Err(error) => {
-            state.set_app_watcher_status(AppWatcherStatus::disabled(error.to_string()));
+            state.set_app_watcher_status(AppWatcherStatus {
+                watched_paths,
+                ..AppWatcherStatus::disabled(error.to_string())
+            });
             None
         }
     }

@@ -122,6 +122,13 @@ impl AppState {
             .app_icon_png(path)
     }
 
+    pub fn application_dirs(&self) -> Vec<std::path::PathBuf> {
+        self.app
+            .lock()
+            .map(|app| app.system_adapter().application_dirs())
+            .unwrap_or_default()
+    }
+
     pub fn watch_app_dirs(
         &self,
         on_change: Box<dyn Fn() + Send + 'static>,
