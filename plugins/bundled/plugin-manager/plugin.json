@@ -1,0 +1,22 @@
+{
+    "id": "dev.litools.plugin-manager",
+    "name": "Plugin Manager",
+    "version": "0.1.0",
+    "description": "管理已安装插件、安装本地插件包",
+    "author": "litools contributors",
+    "entry": "dist/index.html",
+    "icon": "dist/icon.svg",
+    "commands": [
+        {
+            "id": "plugin-manager",
+            "title": "打开插件管理",
+            "subtitle": "管理已安装插件、安装本地插件包",
+            "keywords": ["plugin", "插件", "扩展", "管理", "安装"],
+            "mode": "view"
+        }
+    ],
+    "permissions": ["plugins:list", "plugins:manage"],
+    "development": {
+        "main": "http://localhost:5174/"
+    }
+}
