@@ -55,6 +55,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
             id: 'detach',
             text: '分离为独立窗口',
             icon: await detachIcon(),
+            accelerator: 'CmdOrCtrl+D',
             action: () => {
                 if (props.pluginId && props.commandId) {
                     void detachPluginView(props.pluginId, props.commandId);

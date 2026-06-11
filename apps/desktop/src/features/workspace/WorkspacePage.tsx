@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from '@solidjs/router';
 import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js';
-import { closePluginView, closePluginViewById, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
+import { closePluginView, closePluginViewById, detachPluginView, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
@@ -73,7 +73,14 @@ export function WorkspacePage() {
         }
     }
 
+    function handleDetach() {
+        if (!isDetachedWindow() && params.pluginId && params.commandId) {
+            void detachPluginView(params.pluginId, params.commandId);
+        }
+    }
+
     useGlobalKey('Escape', handleClose, { prevent: true });
+    useGlobalKey('d', handleDetach, { prevent: true, modifier: 'meta' });
 
     return (
         <WindowFrame class="flex h-[calc(100vh-2px)] flex-col">
