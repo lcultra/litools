@@ -74,7 +74,6 @@ pub fn dock_plugin_runtime(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<PluginRuntimeContext, String> {
-    eprintln!("[DEBUG] dock_plugin_runtime: {plugin_id}:{command_id}");
     let (_, _, _, policy) = find_enabled_plugin_command(state, plugin_id, command_id)?;
 
     if let Some(action) = resolve_launch_action(state, plugin_id, command_id, policy) {
@@ -495,13 +494,10 @@ fn ensure_docked_runtime_webview(
     state: &AppState,
     context: PluginRuntimeContext,
 ) -> Result<PluginRuntimeContext, String> {
-    eprintln!("[DEBUG] ensure_docked_runtime_webview: entry_url={}", context.entry_url);
     let window = surface_service::ensure_main_launcher_surface(app, state)?;
-    eprintln!("[DEBUG] main launcher surface OK");
     native::show_main_panel_host(&window, state);
 
     let bounds = if let Some(webview) = app.get_webview(&context.webview_label) {
-        eprintln!("[DEBUG] reusing existing webview");
         if webview.window().label() != labels::MAIN_WINDOW_LABEL {
             reparent::reparent_webview_to_window(&webview, &window)?;
         }
@@ -512,7 +508,6 @@ fn ensure_docked_runtime_webview(
         native::show_plugin_runtime_webview(&webview)?;
         bounds
     } else {
-        eprintln!("[DEBUG] creating new webview");
         let (webview, bounds) = native::add_plugin_runtime_webview(
             &window,
             context.webview_label.clone(),
@@ -532,7 +527,6 @@ fn ensure_docked_runtime_webview(
         )
         .ok_or_else(|| format!("plugin runtime not found: {}", context.id))?;
 
-    eprintln!("[DEBUG] webview ready, setting up capability");
     // 为新创建的 webview 动态授予 Tauri 插件能力
     let plugin_perms: Vec<String> = context
         .permissions
@@ -547,11 +541,10 @@ fn ensure_docked_runtime_webview(
             &plugin_perms,
             context.trusted,
         )
-        .map_err(|e| eprintln!("failed to setup plugin capability: {e}"))
+        .map_err(|e| log::warn!("插件权限配置失败: {e}"))
         .ok();
     }
 
-    eprintln!("[DEBUG] capability done, entering runtime");
     enter_runtime(app, state, &context.id)
 }
 

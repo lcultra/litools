@@ -10,6 +10,7 @@ async-trait.workspace = true
 litools-config.workspace = true
 litools-index.workspace = true
 litools-plugin.workspace = true
+log.workspace = true
 litools-search.workspace = true
 litools-settings.workspace = true
 litools-system.workspace = true

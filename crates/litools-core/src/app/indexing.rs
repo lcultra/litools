@@ -26,9 +26,12 @@ impl LitoolsApp {
         let discovered_apps = NativeSystemAdapter.discover_apps();
         let apps_discovered = discovered_apps.len();
 
-        self.context.plugins =
-            super::plugins::sync_and_load_plugins(&self.context.database, &self.paths)?;
-        self.plugin_command_provider.invalidate_cache();
+        // 启动时 bootstrap() 已同步过插件，无需重复扫描磁盘
+        if trigger != "startup" {
+            self.context.plugins =
+                super::plugins::sync_and_load_plugins(&self.context.database, &self.paths)?;
+            self.plugin_command_provider.invalidate_cache();
+        }
 
         let connection = self.context.database.connection();
         let transaction = connection.unchecked_transaction()?;

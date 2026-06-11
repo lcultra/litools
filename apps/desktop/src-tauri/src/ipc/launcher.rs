@@ -1,8 +1,7 @@
-use std::{path::Path, process::Command};
-
 use litools_core::{CommandEffect, CommandExecution, LauncherPanelResponse};
 use litools_search::SearchResult;
 use tauri::{AppHandle, Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::state::AppState;
 
@@ -62,10 +61,18 @@ pub fn execute_result(
     match execution.effect {
         CommandEffect::QuitApp => app_handle.exit(0),
         CommandEffect::OpenLogsDirectory => {
-            open_directory(&log_directory(&app_handle)?)?;
+            let log_dir = log_directory(&app_handle)?;
+            app_handle.opener().open_path(
+                log_dir.to_string_lossy().as_ref(),
+                None::<&str>,
+            ).map_err(|e| e.to_string())?;
         }
         CommandEffect::OpenDataDirectory => {
-            open_directory(state.data_dir())?;
+            let data_dir = state.data_dir().to_path_buf();
+            app_handle.opener().open_path(
+                data_dir.to_string_lossy().as_ref(),
+                None::<&str>,
+            ).map_err(|e| e.to_string())?;
         }
         // 前端已改由 openPluginView 驱动——先调 IPC 获取 placement，
         // docked 才 navigate(route)，后端不再在这里操作窗口。
@@ -81,38 +88,4 @@ fn log_directory(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
         .path()
         .app_log_dir()
         .map_err(|error| error.to_string())
-}
-
-fn open_directory(path: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(path).map_err(|error| error.to_string())?;
-
-    let status = open_directory_command(path)
-        .status()
-        .map_err(|error| error.to_string())?;
-
-    status
-        .success()
-        .then_some(())
-        .ok_or_else(|| format!("打开目录失败：{}", path.display()))
-}
-
-#[cfg(target_os = "macos")]
-fn open_directory_command(path: &Path) -> Command {
-    let mut command = Command::new("open");
-    command.arg(path);
-    command
-}
-
-#[cfg(target_os = "windows")]
-fn open_directory_command(path: &Path) -> Command {
-    let mut command = Command::new("explorer");
-    command.arg(path);
-    command
-}
-
-#[cfg(target_os = "linux")]
-fn open_directory_command(path: &Path) -> Command {
-    let mut command = Command::new("xdg-open");
-    command.arg(path);
-    command
 }

@@ -36,14 +36,12 @@ pub(crate) fn sync_and_load_plugins(
     });
 
     let discovered_plugins = dedupe_discovered_plugins(discover_plugins(roots));
-    eprintln!(
-        "sync_and_load_plugins: discovered {} plugin(s): {:?}",
-        discovered_plugins.len(),
-        discovered_plugins
-            .iter()
-            .map(|p| &p.manifest.id)
-            .collect::<Vec<_>>()
-    );
+    let ids = discovered_plugins
+        .iter()
+        .map(|p| format!("  - {}", p.manifest.id))
+        .collect::<Vec<_>>()
+        .join("\n");
+    log::info!("已加载 {} 个插件:\n{ids}", discovered_plugins.len());
     let updated_at = Utc::now().to_rfc3339();
 
     {
@@ -127,12 +125,12 @@ fn dedupe_discovered_plugins(
                 if plugin_source_priority(&existing.source)
                     <= plugin_source_priority(&plugin.source) =>
             {
-                eprintln!("plugin discovery: ignoring duplicate plugin id {id}");
+                log::warn!("插件发现: 忽略重复插件 ID {id}");
             }
             _ => {
                 if plugins_by_id.contains_key(&id) {
-                    eprintln!(
-                        "plugin discovery: replacing duplicate plugin id {id} with higher-priority source"
+                    log::info!(
+                        "插件发现: 用高优先级来源替换重复插件 ID {id}"
                     );
                 }
                 plugins_by_id.insert(id, plugin);

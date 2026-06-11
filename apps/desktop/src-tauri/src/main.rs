@@ -100,10 +100,17 @@ fn main() {
         .plugin(tauri_plugin_authenticator::init())
         .plugin(tauri_plugin_geolocation::init())
         .plugin(tauri_plugin_haptics::init())
-        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .max_file_size(2_000_000)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+                .build(),
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_positioner::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugins::core::init())
         .plugin(tauri_plugins::sdk::init())
         .setup(move |app| {

@@ -1,7 +1,6 @@
-use std::path::Path;
-
 use litools_index::repository::AppRepository;
 use tauri::{AppHandle, Manager, State, Webview};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     state::AppState,
@@ -119,7 +118,7 @@ pub fn resize_main_window_height(height: f64, app_handle: AppHandle) -> Result<(
 }
 
 #[tauri::command]
-pub fn reveal_in_file_manager(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn reveal_in_file_manager(result_id: String, state: State<'_, AppState>, app_handle: AppHandle) -> Result<(), String> {
     let app_id = litools_core::app_provider::app_id_from_result_id(&result_id)
         .ok_or_else(|| format!("非应用结果：{result_id}"))?;
 
@@ -130,36 +129,7 @@ pub fn reveal_in_file_manager(result_id: String, state: State<'_, AppState>) -> 
         .map_err(|error| error.to_string())?
         .ok_or_else(|| format!("应用未找到：{app_id}"))?;
 
-    let parent = Path::new(&app.path)
-        .parent()
-        .ok_or_else(|| format!("无法获取父目录：{}", app.path))?;
-
-    reveal_in_file_manager_platform(parent, &app.path)
-}
-
-fn reveal_in_file_manager_platform(_dir: &Path, file_path: &str) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg("-R")
-            .arg(file_path)
-            .status()
-            .map_err(|error| error.to_string())?;
-    }
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg("/select,")
-            .arg(file_path)
-            .status()
-            .map_err(|error| error.to_string())?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(_dir)
-            .status()
-            .map_err(|error| error.to_string())?;
-    }
-    Ok(())
+    let app_path = std::path::Path::new(&app.path);
+    app_handle.opener().reveal_item_in_dir(app_path)
+        .map_err(|e| format!("无法定位文件：{e}"))
 }

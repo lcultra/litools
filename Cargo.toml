@@ -23,6 +23,7 @@ async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 icns = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "tiff"] }
+log = "0.4"
 lru = "0.18"
 notify = "8"
 objc2 = "0.6"

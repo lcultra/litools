@@ -19,6 +19,7 @@ litools-plugin.workspace = true
 litools-search.workspace = true
 litools-settings.workspace = true
 litools-system.workspace = true
+log.workspace = true
 lru.workspace = true
 notify.workspace = true
 rusqlite.workspace = true
@@ -43,6 +44,7 @@ tauri-plugin-log = "2"
 tauri-plugin-process = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-positioner = "2"
+tauri-plugin-opener = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

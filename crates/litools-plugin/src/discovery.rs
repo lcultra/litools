@@ -168,7 +168,7 @@ fn validate_entry_stays_inside_root(
 }
 
 fn tracing_log(message: &str) {
-    eprintln!("plugin discovery: {message}");
+    log::info!("插件发现: {message}");
 }
 
 #[cfg(test)]
