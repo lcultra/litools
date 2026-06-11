@@ -6741,10 +6741,10 @@
           "markdownDescription": "Denies the fetch_send command without any pre-configured scope."
         },
         {
-          "description": "litools-core default permissions — none",
+          "description": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-search`\n- `allow-launcher-panel`\n- `allow-pin-result`\n- `allow-unpin-result`\n- `allow-reorder-pinned-results`\n- `allow-execute-result`\n- `allow-detach-route`\n- `allow-update-surface-route`\n- `allow-list-windows`\n- `allow-get-current-window-metadata`\n- `allow-hide-window`\n- `allow-focus-window`\n- `allow-destroy-window`\n- `allow-start-window-dragging`\n- `allow-hide-main-window`\n- `allow-show-main-window`\n- `allow-focus-main-window`\n- `allow-resize-main-window-height`\n- `allow-reveal-in-file-manager`\n- `allow-reload-index`\n- `allow-get-diagnostics`\n- `allow-get-settings`\n- `allow-update-settings`\n- `allow-list-plugins`\n- `allow-get-plugin-view-descriptor`\n- `allow-install-plugin`\n- `allow-uninstall-plugin`\n- `allow-toggle-plugin`\n- `allow-open-plugin-view`\n- `allow-hide-plugin-view`\n- `allow-detach-plugin-view`\n- `allow-close-plugin-view`\n- `allow-close-plugin-view-by-id`\n- `allow-get-plugin-view-info`\n- `allow-open-plugin-devtools`",
           "type": "string",
           "const": "litools-core:default",
-          "markdownDescription": "litools-core default permissions — none"
+          "markdownDescription": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-search`\n- `allow-launcher-panel`\n- `allow-pin-result`\n- `allow-unpin-result`\n- `allow-reorder-pinned-results`\n- `allow-execute-result`\n- `allow-detach-route`\n- `allow-update-surface-route`\n- `allow-list-windows`\n- `allow-get-current-window-metadata`\n- `allow-hide-window`\n- `allow-focus-window`\n- `allow-destroy-window`\n- `allow-start-window-dragging`\n- `allow-hide-main-window`\n- `allow-show-main-window`\n- `allow-focus-main-window`\n- `allow-resize-main-window-height`\n- `allow-reveal-in-file-manager`\n- `allow-reload-index`\n- `allow-get-diagnostics`\n- `allow-get-settings`\n- `allow-update-settings`\n- `allow-list-plugins`\n- `allow-get-plugin-view-descriptor`\n- `allow-install-plugin`\n- `allow-uninstall-plugin`\n- `allow-toggle-plugin`\n- `allow-open-plugin-view`\n- `allow-hide-plugin-view`\n- `allow-detach-plugin-view`\n- `allow-close-plugin-view`\n- `allow-close-plugin-view-by-id`\n- `allow-get-plugin-view-info`\n- `allow-open-plugin-devtools`"
         },
         {
           "description": "Enables the close_plugin_view command without any pre-configured scope.",
@@ -7203,10 +7203,10 @@
           "markdownDescription": "Denies the update_surface_route command without any pre-configured scope."
         },
         {
-          "description": "litools-sdk default permissions — runtime + ui close only\n#### This default permission set includes:\n\n- `allow-runtime`\n- `allow-ui-close`",
+          "description": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`",
           "type": "string",
           "const": "litools-sdk:default",
-          "markdownDescription": "litools-sdk default permissions — runtime + ui close only\n#### This default permission set includes:\n\n- `allow-runtime`\n- `allow-ui-close`"
+          "markdownDescription": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`"
         },
         {
           "description": "Enables reading diagnostics data",
