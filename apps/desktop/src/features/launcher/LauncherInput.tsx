@@ -16,7 +16,6 @@ const SEARCH_INPUT_PLACEHOLDER = '搜索应用、命令、文件、插件...';
 type LauncherInputProps = {
     inputRef: (element: HTMLInputElement) => void;
     onInput: (value: string) => void;
-    onInputBlur: () => void;
     onKeyDown: (event: KeyboardEvent) => void;
     onSubmit: (event: SubmitEvent) => void;
     query: string;
@@ -132,8 +131,11 @@ export function LauncherInput(props: LauncherInputProps) {
                 id="launcher-search"
                 inputmode="search"
                 name="launcher-search"
-                on:blur={props.onInputBlur}
                 on:keydown={props.onKeyDown}
+                onfocusout={(e) => {
+                    const input = e.target as HTMLInputElement;
+                    queueMicrotask(() => input.focus({ preventScroll: true }));
+                }}
                 onInput={(event) => props.onInput(event.currentTarget.value)}
                 placeholder={SEARCH_INPUT_PLACEHOLDER}
                 spellcheck={false}

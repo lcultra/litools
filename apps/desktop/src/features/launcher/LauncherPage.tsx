@@ -266,9 +266,8 @@ export function LauncherPage() {
             }}
             onContentElement={handleContentElement}
             onInput={setQuery}
-            onInputBlur={navigation.refocusAfterBlur}
             onKeyDown={navigation.handleKeyDown}
-            onPinnedDragEnd={navigation.refocusAfterDrag}
+            onPinnedDragEnd={navigation.refocus}
             onPinnedReorder={(resultIds) => void reorderPinnedSection(resultIds)}
             onResultContextMenu={(renderItem, position) => {
                 setSelectedIndex(renderItem.globalIndex);

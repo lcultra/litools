@@ -15,24 +15,17 @@ export function useLauncherNavigation(options: LauncherNavigationOptions) {
     const { inputElement, visibleFlatItems, visibleRows, selectedIndex, setSelectedIndex, onEscape } = options;
 
     function focusSearchInput() {
+        inputElement()?.focus({ preventScroll: true });
+    }
+
+    // 拖拽结束后恢复焦点（dnd-kit 排序 / 窗口拖拽）
+    function refocus() {
         queueMicrotask(() => inputElement()?.focus({ preventScroll: true }));
-    }
-
-    function refocusAfterBlur() {
-        focusSearchInput();
-        window.requestAnimationFrame(() => inputElement()?.focus({ preventScroll: true }));
-    }
-
-    function refocusAfterDrag() {
-        window.setTimeout(() => {
-            void import('../../bridge/commands').then(({ focusMainWindow }) => focusMainWindow().then(() => inputElement()?.focus({ preventScroll: true })));
-        }, 0);
     }
 
     function selectAdjacent(offset: number) {
         const items = visibleFlatItems();
         setSelectedIndex((current) => (items.length ? (current + offset + items.length) % items.length : 0));
-        focusSearchInput();
     }
 
     function selectVertical(offset: number) {
@@ -51,7 +44,6 @@ export function useLauncherNavigation(options: LauncherNavigationOptions) {
         const targetItem = targetRow.items[Math.min(current.col, targetRow.items.length - 1)];
 
         setSelectedIndex(targetItem.globalIndex);
-        focusSearchInput();
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -83,5 +75,5 @@ export function useLauncherNavigation(options: LauncherNavigationOptions) {
         }
     }
 
-    return { focusSearchInput, handleKeyDown, refocusAfterBlur, refocusAfterDrag };
+    return { focusSearchInput, handleKeyDown, refocus };
 }

@@ -1,4 +1,4 @@
-import { createEffect, For, onCleanup, Show } from 'solid-js';
+import { createEffect, For, Show } from 'solid-js';
 import type { LauncherItem, SearchResult } from '../../bridge/types';
 import ResultIcon from '../../components/ResultIcon';
 import { WindowFrame } from '../../components/WindowFrame';
@@ -34,7 +34,6 @@ type LauncherViewProps = {
     inputRef: (element: HTMLInputElement) => void;
     onContentElement: (element: HTMLElement) => void;
     onInput: (value: string) => void;
-    onInputBlur: () => void;
     onKeyDown: (event: KeyboardEvent) => void;
     onPinnedDragEnd: () => void;
     onPinnedReorder: (orderedIds: string[]) => void;
@@ -98,13 +97,11 @@ export function LauncherView(props: LauncherViewProps) {
         });
     });
 
-    function handlePanelPointerDown(event: PointerEvent) {
-        const target = event.target;
-
-        if (!(target instanceof HTMLElement) || target.closest('input, textarea, [contenteditable="true"], [data-no-drag], [data-interactive]')) {
-            return;
-        }
-
+    // 阻止 mousedown 默认行为以保持输入框焦点不被转移。
+    // 输入框自身除外——保留选文本、移动光标等操作。
+    function handleMouseDown(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
         event.preventDefault();
     }
 
@@ -119,26 +116,18 @@ export function LauncherView(props: LauncherViewProps) {
 
     function handleContentElement(element: HTMLElement) {
         props.onContentElement(element);
-        element.addEventListener('pointerdown', handlePanelPointerDown, { capture: true });
-        onCleanup(() => element.removeEventListener('pointerdown', handlePanelPointerDown, { capture: true }));
     }
 
     return (
         <WindowFrame ref={handleContentElement} class="grid grid-rows-[auto_auto]">
-            <LauncherInput
-                inputRef={props.inputRef}
-                onInput={props.onInput}
-                onInputBlur={props.onInputBlur}
-                onKeyDown={props.onKeyDown}
-                onSubmit={props.onSubmit}
-                query={props.query}
-            />
+            <LauncherInput inputRef={props.inputRef} onInput={props.onInput} onKeyDown={props.onKeyDown} onSubmit={props.onSubmit} query={props.query} />
 
             <Show when={shouldShowResults()}>
                 <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">
                     <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
                         <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
-                            <div class="grid gap-3">
+                            {/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown handler 仅用于阻止焦点转移，非用户交互功能 */}
+                            <div class="grid gap-3" role="presentation" onMouseDown={handleMouseDown}>
                                 <For each={props.renderSections}>
                                     {(section) => (
                                         <section class="grid gap-2">

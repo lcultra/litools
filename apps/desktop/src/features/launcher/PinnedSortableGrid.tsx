@@ -98,7 +98,6 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
                 }
             }}
             role="button"
-            tabindex={-1}
         >
             <ResultIcon result={props.item.result} />
             <HighlightedText class="w-full truncate text-xs font-medium" ranges={props.item.result.matches?.title} text={props.item.result.title} />
