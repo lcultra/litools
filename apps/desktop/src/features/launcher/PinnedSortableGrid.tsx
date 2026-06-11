@@ -1,10 +1,9 @@
 import { move } from '@dnd-kit/helpers';
 import { DragDropProvider } from '@dnd-kit/solid';
 import { useSortable } from '@dnd-kit/solid/sortable';
-import { createEffect, createSignal, For, Show } from 'solid-js';
-import type { SearchResult } from '../../bridge/types';
+import { createEffect, createSignal, For } from 'solid-js';
+import ResultIcon from '../../components/ResultIcon';
 import { preventDefault } from '../../shared/events';
-import { providerLabel } from '../../shared/strings';
 import { HighlightedText } from './HighlightedText';
 import type { LauncherRenderItem } from './LauncherView';
 
@@ -31,19 +30,6 @@ type SortablePinnedTileProps = {
     onSelectedElement: (element: HTMLElement) => void;
     onSuppressedClick: () => void;
 };
-
-function SortableItemIcon(props: { result: SearchResult }) {
-    const [failed, setFailed] = createSignal(false);
-    const fallback = () => providerLabel(props.result.provider).slice(0, 1);
-
-    return (
-        <span class="grid size-10 place-items-center overflow-hidden text-sm font-semibold text-muted">
-            <Show when={props.result.iconUri && !failed()} fallback={fallback()}>
-                <img alt="" class="size-10 object-contain" draggable={false} onError={() => setFailed(true)} src={props.result.iconUri ?? undefined} />
-            </Show>
-        </span>
-    );
-}
 
 function toSortableItems(items: LauncherRenderItem[]): SortablePinnedItem[] {
     return items.map((item) => ({ ...item, id: item.result.id }));
@@ -114,7 +100,7 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
             role="button"
             tabindex={-1}
         >
-            <SortableItemIcon result={props.item.result} />
+            <ResultIcon result={props.item.result} />
             <HighlightedText class="w-full truncate text-xs font-medium" ranges={props.item.result.matches?.title} text={props.item.result.title} />
         </div>
     );

@@ -1,88 +1,33 @@
-import type { AppRoutePath } from '../shared/routes';
-import type { ThemeValue } from '../shared/theme';
+// ---- re-export from core (single source of truth) ----
 
-export type SearchResultAction = {
-    id: string;
-    label: string;
-};
+import type { AppSettings } from '@litools/plugin-core';
 
-export type MatchRange = {
-    start: number;
-    end: number;
-};
+export type {
+    AppSettings,
+    CommandEffect,
+    CommandExecution,
+    LauncherItem,
+    LauncherPanelResponse,
+    LauncherSection,
+    MatchRange,
+    PluginCommandMode,
+    PluginCommandSummary,
+    PluginSource,
+    PluginSummary,
+    PluginViewDescriptor,
+    PluginViewInfo,
+    PluginViewLifecycle,
+    PluginViewPlacement,
+    PluginViewState,
+    SearchResult,
+    SearchResultAction,
+    SearchResultMatches,
+    SurfaceMetadata,
+    ViewProvider,
+    WindowHostKind,
+} from '@litools/plugin-core';
 
-export type SearchResultMatches = {
-    title: MatchRange[];
-    subtitle: MatchRange[];
-};
-
-export type SearchResult = {
-    id: string;
-    title: string;
-    subtitle?: string | null;
-    iconUri?: string | null;
-    provider: string;
-    score: number;
-    matches?: SearchResultMatches;
-    actions: SearchResultAction[];
-};
-
-export type CommandEffect =
-    | 'none'
-    | 'openLogsDirectory'
-    | 'openDataDirectory'
-    | { openPluginView: { plugin_id: string; command_id: string; route: AppRoutePath } }
-    | 'reloadIndex'
-    | 'quitApp'
-    | 'toggleTheme';
-
-export type CommandExecution = {
-    resultId: string;
-    actionId: string;
-    message: string;
-    effect: CommandEffect;
-};
-
-export type PluginCommandMode = 'instant' | 'view' | 'searchProvider';
-export type PluginSource = 'bundled' | 'user';
-
-export type PluginCommandSummary = {
-    id: string;
-    title: string;
-    subtitle?: string | null;
-    keywords: string[];
-    mode: PluginCommandMode;
-};
-
-export type PluginSummary = {
-    id: string;
-    name: string;
-    version: string;
-    description?: string | null;
-    author?: string | null;
-    icon: string;
-    enabled: boolean;
-    trusted: boolean;
-    source: PluginSource;
-    path: string;
-    permissions: string[];
-    commands: PluginCommandSummary[];
-};
-
-export type PluginViewDescriptor = {
-    pluginId: string;
-    commandId: string;
-    pluginName: string;
-    title: string;
-    entryUrl: string;
-    icon: string;
-    permissions: string[];
-    /** 是否处于开发模式（manifest 中有 development 字段） */
-    dev: boolean;
-};
-
-export type PluginViewPlacement = 'docked' | 'detached';
-export type PluginViewLifecycle = 'created' | 'ready' | 'active' | 'closed' | 'failed';
+// ---- bridge‑only types (not in core) ----
 
 export type PluginViewBounds = {
     x: number;
@@ -91,68 +36,7 @@ export type PluginViewBounds = {
     height: number;
 };
 
-export type PluginViewInfo = {
-    runtimeId: string;
-    pluginId: string;
-    commandId: string;
-    pluginName: string;
-    title: string;
-    hostWindowLabel: string;
-    detachedWindowLabel?: string | null;
-    titlebarWebviewLabel?: string | null;
-    webviewLabel: string;
-    placement: PluginViewPlacement;
-    bounds?: PluginViewBounds | null;
-    lifecycle: PluginViewLifecycle;
-    permissions: string[];
-};
-
-/** WorkspaceHeader 和 PluginView 之间共享的状态 */
-export type PluginViewState = {
-    pluginId: string;
-    commandId: string;
-    pluginName: string;
-    title: string;
-    lifecycle: PluginViewLifecycle;
-    placement: PluginViewPlacement;
-    runtimeId: string | null;
-    /** 是否处于开发模式 */
-    dev: boolean;
-};
-
-export type ViewProvider = 'core' | { plugin: { pluginId: string } };
-export type WindowHostKind = 'main' | 'detached';
 export type SurfaceLifecycle = 'active' | 'hidden' | 'destroyed';
-
-export type SurfaceMetadata = {
-    id: string;
-    webviewLabel: string;
-    viewId: string;
-    provider: ViewProvider;
-    route: AppRoutePath;
-    title: string;
-    hostWindowLabel: string;
-    hostKind: WindowHostKind;
-    lifecycle: SurfaceLifecycle;
-    focused: boolean;
-    createdAt: string;
-    updatedAt: string;
-};
-
-export type LauncherItem = {
-    result: SearchResult;
-    isPinned: boolean;
-};
-
-export type LauncherSection = {
-    id: string;
-    title: string;
-    items: LauncherItem[];
-};
-
-export type LauncherPanelResponse = {
-    sections: LauncherSection[];
-};
 
 export type ReloadIndexSummary = {
     trigger: string;
@@ -172,7 +56,14 @@ export type IndexStatus = {
     pending: boolean;
     lastTrigger?: string | null;
     lastError?: string | null;
-    lastSummary?: ReloadIndexSummary | null;
+    lastSummary?: unknown;
+};
+
+export type UsageEvent = {
+    target_type: string;
+    target_id: string;
+    query?: string | null;
+    selected_at: string;
 };
 
 export type AppWatcherStatus = {
@@ -193,33 +84,10 @@ export type IconCacheSummary = {
     error?: string | null;
 };
 
-export type AppSettings = {
-    theme: ThemeValue;
-    palette: {
-        global_hotkey: string;
-        show_recent: boolean;
-        show_pinned: boolean;
-    };
-    search: {
-        enabled_providers: string[];
-    };
-    window: {
-        hide_on_blur: boolean;
-        close_to_tray: boolean;
-    };
-};
-
 export type ShortcutStatus = {
     accelerator: string;
     registered: boolean;
     error?: string | null;
-};
-
-export type UsageEvent = {
-    target_type: string;
-    target_id: string;
-    query?: string | null;
-    selected_at: string;
 };
 
 export type DiagnosticsResponse = {

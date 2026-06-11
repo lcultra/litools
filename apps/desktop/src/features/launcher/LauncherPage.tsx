@@ -53,7 +53,8 @@ export function LauncherPage() {
             inputElement?.select();
         });
         const unsubscribeIndexStatus = onIndexStatusChanged((status) => {
-            if (status.lastSummary?.success) {
+            const summary = status.lastSummary as { success?: boolean } | undefined;
+            if (summary?.success) {
                 void refreshPanel({ preserveSelection: true, resetExpansion: false });
             }
         });
