@@ -6,7 +6,7 @@ use tauri::{AppHandle, Webview};
 
 use crate::{
     core::plugins::runtime::{
-        model::{PermissionQueryResult, PluginRuntimeError, PluginRuntimeInfo},
+        model::{PermissionQueryResult, PluginRuntimeError},
         permissions, service,
     },
     shortcut,
@@ -29,8 +29,19 @@ pub fn route_plugin_view_call(
         )));
     }
 
+    // 通过 webview_label → surface_id → runtime_id 查找 runtime context
     let context = state
-        .plugin_runtime_for_webview_label(webview.label())
+        .surfaces
+        .lock()
+        .ok()
+        .and_then(|r| {
+            let surface_id = r.surface_id_for_webview_label(webview.label())?;
+            state
+                .plugin_runtimes
+                .lock()
+                .ok()?
+                .runtime_for_surface_id(&surface_id)
+        })
         .ok_or_else(|| {
             PluginRuntimeError::permission_denied(format!(
                 "not a registered plugin runtime webview: {}",
@@ -49,9 +60,9 @@ pub fn route_plugin_view_call(
         "runtime.ready" => {
             let context = service::mark_runtime_ready(app_handle, state, &context.id)
                 .map_err(PluginRuntimeError::internal)?;
-            Ok(json!(PluginRuntimeInfo::from(&context)))
+            Ok(json!(service::build_runtime_info(state, &context)))
         }
-        "runtime.getInfo" => Ok(json!(PluginRuntimeInfo::from(&context))),
+        "runtime.getInfo" => Ok(json!(service::build_runtime_info(state, &context))),
         "permissions.query" => {
             let permission = required_string_param(&params, "permission")?;
             Ok(json!(PermissionQueryResult {

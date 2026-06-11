@@ -30,7 +30,6 @@ export function WorkspacePage() {
                 pluginName: desc.pluginName,
                 title: desc.title,
                 lifecycle: 'created',
-                placement: isDetachedWindow() ? 'detached' : 'docked',
                 runtimeId: runtimeId() ?? null,
                 dev: desc.dev,
             });

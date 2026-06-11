@@ -13,7 +13,15 @@ use crate::{
 pub fn bootstrap_main_surface(app: &tauri::AppHandle, state: &AppState) -> Result<Window, String> {
     let window = factory::create_main_host(app)?;
     if window.webviews().is_empty() {
-        let metadata = state.register_main_launcher_surface()?;
+        let metadata = state
+            .surfaces
+            .lock()
+            .map_err(|e| e.to_string())?
+            .register_surface(
+                crate::view::validate_route("/")?,
+                MAIN_WINDOW_LABEL.to_string(),
+                WindowHostKind::Main,
+            );
         webview::add_surface_webview(&window, &metadata, "/")?;
     }
     Ok(window)
@@ -26,7 +34,10 @@ pub fn ensure_main_launcher_surface(
     let window = factory::main_window(app).ok_or_else(|| "main window not found".to_string())?;
     let has_main_surface = window.webviews().iter().any(|webview| {
         state
-            .surface_metadata_for_webview_label(webview.label())
+            .surfaces
+            .lock()
+            .ok()
+            .and_then(|r| r.metadata_for_webview_label(webview.label()))
             .is_some_and(|metadata| {
                 metadata.host_window_label == MAIN_WINDOW_LABEL
                     && metadata.host_kind == WindowHostKind::Main
@@ -35,7 +46,15 @@ pub fn ensure_main_launcher_surface(
     });
 
     if !has_main_surface {
-        let metadata = state.register_main_launcher_surface()?;
+        let metadata = state
+            .surfaces
+            .lock()
+            .map_err(|e| e.to_string())?
+            .register_surface(
+                crate::view::validate_route("/")?,
+                MAIN_WINDOW_LABEL.to_string(),
+                WindowHostKind::Main,
+            );
         webview::add_surface_webview(&window, &metadata, "/")?;
     }
     Ok(window)
@@ -68,7 +87,10 @@ pub fn detach_current_surface(
     view::validate_detachable(&view)?;
 
     let current_metadata = state
-        .surface_metadata_for_webview_label(webview.label())
+        .surfaces
+        .lock()
+        .ok()
+        .and_then(|r| r.metadata_for_webview_label(webview.label()))
         .ok_or_else(|| format!("surface metadata not found: {}", webview.label()))?;
     if current_metadata.lifecycle == SurfaceLifecycle::Destroyed {
         return Err(format!("surface has been destroyed: {}", webview.label()));
@@ -80,14 +102,21 @@ pub fn detach_current_surface(
     }
 
     let source_window_label = current_metadata.host_window_label.clone();
-    let detached_label = state.next_detached_host_label()?;
+    let detached_label = state
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .next_detached_host_label();
     let detached_window = factory::create_detached_panel_host(app, detached_label)?;
     let detached_window_label = detached_window.label().to_string();
 
     webview::reparent_surface_webview(webview, &detached_window)?;
 
     let metadata = state
-        .move_surface_to_host(
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .move_to_host(
             webview.label(),
             detached_window_label,
             WindowHostKind::Detached,
@@ -99,7 +128,10 @@ pub fn detach_current_surface(
             )
         })?;
     let metadata = state
-        .mark_surface_route(webview.label(), view)
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .mark_route(webview.label(), view)
         .unwrap_or(metadata);
 
     factory::show_panel_host(&detached_window);
@@ -131,7 +163,10 @@ pub fn update_surface_route(
 ) -> Result<SurfaceMetadata, String> {
     let view = resolve_view_route(state, route)?;
     let current_metadata = state
-        .surface_metadata_for_webview_label(webview_label)
+        .surfaces
+        .lock()
+        .ok()
+        .and_then(|r| r.metadata_for_webview_label(webview_label))
         .ok_or_else(|| format!("surface metadata not found: {webview_label}"))?;
     view::validate_host_allowed(&view, &current_metadata.host_kind)?;
     if current_metadata.route == view.route {
@@ -139,7 +174,10 @@ pub fn update_surface_route(
     }
 
     let metadata = state
-        .mark_surface_route(webview_label, view)
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .mark_route(webview_label, view)
         .ok_or_else(|| format!("surface metadata not found: {webview_label}"))?;
     events::emit_metadata_changed(app, &metadata);
     Ok(metadata)
@@ -153,31 +191,53 @@ fn resolve_view_route(
         return Ok(view);
     }
 
-    if view::plugin_route_parts(route).is_some() {
-        return crate::core::plugins::commands::validate_plugin_view_route(state, route);
+    if let Some((plugin_id, command_id)) = view::plugin_route_parts(route) {
+        let (_, title, _, _) =
+            crate::core::plugins::runtime::service::find_enabled_plugin_command(
+                state, plugin_id, command_id,
+            )
+            .map_err(|_| format!("unknown plugin route: {route}"))?;
+        return Ok(crate::view::plugin_view_definition(plugin_id, command_id, title));
     }
 
     view::validate_route(route)
 }
 
 pub fn list_surfaces(state: &AppState) -> Vec<SurfaceMetadata> {
-    state.list_surfaces()
+    state
+        .surfaces
+        .lock()
+        .map(|registry| registry.list())
+        .unwrap_or_default()
 }
 
-pub fn current_surface_metadata(state: &AppState, webview_label: &str) -> Option<SurfaceMetadata> {
-    state.surface_metadata_for_webview_label(webview_label)
+pub fn current_surface_metadata(
+    state: &AppState,
+    webview_label: &str,
+) -> Option<SurfaceMetadata> {
+    state
+        .surfaces
+        .lock()
+        .ok()?
+        .metadata_for_webview_label(webview_label)
 }
 
 pub fn hide_surface(app: &tauri::AppHandle, state: &AppState, target: &str) -> Result<(), String> {
     let metadata = state
-        .surface_metadata(target)
+        .surfaces
+        .lock()
+        .ok()
+        .and_then(|r| r.metadata(target))
         .ok_or_else(|| format!("surface metadata not found: {target}"))?;
     let window = app
         .get_window(&metadata.host_window_label)
         .ok_or_else(|| format!("window not found: {}", metadata.host_window_label))?;
     factory::hide_window(&window);
-    if let Some(metadata) =
-        state.mark_surface_lifecycle(&metadata.webview_label, SurfaceLifecycle::Hidden)
+    if let Some(metadata) = state
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .mark_lifecycle(&metadata.webview_label, SurfaceLifecycle::Hidden)
     {
         events::emit_metadata_changed(app, &metadata);
     }
@@ -198,12 +258,20 @@ pub fn focus_surface_or_host(
 
     if let Some(target_window) = target_window {
         factory::focus_window(&target_window)?;
-        if let Some(metadata) =
-            state.mark_surface_lifecycle(target_window.label(), SurfaceLifecycle::Active)
+        if let Some(metadata) = state
+            .surfaces
+            .lock()
+            .map_err(|e| e.to_string())?
+            .mark_lifecycle(target_window.label(), SurfaceLifecycle::Active)
         {
             events::emit_metadata_changed(app, &metadata);
         }
-        if let Some(metadata) = state.mark_surface_focused(target_window.label(), true) {
+        if let Some(metadata) = state
+            .surfaces
+            .lock()
+            .map_err(|e| e.to_string())?
+            .mark_focused(target_window.label(), true)
+        {
             events::emit_metadata_changed(app, &metadata);
         }
     }
@@ -217,7 +285,10 @@ pub fn destroy_surface(
     target: &str,
 ) -> Result<(), String> {
     let metadata = state
-        .surface_metadata(target)
+        .surfaces
+        .lock()
+        .ok()
+        .and_then(|r| r.metadata(target))
         .ok_or_else(|| format!("surface metadata not found: {target}"))?;
 
     if metadata.host_window_label == MAIN_WINDOW_LABEL {
@@ -225,8 +296,11 @@ pub fn destroy_surface(
     }
 
     if let Some(webview) = app.get_webview(&metadata.webview_label) {
-        if let Some(metadata) =
-            state.mark_surface_lifecycle(&metadata.webview_label, SurfaceLifecycle::Destroyed)
+        if let Some(metadata) = state
+            .surfaces
+            .lock()
+            .map_err(|e| e.to_string())?
+            .mark_lifecycle(&metadata.webview_label, SurfaceLifecycle::Destroyed)
         {
             events::emit_metadata_changed(app, &metadata);
         }
@@ -235,7 +309,7 @@ pub fn destroy_surface(
     if let Some(window) = app.get_window(&metadata.host_window_label) {
         window.destroy().map_err(|error| error.to_string())?;
     }
-    state.remove_surface(&metadata.webview_label);
+    state.surfaces.lock().map_err(|e| e.to_string())?.remove(&metadata.webview_label);
     Ok(())
 }
 
@@ -249,7 +323,13 @@ pub fn toggle_main_launcher(app: &tauri::AppHandle, state: &AppState) -> Result<
         let current_route = window
             .webviews()
             .iter()
-            .find_map(|webview| state.surface_metadata_for_webview_label(webview.label()))
+            .find_map(|webview| {
+                state
+                    .surfaces
+                    .lock()
+                    .ok()
+                    .and_then(|r| r.metadata_for_webview_label(webview.label()))
+            })
             .map(|metadata| metadata.route)
             .unwrap_or_else(|| "/".to_string());
         let view = resolve_view_route(state, &current_route)?;
@@ -274,13 +354,19 @@ pub fn reset_launcher_surface(
 ) -> Result<(), String> {
     let window = ensure_main_launcher_surface(app, state)?;
     for webview in window.webviews() {
-        if let Some(metadata) = state.surface_metadata_for_webview_label(webview.label()) {
+        if let Some(metadata) = state
+            .surfaces
+            .lock()
+            .ok()
+            .and_then(|r| r.metadata_for_webview_label(webview.label()))
+        {
             if metadata.host_kind == WindowHostKind::Main {
                 // 同步 metadata route，让 toggle_main_launcher 能读到正确的当前路由
-                let _ = state.mark_surface_route(
-                    webview.label(),
-                    view::validate_route("/")?,
-                );
+                let _ = state
+                    .surfaces
+                    .lock()
+                    .map_err(|e| e.to_string())?
+                    .mark_route(webview.label(), view::validate_route("/")?);
                 // 实际驱动前端 HashRouter 导航
                 let _ = webview.eval("window.location.hash = '#/'");
                 break;
@@ -306,7 +392,10 @@ pub fn host_by_surface_id_or_label(
     }
 
     state
-        .surface_metadata(target)
+        .surfaces
+        .lock()
+        .ok()
+        .and_then(|r| r.metadata(target))
         .and_then(|metadata| app.get_window(&metadata.host_window_label))
         .or_else(|| app.get_window(target))
 }
@@ -316,7 +405,15 @@ fn create_replacement_main_surface(
     state: &AppState,
 ) -> Result<(Window, Webview), String> {
     let window = factory::main_window(app).ok_or_else(|| "main window not found".to_string())?;
-    let metadata = state.register_main_launcher_surface()?;
+    let metadata = state
+        .surfaces
+        .lock()
+        .map_err(|e| e.to_string())?
+        .register_surface(
+            crate::view::validate_route("/")?,
+            MAIN_WINDOW_LABEL.to_string(),
+            WindowHostKind::Main,
+        );
     let webview = webview::add_surface_webview(&window, &metadata, "/")?;
     Ok((window, webview))
 }

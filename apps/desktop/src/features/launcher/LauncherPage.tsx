@@ -139,7 +139,7 @@ export function LauncherPage() {
                 }
                 const info = await openPluginView(pluginId, commandId);
                 // 仅停靠态才跳转；分离态后端已聚焦窗口，前端留在启动器
-                if (info.placement === 'docked') {
+                if (info.hostKind !== 'detached') {
                     navigate(route, { state: { runtimeId: info.runtimeId } });
                 }
             }

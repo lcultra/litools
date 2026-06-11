@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use chrono::Utc;
 
 use crate::{
-    core::surface::model::{SurfaceLifecycle, SurfaceMetadata},
+    core::surface::model::{SurfaceBounds, SurfaceLifecycle, SurfaceMetadata},
     view::{ViewDefinition, WindowHostKind},
     windowing::labels::{MAIN_WINDOW_LABEL, surface_webview_label},
 };
@@ -13,7 +13,9 @@ pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
 pub struct SurfaceRegistry {
     next_surface_index: u64,
     next_detached_host_index: u64,
-    surfaces_by_webview_label: BTreeMap<String, SurfaceMetadata>,
+    surfaces_by_id: BTreeMap<String, SurfaceMetadata>,
+    surface_id_by_webview_label: BTreeMap<String, String>,
+    pub(crate) surface_id_by_window_label: BTreeMap<String, String>,
 }
 
 impl Default for SurfaceRegistry {
@@ -21,7 +23,9 @@ impl Default for SurfaceRegistry {
         Self {
             next_surface_index: 1,
             next_detached_host_index: 1,
-            surfaces_by_webview_label: BTreeMap::new(),
+            surfaces_by_id: BTreeMap::new(),
+            surface_id_by_webview_label: BTreeMap::new(),
+            surface_id_by_window_label: BTreeMap::new(),
         }
     }
 }
@@ -42,21 +46,25 @@ impl SurfaceRegistry {
         let webview_label = surface_webview_label(&id);
         let now = Self::now();
         let metadata = SurfaceMetadata {
-            id,
+            id: id.clone(),
             webview_label: webview_label.clone(),
             view_id: view.id,
             provider: view.provider,
             route: view.route,
             title: view.title,
-            host_window_label,
+            host_window_label: host_window_label.clone(),
             host_kind,
+            bounds: None,
             lifecycle: SurfaceLifecycle::Active,
             focused: false,
             created_at: now.clone(),
             updated_at: now,
         };
-        self.surfaces_by_webview_label
-            .insert(webview_label, metadata.clone());
+        self.surfaces_by_id.insert(id.clone(), metadata.clone());
+        self.surface_id_by_webview_label
+            .insert(webview_label, id.clone());
+        self.surface_id_by_window_label
+            .insert(host_window_label, id);
         metadata
     }
 
@@ -70,32 +78,67 @@ impl SurfaceRegistry {
         label
     }
 
+    /// 通过 id、webview_label 或 window_label 查找 surface 元数据。
     pub fn metadata(&self, target: &str) -> Option<SurfaceMetadata> {
         if target == MAIN_WINDOW_LABEL {
-            return self
-                .surfaces_by_webview_label
-                .values()
-                .find(|metadata| metadata.host_window_label == MAIN_WINDOW_LABEL)
-                .cloned();
+            let id = self.surface_id_by_window_label.get(MAIN_WINDOW_LABEL)?;
+            return self.surfaces_by_id.get(id).cloned();
         }
 
-        self.surfaces_by_webview_label
-            .get(target)
-            .cloned()
-            .or_else(|| {
-                self.surfaces_by_webview_label
-                    .values()
-                    .find(|metadata| metadata.id == target || metadata.host_window_label == target)
-                    .cloned()
-            })
+        // 优先按 id 查找
+        if let Some(metadata) = self.surfaces_by_id.get(target) {
+            return Some(metadata.clone());
+        }
+
+        // 按 webview_label 查找
+        if let Some(id) = self.surface_id_by_webview_label.get(target) {
+            return self.surfaces_by_id.get(id).cloned();
+        }
+
+        // 按 window_label 查找
+        if let Some(id) = self.surface_id_by_window_label.get(target) {
+            return self.surfaces_by_id.get(id).cloned();
+        }
+
+        None
+    }
+
+    pub fn surface_id_for_webview_label(&self, label: &str) -> Option<String> {
+        self.surface_id_by_webview_label.get(label).cloned()
     }
 
     pub fn metadata_for_webview_label(&self, label: &str) -> Option<SurfaceMetadata> {
-        self.surfaces_by_webview_label.get(label).cloned()
+        let id = self.surface_id_by_webview_label.get(label)?;
+        self.surfaces_by_id.get(id).cloned()
+    }
+
+    pub fn host_window_label(&self, id: &str) -> Option<&str> {
+        self.surfaces_by_id.get(id).map(|s| s.host_window_label.as_str())
+    }
+
+    pub fn webview_label(&self, id: &str) -> Option<&str> {
+        self.surfaces_by_id.get(id).map(|s| s.webview_label.as_str())
+    }
+
+    pub fn host_kind(&self, id: &str) -> Option<crate::view::WindowHostKind> {
+        self.surfaces_by_id.get(id).map(|s| s.host_kind.clone())
+    }
+
+    #[allow(dead_code)]
+    pub fn metadata_for_window_label(&self, label: &str) -> Option<SurfaceMetadata> {
+        let id = self.surface_id_by_window_label.get(label)?;
+        self.surfaces_by_id.get(id).cloned()
+    }
+
+    pub fn mark_bounds(&mut self, id: &str, bounds: Option<SurfaceBounds>) -> Option<SurfaceMetadata> {
+        let s = self.surfaces_by_id.get_mut(id)?;
+        s.bounds = bounds;
+        s.updated_at = Self::now();
+        Some(s.clone())
     }
 
     pub fn list(&self) -> Vec<SurfaceMetadata> {
-        self.surfaces_by_webview_label.values().cloned().collect()
+        self.surfaces_by_id.values().cloned().collect()
     }
 
     pub fn move_to_host(
@@ -104,12 +147,19 @@ impl SurfaceRegistry {
         host_window_label: String,
         host_kind: WindowHostKind,
     ) -> Option<SurfaceMetadata> {
-        self.update_by_webview_label(webview_label, |metadata| {
-            metadata.host_window_label = host_window_label;
-            metadata.host_kind = host_kind;
-            metadata.lifecycle = SurfaceLifecycle::Active;
-            metadata.focused = true;
-        })
+        let id = self.surface_id_by_webview_label.get(webview_label)?;
+        let metadata = self.surfaces_by_id.get_mut(id)?;
+        // 移除旧的 window_label → id 映射
+        self.surface_id_by_window_label.remove(&metadata.host_window_label);
+        metadata.host_window_label = host_window_label;
+        metadata.host_kind = host_kind;
+        metadata.lifecycle = SurfaceLifecycle::Active;
+        metadata.focused = true;
+        metadata.updated_at = Self::now();
+        // 插入新的 window_label → id 映射
+        self.surface_id_by_window_label
+            .insert(metadata.host_window_label.clone(), id.clone());
+        Some(metadata.clone())
     }
 
     pub fn mark_route(
@@ -117,12 +167,14 @@ impl SurfaceRegistry {
         webview_label: &str,
         view: ViewDefinition,
     ) -> Option<SurfaceMetadata> {
-        self.update_by_webview_label(webview_label, |metadata| {
-            metadata.view_id = view.id;
-            metadata.provider = view.provider;
-            metadata.route = view.route;
-            metadata.title = view.title;
-        })
+        let id = self.surface_id_by_webview_label.get(webview_label)?;
+        let metadata = self.surfaces_by_id.get_mut(id)?;
+        metadata.view_id = view.id;
+        metadata.provider = view.provider;
+        metadata.route = view.route;
+        metadata.title = view.title;
+        metadata.updated_at = Self::now();
+        Some(metadata.clone())
     }
 
     pub fn mark_lifecycle(
@@ -130,43 +182,50 @@ impl SurfaceRegistry {
         target: &str,
         lifecycle: SurfaceLifecycle,
     ) -> Option<SurfaceMetadata> {
-        let webview_label = self.metadata(target)?.webview_label;
-        self.update_by_webview_label(&webview_label, |metadata| {
-            metadata.lifecycle = lifecycle;
-        })
+        let id = self.resolve_id(target)?;
+        let metadata = self.surfaces_by_id.get_mut(&id)?;
+        metadata.lifecycle = lifecycle;
+        metadata.updated_at = Self::now();
+        Some(metadata.clone())
     }
 
     pub fn mark_focused(&mut self, target: &str, focused: bool) -> Option<SurfaceMetadata> {
-        let webview_label = self.metadata(target)?.webview_label;
-        self.update_by_webview_label(&webview_label, |metadata| {
-            metadata.focused = focused;
-        })
+        let id = self.resolve_id(target)?;
+        let metadata = self.surfaces_by_id.get_mut(&id)?;
+        metadata.focused = focused;
+        metadata.updated_at = Self::now();
+        Some(metadata.clone())
     }
 
     pub fn remove(&mut self, target: &str) -> Option<SurfaceMetadata> {
-        if self.surfaces_by_webview_label.contains_key(target) {
-            return self.surfaces_by_webview_label.remove(target);
-        }
+        let id = if let Some(id) = self.surface_id_by_webview_label.remove(target) {
+            id
+        } else if let Some(id) = self.surface_id_by_window_label.remove(target) {
+            id
+        } else if self.surfaces_by_id.contains_key(target) {
+            target.to_string()
+        } else {
+            return None;
+        };
 
-        let webview_label =
-            self.surfaces_by_webview_label
-                .iter()
-                .find_map(|(webview_label, metadata)| {
-                    (metadata.id == target || metadata.host_window_label == target)
-                        .then(|| webview_label.clone())
-                })?;
-        self.surfaces_by_webview_label.remove(&webview_label)
+        let context = self.surfaces_by_id.remove(&id)?;
+        self.surface_id_by_webview_label.remove(&context.webview_label);
+        self.surface_id_by_window_label.remove(&context.host_window_label);
+        Some(context)
     }
 
-    fn update_by_webview_label(
-        &mut self,
-        webview_label: &str,
-        update: impl FnOnce(&mut SurfaceMetadata),
-    ) -> Option<SurfaceMetadata> {
-        let metadata = self.surfaces_by_webview_label.get_mut(webview_label)?;
-        update(metadata);
-        metadata.updated_at = Self::now();
-        Some(metadata.clone())
+    /// 通过任意 target（id、webview_label、window_label）解析为 surface_id。
+    fn resolve_id(&self, target: &str) -> Option<String> {
+        if self.surfaces_by_id.contains_key(target) {
+            return Some(target.to_string());
+        }
+        if let Some(id) = self.surface_id_by_webview_label.get(target) {
+            return Some(id.clone());
+        }
+        if let Some(id) = self.surface_id_by_window_label.get(target) {
+            return Some(id.clone());
+        }
+        None
     }
 }
 
@@ -228,5 +287,72 @@ mod tests {
         let removed = registry.remove(&metadata.webview_label);
         assert!(removed.is_some());
         assert!(registry.metadata(&metadata.webview_label).is_none());
+    }
+
+    #[test]
+    fn finds_by_window_label() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata =
+            registry.register_surface(test_view("/"), "my-window".to_string(), WindowHostKind::Detached);
+
+        let found = registry.metadata_for_window_label("my-window");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, metadata.id);
+    }
+
+    #[test]
+    fn host_window_label_and_webview_label_helpers() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata =
+            registry.register_surface(test_view("/"), "main".to_string(), WindowHostKind::Main);
+
+        assert_eq!(registry.host_window_label(&metadata.id), Some("main"));
+        assert_eq!(registry.webview_label(&metadata.id), Some(metadata.webview_label.as_str()));
+    }
+
+    #[test]
+    fn move_to_host_updates_window_label_index() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata =
+            registry.register_surface(test_view("/"), "old-host".to_string(), WindowHostKind::Main);
+
+        assert!(registry.metadata_for_window_label("old-host").is_some());
+        assert!(registry.metadata_for_window_label("new-host").is_none());
+
+        let moved = registry
+            .move_to_host(&metadata.webview_label, "new-host".to_string(), WindowHostKind::Detached)
+            .expect("move to host");
+        assert_eq!(moved.host_window_label, "new-host");
+        assert_eq!(moved.host_kind, WindowHostKind::Detached);
+
+        assert!(registry.metadata_for_window_label("old-host").is_none());
+        assert!(registry.metadata_for_window_label("new-host").is_some());
+    }
+
+    #[test]
+    fn mark_bounds_sets_and_returns() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata =
+            registry.register_surface(test_view("/"), "main".to_string(), WindowHostKind::Main);
+
+        let bounds = SurfaceBounds { x: 0.0, y: 68.0, width: 820.0, height: 492.0 };
+        let updated = registry.mark_bounds(&metadata.id, Some(bounds)).expect("mark bounds");
+        assert_eq!(updated.bounds, Some(bounds));
+
+        let cleared = registry.mark_bounds(&metadata.id, None).expect("clear bounds");
+        assert_eq!(cleared.bounds, None);
+    }
+
+    #[test]
+    fn remove_cleans_window_label_index() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata =
+            registry.register_surface(test_view("/"), "my-host".to_string(), WindowHostKind::Main);
+
+        assert!(registry.metadata_for_window_label("my-host").is_some());
+
+        registry.remove(&metadata.id);
+        assert!(registry.metadata_for_window_label("my-host").is_none());
+        assert!(registry.metadata(&metadata.id).is_none());
     }
 }

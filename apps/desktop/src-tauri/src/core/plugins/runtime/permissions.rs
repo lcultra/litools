@@ -184,7 +184,7 @@ fn is_internal_sdk_perm(perm: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::core::plugins::runtime::model::{
-        PluginRuntimeContext, PluginRuntimeLifecycle, PluginRuntimePlacement,
+        PluginRuntimeContext, PluginRuntimeLifecycle,
     };
 
     use super::*;
@@ -197,11 +197,7 @@ mod tests {
             plugin_name: "Test".to_string(),
             title: "Hello".to_string(),
             entry_url: "litools-plugin://dev.litools.test/dist/index.html".to_string(),
-            host_window_label: "main".to_string(),
-            detached_window_label: None,
-            webview_label: "plugin-runtime-runtime_000001".to_string(),
-            placement: PluginRuntimePlacement::Docked,
-            bounds: None,
+            surface_id: "surface_000001".to_string(),
             permissions: permissions.into_iter().map(str::to_string).collect(),
             trusted: false,
             policy: litools_plugin::RuntimePolicy::Singleton,

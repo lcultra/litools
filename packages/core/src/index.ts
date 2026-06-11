@@ -37,13 +37,12 @@ export type PluginViewPlacement = 'docked' | 'detached';
 export type PluginViewLifecycle = 'created' | 'ready' | 'active' | 'closed' | 'failed';
 export type PluginViewInfo = {
     runtimeId: string; pluginId: string; commandId: string; pluginName: string; title: string;
-    hostWindowLabel: string; detachedWindowLabel?: string | null; webviewLabel: string;
-    placement: PluginViewPlacement; bounds?: { x: number; y: number; width: number; height: number } | null;
+    surfaceId: string; hostKind?: string | null;
     lifecycle: PluginViewLifecycle; permissions: string[];
 };
 export type PluginViewState = {
     pluginId: string; commandId: string; pluginName: string; title: string;
-    lifecycle: PluginViewLifecycle; placement: PluginViewPlacement;
+    lifecycle: PluginViewLifecycle;
     runtimeId: string | null; dev: boolean;
 };
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };

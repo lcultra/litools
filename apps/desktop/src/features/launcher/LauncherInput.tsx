@@ -105,7 +105,7 @@ export function LauncherInput(props: LauncherInputProps) {
         const route = generatePluginPath(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID);
         try {
             const info = await openPluginView(SETTINGS_PLUGIN_ID, SETTINGS_COMMAND_ID);
-            if (info.placement === 'docked') {
+            if (info.hostKind !== 'detached') {
                 navigate(route, { state: { runtimeId: info.runtimeId } });
             }
         } catch {

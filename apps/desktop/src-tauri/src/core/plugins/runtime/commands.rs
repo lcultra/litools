@@ -20,7 +20,7 @@ pub async fn open_plugin_view(
     app_handle: AppHandle,
 ) -> Result<PluginRuntimeInfo, String> {
     service::dock_plugin_runtime(&app_handle, &state, &plugin_id, &command_id)
-        .map(|context| PluginRuntimeInfo::from(&context))
+        .map(|context| service::build_runtime_info(&state, &context))
 }
 
 #[tauri::command]
@@ -31,7 +31,7 @@ pub fn hide_plugin_view(
     app_handle: AppHandle,
 ) -> Result<PluginRuntimeInfo, String> {
     service::hide_docked_plugin_runtime(&app_handle, &state, &plugin_id, &command_id)
-        .map(|context| PluginRuntimeInfo::from(&context))
+        .map(|context| service::build_runtime_info(&state, &context))
 }
 
 #[tauri::command]
@@ -42,7 +42,7 @@ pub async fn detach_plugin_view(
     app_handle: AppHandle,
 ) -> Result<PluginRuntimeInfo, String> {
     service::detach_plugin_runtime(&app_handle, &state, &plugin_id, &command_id)
-        .map(|context| PluginRuntimeInfo::from(&context))
+        .map(|context| service::build_runtime_info(&state, &context))
 }
 
 #[tauri::command]
@@ -80,11 +80,21 @@ pub fn open_plugin_devtools(
     app_handle: AppHandle,
 ) -> Result<(), String> {
     let context = state
-        .plugin_runtime(&runtime_id)
+        .plugin_runtimes
+        .lock()
+        .ok()
+        .and_then(|r| r.runtime(&runtime_id))
         .ok_or_else(|| format!("plugin runtime not found: {runtime_id}"))?;
+    let webview_label = {
+        let surfaces = state.surfaces.lock().ok()
+            .ok_or_else(|| "failed to lock surfaces".to_string())?;
+        surfaces.webview_label(&context.surface_id)
+            .ok_or_else(|| format!("surface not found: {}", context.surface_id))?
+            .to_string()
+    };
     let webview = app_handle
-        .get_webview(&context.webview_label)
-        .ok_or_else(|| format!("webview not found: {}", context.webview_label))?;
+        .get_webview(&webview_label)
+        .ok_or_else(|| format!("webview not found: {}", webview_label))?;
     webview.open_devtools();
     Ok(())
 }

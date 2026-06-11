@@ -1,6 +1,7 @@
 use tauri::{Manager, Window, WindowEvent};
 
 use crate::{
+    core::plugins::runtime::model::PluginRuntimeContext,
     core::surface::{events, model::SurfaceLifecycle},
     state::{AppState, LauncherWindowPosition},
     windowing::{labels, factory},
@@ -60,25 +61,40 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
         WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
             api.prevent_close();
             factory::hide_window(window);
-            if let Some(metadata) =
-                state.mark_surface_lifecycle(window.label(), SurfaceLifecycle::Hidden)
+            if let Some(metadata) = state
+                .surfaces
+                .lock()
+                .ok()
+                .and_then(|mut r| r.mark_lifecycle(window.label(), SurfaceLifecycle::Hidden))
             {
                 events::emit_metadata_changed(window.app_handle(), &metadata);
             }
         }
         WindowEvent::Focused(focused) => {
-            if let Some(metadata) = state.mark_surface_focused(window.label(), *focused) {
+            if let Some(metadata) = state
+                .surfaces
+                .lock()
+                .ok()
+                .and_then(|mut r| r.mark_focused(window.label(), *focused))
+            {
                 events::emit_metadata_changed(window.app_handle(), &metadata);
             }
             if *focused
-                && let Some(metadata) =
-                    state.mark_surface_lifecycle(window.label(), SurfaceLifecycle::Active)
+                && let Some(metadata) = state
+                    .surfaces
+                    .lock()
+                    .ok()
+                    .and_then(|mut r| r.mark_lifecycle(window.label(), SurfaceLifecycle::Active))
             {
                 events::emit_metadata_changed(window.app_handle(), &metadata);
             }
         }
         WindowEvent::Destroyed => {
-            state.remove_surface(window.label());
+            state
+                .surfaces
+                .lock()
+                .ok()
+                .and_then(|mut r| r.remove(window.label()));
         }
         _ => {}
     }
@@ -87,13 +103,13 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
 fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &AppState) {
     match event {
         WindowEvent::Focused(true) => {
-            if let Some(context) = state.plugin_runtime_for_window_label(window.label()) {
+            if let Some(context) = find_runtime_by_window_label(state, window.label()) {
                 let _ =
                     crate::core::plugins::runtime::service::enter_runtime(window.app_handle(), state, &context.id);
             }
         }
         WindowEvent::Focused(false) => {
-            if let Some(context) = state.plugin_runtime_for_window_label(window.label()) {
+            if let Some(context) = find_runtime_by_window_label(state, window.label()) {
                 let _ =
                     crate::core::plugins::runtime::service::leave_runtime(window.app_handle(), state, &context.id);
             }
@@ -114,4 +130,11 @@ fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &App
         }
         _ => {}
     }
+}
+
+/// 通过 window_label 查找 PluginRuntimeContext。
+fn find_runtime_by_window_label(state: &AppState, window_label: &str) -> Option<PluginRuntimeContext> {
+    let surfaces = state.surfaces.lock().ok()?;
+    let surface_id = surfaces.surface_id_by_window_label.get(window_label)?;
+    state.plugin_runtimes.lock().ok()?.runtime_for_surface_id(surface_id)
 }

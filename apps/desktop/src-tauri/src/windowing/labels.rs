@@ -23,6 +23,7 @@ pub fn plugin_window_label(runtime_id: &str) -> String {
     format!("{PLUGIN_WINDOW_PREFIX}{runtime_id}")
 }
 
+#[allow(dead_code)]
 pub fn plugin_webview_label(runtime_id: &str) -> String {
     format!("{PLUGIN_WEBVIEW_PREFIX}{runtime_id}")
 }

@@ -11,13 +11,6 @@ pub enum PluginRuntimeLifecycle {
     Failed,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum PluginRuntimePlacement {
-    Docked,
-    Detached,
-}
-
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginRuntimeBounds {
@@ -35,11 +28,8 @@ pub struct PluginRuntimeContext {
     pub plugin_name: String,
     pub title: String,
     pub entry_url: String,
-    pub host_window_label: String,
-    pub detached_window_label: Option<String>,
-    pub webview_label: String,
-    pub placement: PluginRuntimePlacement,
-    pub bounds: Option<PluginRuntimeBounds>,
+    /// 关联的 Surface ID，运行时通过它单向引用窗口/webview 元数据。
+    pub surface_id: String,
     pub permissions: Vec<String>,
     /// 是否为 trusted（bundled）插件的运行时。内部权限仅 trusted 插件可用。
     pub trusted: bool,
@@ -59,32 +49,10 @@ pub struct PluginRuntimeInfo {
     pub command_id: String,
     pub plugin_name: String,
     pub title: String,
-    pub host_window_label: String,
-    pub detached_window_label: Option<String>,
-    pub webview_label: String,
-    pub placement: PluginRuntimePlacement,
-    pub bounds: Option<PluginRuntimeBounds>,
+    pub surface_id: String,
+    pub host_kind: Option<String>,
     pub lifecycle: PluginRuntimeLifecycle,
     pub permissions: Vec<String>,
-}
-
-impl From<&PluginRuntimeContext> for PluginRuntimeInfo {
-    fn from(context: &PluginRuntimeContext) -> Self {
-        Self {
-            runtime_id: context.id.clone(),
-            plugin_id: context.plugin_id.clone(),
-            command_id: context.command_id.clone(),
-            plugin_name: context.plugin_name.clone(),
-            title: context.title.clone(),
-            host_window_label: context.host_window_label.clone(),
-            detached_window_label: context.detached_window_label.clone(),
-            webview_label: context.webview_label.clone(),
-            placement: context.placement.clone(),
-            bounds: context.bounds,
-            lifecycle: context.lifecycle.clone(),
-            permissions: context.permissions.clone(),
-        }
-    }
 }
 
 #[derive(Clone, Debug, Serialize)]

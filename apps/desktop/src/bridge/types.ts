@@ -17,7 +17,6 @@ export type {
     PluginViewDescriptor,
     PluginViewInfo,
     PluginViewLifecycle,
-    PluginViewPlacement,
     PluginViewState,
     SearchResult,
     SearchResultAction,
