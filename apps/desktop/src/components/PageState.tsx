@@ -27,7 +27,9 @@ export function PageState(props: PageStateProps) {
 
     return (
         <div class="rounded-xl bg-surface-muted px-4 py-6 text-center text-sm">
-            <p class={['m-0 font-semibold', variantClasses[variant()]].join(' ')}>{props.title}</p>
+            <p class="m-0 font-semibold" classList={{ [variantClasses[variant()]]: true }}>
+                {props.title}
+            </p>
             <Show when={props.description}>{(description) => <p class="m-0 mt-2 text-muted">{description()}</p>}</Show>
             {props.children}
             <Show when={props.action}>

@@ -18,9 +18,8 @@ export function Button(props: ButtonProps) {
     return (
         <button
             {...props}
-            class={['rounded-lg px-4 py-2 text-sm font-semibold outline-none transition-colors disabled:pointer-events-none', variantClasses[variant()], props.class]
-                .filter(Boolean)
-                .join(' ')}
+            class="rounded-lg px-4 py-2 text-sm font-semibold outline-none transition-colors disabled:pointer-events-none"
+            classList={{ [variantClasses[variant()]]: true, [props.class ?? '']: !!props.class }}
             type={props.type ?? 'button'}
         >
             {props.children}
