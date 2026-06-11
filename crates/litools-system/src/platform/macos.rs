@@ -1,13 +1,18 @@
 use std::{
     collections::BTreeSet,
     ffi::OsStr,
+    io,
     path::{Path, PathBuf},
     process::Command,
 };
 
+use image::{DynamicImage, ImageFormat};
+use objc2::msg_send;
+use objc2_app_kit::NSWorkspace;
+use objc2_foundation::{NSData, NSString};
 use plist::Value;
 
-use crate::{DiscoveredApp, SystemAdapter, launcher::LaunchTarget, pinyin::pinyin_aliases};
+use crate::{DiscoveredApp, SystemAdapter, adapter::AppWatchGuard, launcher::LaunchTarget, pinyin::pinyin_aliases};
 
 #[derive(Default)]
 pub struct MacosSystemAdapter;
@@ -28,6 +33,51 @@ impl SystemAdapter for MacosSystemAdapter {
                 .then_some(())
                 .ok_or_else(|| format!("打开文件失败：{path}")),
         }
+    }
+
+    fn application_dirs(&self) -> Vec<PathBuf> {
+        default_application_dirs()
+    }
+
+    fn app_icon_png(&self, path: &Path) -> io::Result<Vec<u8>> {
+        let tiff = app_icon_tiff(path)?;
+        let image = image::load_from_memory_with_format(&tiff, ImageFormat::Tiff)
+            .map_err(io::Error::other)?;
+        dynamic_image_to_png(image)
+    }
+
+    fn watch_app_dirs(
+        &self,
+        on_change: Box<dyn Fn() + Send + 'static>,
+    ) -> io::Result<AppWatchGuard> {
+        use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+
+        let dirs: Vec<_> = self
+            .application_dirs()
+            .into_iter()
+            .filter(|p| p.exists())
+            .collect();
+
+        let mut watcher = RecommendedWatcher::new(
+            move |result: notify::Result<notify::Event>| {
+                let triggered = match &result {
+                    Ok(event) => event.paths.iter().any(|p| super::is_app_ext(p)),
+                    Err(_) => true,
+                };
+                if triggered {
+                    on_change();
+                }
+            },
+            Config::default(),
+        )
+        .map_err(io::Error::other)?;
+
+        for dir in &dirs {
+            let _ = watcher.watch(dir, RecursiveMode::Recursive);
+        }
+        Ok(AppWatchGuard {
+            inner: Box::new(watcher),
+        })
     }
 }
 
@@ -635,6 +685,40 @@ fn launch_app(app_id: &str) -> Result<(), String> {
         .ok_or_else(|| format!("打开应用失败：{app_id}"))
 }
 
+fn app_icon_tiff(path: &Path) -> io::Result<Vec<u8>> {
+    let path = path
+        .to_str()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invalid app path"))?;
+    let path = NSString::from_str(path);
+
+    let workspace = NSWorkspace::sharedWorkspace();
+    let image = workspace.iconForFile(&path);
+    let data = image
+        .TIFFRepresentation()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "missing icon tiff"))?;
+
+    Ok(nsdata_to_vec(&data))
+}
+
+fn nsdata_to_vec(data: &NSData) -> Vec<u8> {
+    use std::ffi::c_void;
+    let length = data.length() as usize;
+    let bytes = unsafe {
+        let bytes: *const c_void = msg_send![data, bytes];
+        bytes.cast::<u8>()
+    };
+    unsafe { std::slice::from_raw_parts(bytes, length).to_vec() }
+}
+
+fn dynamic_image_to_png(image: DynamicImage) -> io::Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    let mut cursor = io::Cursor::new(&mut bytes);
+    image
+        .write_to(&mut cursor, ImageFormat::Png)
+        .map_err(io::Error::other)?;
+    Ok(bytes)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -788,5 +872,18 @@ mod tests {
             search_text,
             "微信 com.tencent.xin /Applications/WeChat.app WeChat weixin wx"
         );
+    }
+
+    #[test]
+    fn reads_calendar_icon_from_system_workspace_when_available() {
+        let path = Path::new("/System/Applications/Calendar.app");
+        if !path.exists() {
+            return;
+        }
+
+        let adapter = MacosSystemAdapter::default();
+        let bytes = adapter.app_icon_png(path).expect("calendar icon png");
+
+        assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
     }
 }
