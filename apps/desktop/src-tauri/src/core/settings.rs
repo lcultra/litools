@@ -1,5 +1,5 @@
 use litools_settings::AppSettings;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use crate::{shortcut, state::AppState};
 
@@ -22,5 +22,22 @@ pub fn update_settings(
     };
 
     shortcut::register_global_shortcut(&app_handle, &updated_settings.palette.global_hotkey);
+    apply_theme_to_all_windows(&app_handle, &updated_settings.theme);
     Ok(updated_settings)
+}
+
+fn to_tauri_theme(theme: &str) -> Option<tauri::Theme> {
+    match theme {
+        "dark" => Some(tauri::Theme::Dark),
+        "light" => Some(tauri::Theme::Light),
+        _ => None,
+    }
+}
+
+pub fn apply_theme_to_all_windows(app_handle: &AppHandle, theme: &str) {
+    let tauri_theme = to_tauri_theme(theme);
+    for window in app_handle.webview_windows().values() {
+        let _ = window.set_theme(tauri_theme);
+    }
+    log::info!("主题已应用到所有窗口: {}", theme);
 }

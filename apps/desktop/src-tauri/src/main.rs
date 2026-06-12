@@ -126,6 +126,16 @@ fn main() {
                 app.handle(),
                 &app.state::<AppState>().global_hotkey(),
             );
+            // 应用启动时的主题设置
+            {
+                let state = app.state::<AppState>();
+                let settings = state
+                    .app()
+                    .lock()
+                    .map(|app| app.settings().clone())
+                    .unwrap_or_default();
+                core::settings::apply_theme_to_all_windows(app.handle(), &settings.theme);
+            }
             // start_app_watcher 内部已设置 AppState 中的状态，
             // 返回的 guard 需保持存活以维持监听。
             let _app_watch_guard = app_watcher::start_app_watcher(app.handle().clone());

@@ -20,8 +20,7 @@
     "active": false,
     "targets": "all",
     "resources": {
-      "../../../plugins/bundled/*/plugin.json": "plugins/bundled/",
-      "../../../plugins/bundled/*/dist": "plugins/bundled/",
+      "../../../plugins/bundled": "plugins/bundled",
       "icons/menu/*.png": "resources/menu/"
     }
   }

@@ -12,7 +12,6 @@
         "tauri": "tauri"
     },
     "dependencies": {
-        "@ark-ui/solid": "^5.37.0",
         "@dnd-kit/helpers": "^0.4.0",
         "@dnd-kit/solid": "^0.4.0",
         "@litools/plugin-core": "workspace:*",
@@ -20,8 +19,10 @@
     },
     "devDependencies": {
         "@biomejs/biome": "^2.4.16",
+        "@tailwindcss/vite": "^4.1.0",
         "@tauri-apps/cli": "^2.11.2",
         "typescript": "^6.0.0",
-        "vite": "^8.0.0"
+        "vite": "^8.0.16",
+        "vite-plugin-solid": "^2.11.12"
     }
 }

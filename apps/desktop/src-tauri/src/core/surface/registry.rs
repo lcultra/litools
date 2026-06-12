@@ -4,7 +4,7 @@ use chrono::Utc;
 
 use crate::{
     core::surface::model::{SurfaceBounds, SurfaceLifecycle, SurfaceMetadata},
-    view::{ViewDefinition, WindowHostKind},
+    view::{ViewDefinition, ViewProvider, WindowHostKind},
     windowing::labels::{MAIN_WINDOW_LABEL, surface_webview_label},
 };
 pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
@@ -43,7 +43,15 @@ impl SurfaceRegistry {
     ) -> SurfaceMetadata {
         let id = format!("{SURFACE_ID_PREFIX}_{:06}", self.next_surface_index);
         self.next_surface_index += 1;
-        let webview_label = surface_webview_label(&id);
+        let webview_label = match &view.provider {
+            ViewProvider::Plugin { .. } => {
+                let index = id
+                    .strip_prefix(&format!("{}_", SURFACE_ID_PREFIX))
+                    .unwrap_or(&id);
+                format!("plugin-{index}")
+            }
+            _ => surface_webview_label(&id),
+        };
         let now = Self::now();
         let metadata = SurfaceMetadata {
             id: id.clone(),

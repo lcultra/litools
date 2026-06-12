@@ -150,6 +150,7 @@ pub fn route_plugin_view_call(
                     .map_err(|error| PluginRuntimeError::internal(error.to_string()))?
             };
             shortcut::register_global_shortcut(app_handle, &updated_settings.palette.global_hotkey);
+            crate::core::settings::apply_theme_to_all_windows(app_handle, &updated_settings.theme);
             Ok(json!(updated_settings))
         }
         "diagnostics.get" => Ok(json!(
