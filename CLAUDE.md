@@ -64,11 +64,6 @@ SolidJS + `@solidjs/router` + `@ark-ui/solid` + Tailwind CSS v4 + `lucide-solid`
 - `.claude/docs/rustdoc-tauri-2.11.2/tauri/` — Tauri 2.11.2 完整 API 文档（`all.html` 为入口，支持按 crate/module 浏览）
 - 入口文件 `help.html` 列出所有 crate 文档索引
 
-涉及 Ark UI 组件实现、用法查询或示例参考时，优先使用官方 LLMs 文档：
-
-- https://ark-ui.com/llms-solid.txt — SolidJS 专用文档和实现细节（首选）
-- https://ark-ui.com/llms.txt — 组件和文档链接结构化总览（需要跨组件总览时）
-- https://ark-ui.com/llms-full.txt — 完整文档、实现细节和示例（需要完整示例时）
 
 涉及 SolidJS API、响应式模型、组件模式或最佳实践时，优先参考：
 

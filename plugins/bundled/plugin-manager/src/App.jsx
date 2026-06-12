@@ -77,7 +77,7 @@ export default function App() {
             <Show when={view() === 'list'} fallback={<PluginDetailView />}>
                 {/* 列表视图 */}
                 <Show when={plugins.loading}>
-                    <p class="text-sm text-fg-muted">加载中...</p>
+                    <p class="text-sm text-text-muted">加载中...</p>
                 </Show>
                 <Show when={plugins.error}>
                     <p class="text-sm text-red-500">加载失败: {plugins.error.message}</p>
@@ -90,11 +90,11 @@ export default function App() {
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center gap-2">
                                             <span class="text-sm font-medium truncate">{plugin.name}</span>
-                                            <span class="text-xs text-fg-muted">{plugin.version}</span>
-                                            <Badge variant={plugin.source} size="sm">{plugin.source}</Badge>
+                                            <span class="text-xs text-text-muted">{plugin.version}</span>
+                                            <Badge variant="info" size="sm">{plugin.source}</Badge>
                                             {plugin.trusted && <Badge variant="success" size="sm">受信任</Badge>}
                                         </div>
-                                        <p class="text-xs text-fg-muted mt-0.5 line-clamp-1">{plugin.description}</p>
+                                        <p class="text-xs text-text-muted mt-0.5 line-clamp-1">{plugin.description}</p>
                                     </div>
                                     <Switch checked={plugin.enabled} onChange={(c) => handleToggle(plugin.id, c)}/>
                                     <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setUninstallTarget(plugin.id); }}>
@@ -107,7 +107,7 @@ export default function App() {
             </Show>
 
             {/* 卸载确认 */}
-            <ConfirmDialog open={uninstallTarget() !== null} onClose={() => setUninstallTarget(null)} onConfirm={handleUninstallConfirm} title="卸载插件" message={`确定要卸载 ${plugins()?.find(p => p.id === uninstallTarget())?.name ?? ''} 吗？此操作不可撤销。`} confirmLabel="卸载" variant="danger"/>
+            <ConfirmDialog open={uninstallTarget() !== null} onClose={() => setUninstallTarget(null)} onConfirm={handleUninstallConfirm} title="卸载插件" description={`确定要卸载 ${plugins()?.find(p => p.id === uninstallTarget())?.name ?? ''} 吗？此操作不可撤销。`} confirmLabel="卸载" variant="danger"/>
         </PluginLayout>);
     function PluginDetailView() {
         const plugin = selectedPlugin();
@@ -119,7 +119,7 @@ export default function App() {
                     <img src={plugin.icon} alt="" class="w-10 h-10 rounded"/>
                     <div>
                         <h2 class="text-base font-semibold">{plugin.name}</h2>
-                        <p class="text-xs text-fg-muted">{plugin.id}</p>
+                        <p class="text-xs text-text-muted">{plugin.id}</p>
                     </div>
                     <div class="flex-1"/>
                     <Switch checked={plugin.enabled} onChange={(c) => handleToggle(plugin.id, c)} label={plugin.enabled ? '已启用' : '已禁用'}/>
@@ -127,27 +127,27 @@ export default function App() {
 
                 {/* 元信息 */}
                 <dl class="grid grid-cols-2 gap-2 text-sm">
-                    <dt class="text-fg-muted">版本</dt>
+                    <dt class="text-text-muted">版本</dt>
                     <dd>{plugin.version}</dd>
-                    <dt class="text-fg-muted">来源</dt>
-                    <dd><Badge variant={plugin.source}>{plugin.source}</Badge></dd>
-                    <dt class="text-fg-muted">作者</dt>
+                    <dt class="text-text-muted">来源</dt>
+                    <dd><Badge variant="info">{plugin.source}</Badge></dd>
+                    <dt class="text-text-muted">作者</dt>
                     <dd>{plugin.author ?? '—'}</dd>
-                    <dt class="text-fg-muted">描述</dt>
+                    <dt class="text-text-muted">描述</dt>
                     <dd class="col-span-2">{plugin.description ?? '—'}</dd>
-                    <dt class="text-fg-muted">路径</dt>
+                    <dt class="text-text-muted">路径</dt>
                     <dd class="text-xs font-mono break-all col-span-2">{plugin.path}</dd>
                 </dl>
 
                 {/* 命令列表 */}
                 <section>
-                    <h3 class="text-sm font-medium text-fg-muted mb-2">命令</h3>
+                    <h3 class="text-sm font-medium text-text-muted mb-2">命令</h3>
                     <div class="flex flex-col gap-1">
                         <For each={plugin.commands}>
-                            {(cmd) => (<div class="flex items-center gap-2 py-1 px-2 rounded bg-bg-muted text-sm">
+                            {(cmd) => (<div class="flex items-center gap-2 py-1 px-2 rounded bg-surface-hover text-sm">
                                     <span>{cmd.title}</span>
                                     <Badge size="sm">{cmd.mode}</Badge>
-                                    <span class="text-xs text-fg-muted">{cmd.id}</span>
+                                    <span class="text-xs text-text-muted">{cmd.id}</span>
                                 </div>)}
                         </For>
                     </div>
@@ -155,7 +155,7 @@ export default function App() {
 
                 {/* 权限列表 */}
                 <section>
-                    <h3 class="text-sm font-medium text-fg-muted mb-2">权限</h3>
+                    <h3 class="text-sm font-medium text-text-muted mb-2">权限</h3>
                     <div class="flex flex-wrap gap-1">
                         <For each={plugin.permissions}>
                             {(perm) => <Badge size="sm">{perm}</Badge>}
