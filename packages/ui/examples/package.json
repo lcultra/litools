@@ -1,0 +1,17 @@
+{
+    "name": "@litools/plugin-ui-example",
+    "private": true,
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "vite"
+    },
+    "dependencies": {
+        "@litools/design-tokens": "workspace:*",
+        "@litools/plugin-ui": "workspace:*"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "^4.1.0",
+        "vite": "^8.0.16",
+        "vite-plugin-solid": "^2.11.12"
+    }
+}

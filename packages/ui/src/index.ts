@@ -1,9 +1,15 @@
-export { Button } from './Button';
-export { Switch } from './Switch';
-export { SegmentedControl } from './SegmentedControl';
-export type { SegmentedOption } from './SegmentedControl';
-export { Badge } from './Badge';
-export { Card } from './Card';
-export { Input } from './Input';
-export { ConfirmDialog } from './ConfirmDialog';
-export { PluginLayout } from './PluginLayout';
+export { Button } from './components/Button';
+export { Input } from './components/Input';
+export { Select } from './components/Select';
+export { Switch } from './components/Switch';
+export { Badge } from './components/Badge';
+export { Card } from './components/Card';
+export { ConfirmDialog } from './components/ConfirmDialog';
+export { SegmentedControl } from './components/SegmentedControl';
+export { PluginLayout } from './components/PluginLayout';
+export { ToastProvider, toast } from './components/Toast';
+export { Tooltip } from './components/Tooltip';
+export { Tabs } from './components/Tabs';
+
+// @ts-ignore
+import './lib.css';

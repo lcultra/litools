@@ -3,11 +3,31 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/plugin-ui.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/plugin-ui.js"
+    },
+    "./style.css": "./dist/plugin-ui.css"
+  },
+  "scripts": {
+    "build": "tsc && vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@kobalte/core": "^0.13.11",
+    "@litools/design-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.0",
+    "typescript": "^6.0.0",
+    "vite": "^8.0.16",
+    "vite-plugin-solid": "^2.11.12"
+  },
   "peerDependencies": {
-    "@ark-ui/solid": "^5.0.0",
-    "solid-js": "^1.9.0",
-    "lucide-solid": "^1.0.0"
+    "lucide-solid": "^1.0.0",
+    "solid-js": "^1.9.0"
   }
 }

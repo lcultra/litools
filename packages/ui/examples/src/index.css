@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@import '@litools/design-tokens/index.css';
+
+body {
+    background: #000;
+}
