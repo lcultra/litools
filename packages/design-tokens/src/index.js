@@ -1,8 +1,7 @@
 import { getTheme, onThemeChange } from './theme.js';
 
 /**
- * 初始化主题：设置初始主题并监听系统主题变化。
- * 调用方在应用入口调用一次即可。
+ * 初始化主题：设置初始主题并监听主题变化。
  * @returns {() => void} 取消监听函数
  */
 export function initTheme() {

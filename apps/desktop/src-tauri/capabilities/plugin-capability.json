@@ -3,9 +3,13 @@
   "description": "插件 webview 的基础能力",
   "webviews": ["plugin-*"],
   "windows": ["main", "detached-panel-*"],
+  "remote": {
+    "urls": ["http://localhost:*"]
+  },
   "permissions": [
     "core:default",
     "core:event:default",
+    "core:window:allow-set-theme",
     "litools-sdk:default"
   ]
 }
