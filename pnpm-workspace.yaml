@@ -1,4 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "packages/ui/examples"
   - "plugins/bundled/*"
+allowBuilds:
+  esbuild: true
