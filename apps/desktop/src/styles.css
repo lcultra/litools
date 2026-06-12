@@ -3,8 +3,11 @@
 @theme {
     --color-app: var(--app);
     --color-fg: var(--fg);
+    --color-fg-muted: var(--muted);
     --color-surface: var(--surface);
     --color-surface-muted: var(--surface-muted);
+    --color-bg: var(--surface);
+    --color-bg-muted: var(--surface-muted);
     --color-border: var(--border);
     --color-muted: var(--muted);
     --color-accent: var(--accent);
@@ -28,18 +31,20 @@
     --shadow-panel: 0 24px 80px rgba(15, 23, 42, 0.16);
 }
 
-.dark {
-    --app: #111318;
-    --fg: #f7f7f8;
-    --surface: #1b1e26;
-    --surface-muted: #292d38;
-    --border: #343946;
-    --muted: #a4acb9;
-    --accent: #f7f7f8;
-    --accent-fg: #111318;
-    --danger: #ff6b61;
-    --success: #47cd89;
-    --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.42);
+@media (prefers-color-scheme: dark) {
+    :root {
+        --app: #111318;
+        --fg: #f7f7f8;
+        --surface: #1b1e26;
+        --surface-muted: #292d38;
+        --border: #343946;
+        --muted: #a4acb9;
+        --accent: #f7f7f8;
+        --accent-fg: #111318;
+        --danger: #ff6b61;
+        --success: #47cd89;
+        --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.42);
+    }
 }
 
 html,
