@@ -1,0 +1,89 @@
+/* === 亮色主题 === */
+:root {
+  --text: var(--color-slate-900);
+  --text-muted: var(--color-slate-500);
+  --text-disabled: var(--color-slate-400);
+
+  --surface: var(--color-slate-50);
+  --surface-card: var(--color-white);
+  --surface-elevated: var(--color-white);
+  --surface-hover: var(--color-slate-100);
+
+  --primary: var(--color-slate-900);
+  --primary-fg: var(--color-white);
+  --primary-hover: var(--color-slate-800);
+  --primary-active: var(--color-slate-700);
+
+  --danger: var(--color-red-600);
+  --danger-fg: var(--color-white);
+  --danger-hover: var(--color-red-700);
+  --danger-active: var(--color-red-800);
+  --success: var(--color-green-600);
+  --success-fg: var(--color-white);
+  --warning: var(--color-amber-500);
+  --warning-fg: var(--color-white);
+
+  --border: var(--color-slate-200);
+  --ring: var(--color-indigo-500);
+
+  --overlay: rgb(0 0 0 / 0.5);
+}
+
+/* === 暗色主题 === */
+[data-theme='dark'] {
+  --text: var(--color-neutral-100);
+  --text-muted: var(--color-neutral-400);
+  --text-disabled: var(--color-neutral-500);
+
+  --surface: #2a2a2a;
+  --surface-card: #3d3d3d;
+  --surface-elevated: var(--color-neutral-600);
+  --surface-hover: #3d3d3d;
+
+  --primary: var(--color-neutral-100);
+  --primary-fg: #2a2a2a;
+  --primary-hover: var(--color-neutral-300);
+  --primary-active: var(--color-neutral-400);
+
+  --danger: var(--color-red-400);
+  --danger-fg: var(--color-neutral-950);
+  --danger-hover: var(--color-red-300);
+  --danger-active: var(--color-red-200);
+  --success: var(--color-green-400);
+  --success-fg: var(--color-neutral-950);
+  --warning: var(--color-amber-400);
+  --warning-fg: var(--color-neutral-950);
+
+  --border: var(--color-neutral-600);
+  --ring: var(--color-indigo-400);
+
+  --overlay: rgb(0 0 0 / 0.6);
+}
+
+/* === 注册为 Tailwind utility === */
+@theme inline {
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-disabled: var(--text-disabled);
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-danger: var(--danger);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-active: var(--danger-active);
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-fg: var(--warning-fg);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-accent: var(--primary);
+  --color-accent-fg: var(--primary-fg);
+  --color-accent-hover: var(--primary-hover);
+}
