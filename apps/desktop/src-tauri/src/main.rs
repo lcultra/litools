@@ -10,6 +10,8 @@ mod tray;
 mod view;
 mod windowing;
 
+use std::sync::Arc;
+
 use litools_core::AppBootstrapPaths;
 use state::AppState;
 use tauri::Manager;
@@ -116,6 +118,28 @@ fn main() {
                 data_dir,
                 bundled_plugins_dir,
             })?);
+
+            // 订阅插件事件，使搜索缓存失效
+            {
+                let app_handle = app.handle().clone();
+                {
+                    let state = app.state::<AppState>();
+                    state.plugin_events.subscribe(Arc::new(move |event| {
+                        use crate::core::events::PluginEvent;
+                        match event {
+                            PluginEvent::CommandsAdded(_, _)
+                            | PluginEvent::CommandsRemoved(_, _)
+                            | PluginEvent::CommandsReplaced(_, _) => {
+                                if let Ok(app) = app_handle.state::<AppState>().app().lock() {
+                                    app.invalidate_plugin_command_cache();
+                                }
+                            }
+                            _ => {}
+                        }
+                    }));
+                }
+            }
+
             core::surface::service::bootstrap_main_surface(app.handle(), &app.state::<AppState>())?;
             core::plugins::runtime::service::warm_detached_pool(
                 app.handle(),

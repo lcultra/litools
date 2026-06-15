@@ -26,6 +26,9 @@ pub fn init() -> TauriPlugin<tauri::Wry> {
             sdk_settings_update,
             sdk_diagnostics_get,
             sdk_plugins_list,
+            sdk_commands_add,
+            sdk_commands_remove,
+            sdk_commands_replace,
         ])
         .build()
 }
@@ -72,3 +75,6 @@ sdk_cmd!(sdk_settings_get, "settings.get");
 sdk_cmd!(sdk_settings_update, "settings.update", settings: Value);
 sdk_cmd!(sdk_diagnostics_get, "diagnostics.get");
 sdk_cmd!(sdk_plugins_list, "plugins.list");
+sdk_cmd!(sdk_commands_add, "commands.add", commands: Value);
+sdk_cmd!(sdk_commands_remove, "commands.remove", ids: Value);
+sdk_cmd!(sdk_commands_replace, "commands.replace", commands: Value);

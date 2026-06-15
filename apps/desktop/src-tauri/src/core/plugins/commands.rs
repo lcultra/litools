@@ -286,10 +286,9 @@ pub fn toggle_plugin(
     Ok(summary)
 }
 
-#[tauri::command]
-pub fn add_commands(
-    state: State<'_, AppState>,
-    webview: Webview,
+pub fn add_commands_inner(
+    state: &AppState,
+    webview: &Webview,
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
     let app = state.app().lock().map_err(|e| e.to_string())?;
@@ -356,9 +355,17 @@ pub fn add_commands(
 }
 
 #[tauri::command]
-pub fn remove_commands(
+pub fn add_commands(
     state: State<'_, AppState>,
     webview: Webview,
+    commands: Vec<serde_json::Value>,
+) -> Result<(), String> {
+    add_commands_inner(&state, &webview, commands)
+}
+
+pub fn remove_commands_inner(
+    state: &AppState,
+    webview: &Webview,
     ids: Vec<String>,
 ) -> Result<(), String> {
     let app = state.app().lock().map_err(|e| e.to_string())?;
@@ -401,9 +408,17 @@ pub fn remove_commands(
 }
 
 #[tauri::command]
-pub fn replace_commands(
+pub fn remove_commands(
     state: State<'_, AppState>,
     webview: Webview,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    remove_commands_inner(&state, &webview, ids)
+}
+
+pub fn replace_commands_inner(
+    state: &AppState,
+    webview: &Webview,
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
     let app = state.app().lock().map_err(|e| e.to_string())?;
@@ -473,6 +488,15 @@ pub fn replace_commands(
         .plugin_events
         .emit(PluginEvent::CommandsReplaced(plugin_id.clone(), count));
     Ok(())
+}
+
+#[tauri::command]
+pub fn replace_commands(
+    state: State<'_, AppState>,
+    webview: Webview,
+    commands: Vec<serde_json::Value>,
+) -> Result<(), String> {
+    replace_commands_inner(&state, &webview, commands)
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {

@@ -901,12 +901,14 @@ fn runtime_launch_descriptor(
 
 /// 当运行时被移除时，清理数据库中 lifecycle=runtime 且 belong_to 该运行时的命令。
 fn cleanup_runtime_commands(state: &AppState, runtime_id: &str) {
-    let app = state.app().lock().unwrap();
-    let connection = app.context().database.connection();
-    let _ = connection.execute(
-        "DELETE FROM plugin_commands WHERE lifecycle = 'runtime' AND registrar_runtime_id = ?1",
-        rusqlite::params![runtime_id],
-    );
+    {
+        let app = state.app().lock().unwrap();
+        let connection = app.context().database.connection();
+        let _ = connection.execute(
+            "DELETE FROM plugin_commands WHERE lifecycle = 'runtime' AND registrar_runtime_id = ?1",
+            rusqlite::params![runtime_id],
+        );
+    } // app 锁在此释放，避免 emit 时事件处理器重入同一把锁导致死锁
     state.plugin_events.emit(PluginEvent::CommandsRemoved(
         "runtime_cleanup".to_string(),
         vec![],

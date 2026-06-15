@@ -1,6 +1,7 @@
 use std::{
     path::{Path, PathBuf},
     sync::{
+        Arc,
         Mutex,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
@@ -15,6 +16,7 @@ use crate::{
     app_watcher::{AppWatcherState, AppWatcherStatus},
     background::manager::{BackgroundRuntimeManager, RuntimePolicy},
     core::events::PluginEventBus,
+    core::executor::{BackgroundRuntimeExecutor, ExecutorRegistry, WebviewExecutor},
     core::plugins::runtime::registry::PluginRuntimeRegistry,
     core::surface::registry::SurfaceRegistry,
     index_refresh::IndexStatus,
@@ -76,7 +78,8 @@ pub struct AppState {
     pub surfaces: Mutex<SurfaceRegistry>,
     pub plugin_runtimes: Mutex<PluginRuntimeRegistry>,
     pub plugin_events: PluginEventBus,
-    pub bg_runtime_manager: BackgroundRuntimeManager,
+    pub bg_runtime_manager: Arc<BackgroundRuntimeManager>,
+    pub executor_registry: ExecutorRegistry,
     launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
     pooled_detached: Mutex<Option<String>>,
@@ -85,6 +88,18 @@ pub struct AppState {
 impl AppState {
     pub fn bootstrap(paths: AppBootstrapPaths) -> LitoolsResult<Self> {
         let data_dir = paths.data_dir.clone();
+        let bg_runtime_manager = Arc::new(BackgroundRuntimeManager::new(
+            RuntimePolicy::PerPlugin,
+            Duration::from_secs(300),
+        ));
+
+        let mut executor_registry = ExecutorRegistry::new();
+        executor_registry.register("webview", Box::new(WebviewExecutor));
+        executor_registry.register(
+            "backgroundRuntime",
+            Box::new(BackgroundRuntimeExecutor::new(bg_runtime_manager.clone())),
+        );
+
         Ok(Self {
             app: Mutex::new(LitoolsApp::bootstrap(paths)?),
             data_dir,
@@ -95,10 +110,8 @@ impl AppState {
             surfaces: Mutex::new(SurfaceRegistry::default()),
             plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
             plugin_events: PluginEventBus::new(),
-            bg_runtime_manager: BackgroundRuntimeManager::new(
-                RuntimePolicy::PerPlugin,
-                Duration::from_secs(300),
-            ),
+            bg_runtime_manager,
+            executor_registry,
             launcher_positioning: Mutex::new(LauncherPositioningState::default()),
             pooled_detached: Mutex::new(None),
         })

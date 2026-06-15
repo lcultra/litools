@@ -180,6 +180,40 @@ pub fn route_plugin_view_call(
                 }))
                 .collect::<Vec<_>>()))
         }
+        "commands.add" => {
+            let commands: Vec<Value> = params
+                .get("commands")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            crate::core::plugins::commands::add_commands_inner(state, webview, commands)
+                .map_err(|e| PluginRuntimeError::internal(e))?;
+            Ok(Value::Null)
+        }
+        "commands.remove" => {
+            let ids: Vec<String> = params
+                .get("ids")
+                .and_then(|v| v.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+            crate::core::plugins::commands::remove_commands_inner(state, webview, ids)
+                .map_err(|e| PluginRuntimeError::internal(e))?;
+            Ok(Value::Null)
+        }
+        "commands.replace" => {
+            let commands: Vec<Value> = params
+                .get("commands")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+            crate::core::plugins::commands::replace_commands_inner(state, webview, commands)
+                .map_err(|e| PluginRuntimeError::internal(e))?;
+            Ok(Value::Null)
+        }
         _ => Err(PluginRuntimeError::permission_denied(format!(
             "unknown plugin runtime method: {method}"
         ))),

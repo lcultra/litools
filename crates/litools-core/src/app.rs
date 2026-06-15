@@ -111,6 +111,11 @@ impl LitoolsApp {
     pub fn settings(&self) -> &litools_settings::AppSettings {
         self.context.settings.get()
     }
+
+    /// 使插件命令缓存失效，强制下次搜索从数据库重新加载
+    pub fn invalidate_plugin_command_cache(&self) {
+        self.plugin_command_provider.invalidate_cache();
+    }
 }
 
 /// 启动时清理上一次会话遗留的 lifecycle=session 命令。
