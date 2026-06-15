@@ -1,4 +1,5 @@
 mod app_watcher;
+mod background;
 mod core;
 mod index_refresh;
 mod protocol;

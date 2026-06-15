@@ -152,13 +152,16 @@ fn validate_entry_stays_inside_root(
     root_dir: &std::path::Path,
     manifest: &PluginManifest,
 ) -> Result<(), PluginDiscoveryError> {
+    let Some(entry) = &manifest.entry else {
+        return Ok(());
+    };
     let root = root_dir
         .canonicalize()
         .map_err(|source| PluginDiscoveryError::ReadDirectory {
             path: root_dir.to_path_buf(),
             source,
         })?;
-    let entry_path = root_dir.join(&manifest.entry);
+    let entry_path = root_dir.join(entry);
     if let Ok(entry) = entry_path.canonicalize()
         && !entry.starts_with(&root)
     {

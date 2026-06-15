@@ -38,7 +38,8 @@ pub struct PluginManifest {
     pub id: String,
     pub name: String,
     pub version: String,
-    pub entry: String,
+    #[serde(default)]
+    pub entry: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
@@ -71,7 +72,18 @@ pub struct PluginCommand {
     pub subtitle: Option<String>,
     #[serde(default)]
     pub keywords: Vec<String>,
+    #[serde(default = "default_mode")]
     pub mode: PluginCommandMode,
+    #[serde(default)]
+    pub executor: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub script: Option<String>,
+}
+
+fn default_mode() -> PluginCommandMode {
+    PluginCommandMode::Instant
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -92,8 +104,6 @@ pub enum PluginManifestError {
     MissingName,
     #[error("plugin version is required")]
     MissingVersion,
-    #[error("plugin entry is required")]
-    MissingEntry,
     #[error("plugin icon is required")]
     MissingIcon,
     #[error("plugin entry must be a relative path inside the plugin directory: {0}")]
@@ -135,7 +145,9 @@ impl PluginManifest {
         if self.icon.trim().is_empty() {
             return Err(PluginManifestError::MissingIcon);
         }
-        validate_relative_entry(&self.entry)?;
+        if let Some(entry) = &self.entry {
+            validate_relative_entry(entry)?;
+        }
         validate_relative_entry(&self.icon)?;
 
         let mut command_ids = HashSet::new();
@@ -186,10 +198,6 @@ fn is_safe_identifier(value: &str) -> bool {
 
 fn validate_relative_entry(entry: &str) -> Result<(), PluginManifestError> {
     let trimmed = entry.trim();
-    if trimmed.is_empty() {
-        return Err(PluginManifestError::MissingEntry);
-    }
-
     let path = Path::new(trimmed);
     if path.is_absolute()
         || path
@@ -211,7 +219,7 @@ mod tests {
             id: "dev.litools.example".to_string(),
             name: "Example".to_string(),
             version: "0.1.0".to_string(),
-            entry: "dist/index.html".to_string(),
+            entry: Some("dist/index.html".to_string()),
             description: None,
             author: None,
             icon: "dist/icon.svg".to_string(),
@@ -221,6 +229,9 @@ mod tests {
                 subtitle: None,
                 keywords: vec!["hello".to_string()],
                 mode: PluginCommandMode::View,
+                executor: None,
+                icon: None,
+                script: None,
             }],
             singleton: true,
             permissions: vec!["ui:window".to_string()],
@@ -234,9 +245,16 @@ mod tests {
     }
 
     #[test]
+    fn validates_plugin_without_entry() {
+        let mut manifest = valid_manifest();
+        manifest.entry = None;
+        manifest.validate().expect("valid without entry");
+    }
+
+    #[test]
     fn rejects_entry_escape() {
         let mut manifest = valid_manifest();
-        manifest.entry = "../index.html".to_string();
+        manifest.entry = Some("../index.html".to_string());
 
         assert!(matches!(
             manifest.validate(),
@@ -253,6 +271,37 @@ mod tests {
             manifest.validate(),
             Err(PluginManifestError::DuplicateCommandId(_))
         ));
+    }
+
+    #[test]
+    fn command_mode_defaults_to_instant() {
+        let json = r#"{
+            "id": "dev.litools.example",
+            "name": "Example",
+            "version": "0.1.0",
+            "entry": "dist/index.html",
+            "icon": "dist/icon.svg",
+            "commands": [
+                { "id": "run", "title": "Run" }
+            ]
+        }"#;
+        let manifest: PluginManifest = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(manifest.commands[0].mode, PluginCommandMode::Instant);
+    }
+
+    #[test]
+    fn manifest_without_entry_deserializes() {
+        let json = r#"{
+            "id": "dev.litools.no-ui",
+            "name": "NoUI",
+            "version": "0.1.0",
+            "icon": "dist/icon.svg",
+            "commands": [
+                { "id": "run", "title": "Run", "mode": "instant" }
+            ]
+        }"#;
+        let manifest: PluginManifest = serde_json::from_str(json).expect("deserialize");
+        assert!(manifest.entry.is_none());
     }
 
     #[test]

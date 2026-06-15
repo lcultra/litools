@@ -1,7 +1,8 @@
 use serde::Serialize;
-use tauri::State;
+use tauri::{State, Webview};
 
 use crate::{
+    core::events::PluginEvent,
     core::plugins::runtime::service::find_enabled_plugin_command,
     protocol::plugin::resolve_entry_url, state::AppState,
 };
@@ -199,6 +200,13 @@ pub fn install_plugin(
                 subtitle: cmd.subtitle.clone(),
                 keywords: cmd.keywords.clone(),
                 mode: cmd.mode.as_str().to_string(),
+                executor: None,
+                icon: None,
+                script: None,
+                source: "manifest".to_string(),
+                lifecycle: "permanent".to_string(),
+                registrar_runtime_id: None,
+                executor_runtime_id: None,
                 permission_requirements: manifest.permissions.clone(),
             })
             .collect();
@@ -276,6 +284,195 @@ pub fn toggle_plugin(
         .plugin_summary(&plugin_id)
         .ok_or_else(|| format!("插件不存在: {plugin_id}"))?;
     Ok(summary)
+}
+
+#[tauri::command]
+pub fn add_commands(
+    state: State<'_, AppState>,
+    webview: Webview,
+    commands: Vec<serde_json::Value>,
+) -> Result<(), String> {
+    let app = state.app().lock().map_err(|e| e.to_string())?;
+    let runtime_id = webview
+        .label()
+        .strip_prefix("plugin-")
+        .ok_or("not a plugin webview")?
+        .to_string();
+
+    // 从 runtime registry 取 plugin_id
+    let plugin_id = {
+        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
+        let rt = runtimes
+            .runtime(&runtime_id)
+            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
+        rt.plugin_id.clone()
+    };
+
+    let command_ids = {
+        let connection = app.context().database.connection();
+        let repo = litools_index::repository::PluginCommandRepository::new(&connection);
+        let mut ids = Vec::new();
+
+        for cmd in &commands {
+            let id = cmd["id"].as_str().ok_or("missing id")?;
+            let title = cmd["title"].as_str().ok_or("missing title")?;
+            let command_id = format!("{}:{}", plugin_id, id);
+            ids.push(command_id.clone());
+
+            repo.upsert_command(&litools_index::repository::PluginCommandUpsert {
+                id: command_id,
+                plugin_id: plugin_id.clone(),
+                command_id: id.to_string(),
+                title: title.to_string(),
+                subtitle: cmd["subtitle"].as_str().map(String::from),
+                keywords: cmd["keywords"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                mode: cmd["mode"].as_str().unwrap_or("instant").to_string(),
+                executor: cmd["executor"].as_str().map(String::from),
+                icon: cmd["icon"].as_str().map(String::from),
+                script: cmd["script"].as_str().map(String::from),
+                source: "runtime".to_string(),
+                lifecycle: cmd["lifecycle"].as_str().unwrap_or("permanent").to_string(),
+                registrar_runtime_id: Some(runtime_id.clone()),
+                executor_runtime_id: cmd["executor_runtime_id"].as_str().map(String::from),
+                permission_requirements: vec![],
+            })
+            .map_err(|e| e.to_string())?;
+        }
+        ids
+    }; // connection guard 在此释放
+
+    drop(app);
+    state
+        .plugin_events
+        .emit(PluginEvent::CommandsAdded(plugin_id, command_ids));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn remove_commands(
+    state: State<'_, AppState>,
+    webview: Webview,
+    ids: Vec<String>,
+) -> Result<(), String> {
+    let app = state.app().lock().map_err(|e| e.to_string())?;
+    let runtime_id = webview
+        .label()
+        .strip_prefix("plugin-")
+        .ok_or("not a plugin webview")?
+        .to_string();
+
+    let plugin_id = {
+        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
+        let rt = runtimes
+            .runtime(&runtime_id)
+            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
+        rt.plugin_id.clone()
+    };
+
+    let command_ids: Vec<String> = ids
+        .iter()
+        .map(|id| litools_plugin::plugin_result_id(&plugin_id, id))
+        .collect();
+
+    {
+        let connection = app.context().database.connection();
+        for cid in &command_ids {
+            connection
+                .execute(
+                    "DELETE FROM plugin_commands WHERE id = ?1 AND source = 'runtime' AND registrar_runtime_id = ?2",
+                    rusqlite::params![cid, &runtime_id],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+    } // connection guard 在此释放
+
+    drop(app);
+    state
+        .plugin_events
+        .emit(PluginEvent::CommandsRemoved(plugin_id, command_ids));
+    Ok(())
+}
+
+#[tauri::command]
+pub fn replace_commands(
+    state: State<'_, AppState>,
+    webview: Webview,
+    commands: Vec<serde_json::Value>,
+) -> Result<(), String> {
+    let app = state.app().lock().map_err(|e| e.to_string())?;
+    let runtime_id = webview
+        .label()
+        .strip_prefix("plugin-")
+        .ok_or("not a plugin webview")?
+        .to_string();
+
+    let plugin_id = {
+        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
+        let rt = runtimes
+            .runtime(&runtime_id)
+            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
+        rt.plugin_id.clone()
+    };
+
+    let count = {
+        let connection = app.context().database.connection();
+
+        // 原子：删 + 插
+        connection
+            .execute(
+                "DELETE FROM plugin_commands WHERE source = 'runtime' AND registrar_runtime_id = ?1",
+                rusqlite::params![&runtime_id],
+            )
+            .map_err(|e| e.to_string())?;
+
+        let repo = litools_index::repository::PluginCommandRepository::new(&connection);
+        let n = commands.len();
+        for cmd in &commands {
+            let id = cmd["id"].as_str().ok_or("missing id")?;
+            let title = cmd["title"].as_str().ok_or("missing title")?;
+            let command_id = litools_plugin::plugin_result_id(&plugin_id, id);
+
+            repo.upsert_command(&litools_index::repository::PluginCommandUpsert {
+                id: command_id,
+                plugin_id: plugin_id.clone(),
+                command_id: id.to_string(),
+                title: title.to_string(),
+                subtitle: cmd["subtitle"].as_str().map(String::from),
+                keywords: cmd["keywords"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                mode: cmd["mode"].as_str().unwrap_or("instant").to_string(),
+                executor: cmd["executor"].as_str().map(String::from),
+                icon: cmd["icon"].as_str().map(String::from),
+                script: cmd["script"].as_str().map(String::from),
+                source: "runtime".to_string(),
+                lifecycle: cmd["lifecycle"].as_str().unwrap_or("permanent").to_string(),
+                registrar_runtime_id: Some(runtime_id.clone()),
+                executor_runtime_id: None,
+                permission_requirements: vec![],
+            })
+            .map_err(|e| e.to_string())?;
+        }
+        n
+    }; // connection guard 在此释放
+
+    drop(app);
+    state
+        .plugin_events
+        .emit(PluginEvent::CommandsReplaced(plugin_id.clone(), count));
+    Ok(())
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {

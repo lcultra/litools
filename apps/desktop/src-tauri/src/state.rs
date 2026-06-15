@@ -13,6 +13,8 @@ use serde::Serialize;
 
 use crate::{
     app_watcher::{AppWatcherState, AppWatcherStatus},
+    background::manager::{BackgroundRuntimeManager, RuntimePolicy},
+    core::events::PluginEventBus,
     core::plugins::runtime::registry::PluginRuntimeRegistry,
     core::surface::registry::SurfaceRegistry,
     index_refresh::IndexStatus,
@@ -73,6 +75,8 @@ pub struct AppState {
     app_watcher: AppWatcherState,
     pub surfaces: Mutex<SurfaceRegistry>,
     pub plugin_runtimes: Mutex<PluginRuntimeRegistry>,
+    pub plugin_events: PluginEventBus,
+    pub bg_runtime_manager: BackgroundRuntimeManager,
     launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
     pooled_detached: Mutex<Option<String>>,
@@ -90,6 +94,11 @@ impl AppState {
             app_watcher: AppWatcherState::default(),
             surfaces: Mutex::new(SurfaceRegistry::default()),
             plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
+            plugin_events: PluginEventBus::new(),
+            bg_runtime_manager: BackgroundRuntimeManager::new(
+                RuntimePolicy::PerPlugin,
+                Duration::from_secs(300),
+            ),
             launcher_positioning: Mutex::new(LauncherPositioningState::default()),
             pooled_detached: Mutex::new(None),
         })

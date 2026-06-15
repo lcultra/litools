@@ -26,6 +26,48 @@ fn ensure_plugin_command_columns(connection: &Connection) -> rusqlite::Result<()
             [],
         )?;
     }
+    if !column_exists(connection, "plugin_commands", "executor")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN executor TEXT",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "plugin_commands", "icon")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN icon TEXT",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "plugin_commands", "script")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN script TEXT",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "plugin_commands", "source")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN source TEXT NOT NULL DEFAULT 'manifest'",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "plugin_commands", "lifecycle")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN lifecycle TEXT NOT NULL DEFAULT 'permanent'",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "plugin_commands", "registrar_runtime_id")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN registrar_runtime_id TEXT",
+            [],
+        )?;
+    }
+    if !column_exists(connection, "plugin_commands", "executor_runtime_id")? {
+        connection.execute(
+            "ALTER TABLE plugin_commands ADD COLUMN executor_runtime_id TEXT",
+            [],
+        )?;
+    }
     connection.execute(
         "UPDATE plugin_commands SET keywords = '[]' WHERE keywords IS NULL",
         [],

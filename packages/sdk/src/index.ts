@@ -177,3 +177,39 @@ export type DiagnosticsResponse = {
   app_count: number;
   index_status: { running: boolean; pending: boolean; lastTrigger?: string | null; lastError?: string | null; lastSummary?: unknown };
 };
+
+// ---- dynamic commands (v2) ----
+
+export type DynamicCommand = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  keywords?: string[];
+  mode?: 'instant' | 'view' | 'searchProvider';
+  executor?: string;
+  icon?: string;
+  script?: string;
+  lifecycle?: 'permanent' | 'session' | 'runtime';
+};
+
+// 批量 API
+export function addCommands(commands: DynamicCommand[]): Promise<void> {
+  return invokeSdk('sdk_commands_add', { commands });
+}
+export function removeCommands(ids: string[]): Promise<void> {
+  return invokeSdk('sdk_commands_remove', { ids });
+}
+export function replaceCommands(commands: DynamicCommand[]): Promise<void> {
+  return invokeSdk('sdk_commands_replace', { commands });
+}
+
+// 单条语法糖
+export function addCommand(cmd: DynamicCommand): Promise<void> {
+  return addCommands([cmd]);
+}
+export function removeCommand(id: string): Promise<void> {
+  return removeCommands([id]);
+}
+export function updateCommand(id: string, cmd: Partial<DynamicCommand>): Promise<void> {
+  return invokeSdk('sdk_commands_update', { id, cmd });
+}

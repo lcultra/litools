@@ -3,12 +3,15 @@ use litools_plugin::RuntimePolicy;
 use tauri::Manager;
 
 use crate::{
-    core::plugins::runtime::{
-        model::{PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle},
-        permissions, preload,
-        registry::PluginRuntimeRegistration,
+    core::{
+        events::PluginEvent,
+        plugins::runtime::{
+            model::{PluginRuntimeContext, PluginRuntimeInfo, PluginRuntimeLifecycle},
+            permissions, preload,
+            registry::PluginRuntimeRegistration,
+        },
+        surface::{model::SurfaceBounds, service as surface_service},
     },
-    core::surface::{model::SurfaceBounds, service as surface_service},
     protocol::plugin::resolve_entry_url,
     state::AppState,
     view::WindowHostKind,
@@ -561,6 +564,7 @@ pub fn close_runtime(
         .lock()
         .map_err(|e| e.to_string())?
         .remove(runtime_id);
+    cleanup_runtime_commands(state, runtime_id);
     state
         .surfaces
         .lock()
@@ -600,6 +604,7 @@ pub fn cleanup_runtime_window(
         .lock()
         .map_err(|e| e.to_string())?
         .remove(&context.id);
+    cleanup_runtime_commands(state, &context.id);
     state
         .surfaces
         .lock()
@@ -892,4 +897,18 @@ fn runtime_launch_descriptor(
         trusted: plugin.trusted,
         policy: plugin.manifest.runtime_policy(),
     })
+}
+
+/// 当运行时被移除时，清理数据库中 lifecycle=runtime 且 belong_to 该运行时的命令。
+fn cleanup_runtime_commands(state: &AppState, runtime_id: &str) {
+    let app = state.app().lock().unwrap();
+    let connection = app.context().database.connection();
+    let _ = connection.execute(
+        "DELETE FROM plugin_commands WHERE lifecycle = 'runtime' AND registrar_runtime_id = ?1",
+        rusqlite::params![runtime_id],
+    );
+    state.plugin_events.emit(PluginEvent::CommandsRemoved(
+        "runtime_cleanup".to_string(),
+        vec![],
+    ));
 }

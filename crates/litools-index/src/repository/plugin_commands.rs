@@ -14,6 +14,13 @@ pub struct PluginCommandRecord {
     pub subtitle: Option<String>,
     pub keywords: Vec<String>,
     pub mode: String,
+    pub executor: Option<String>,
+    pub icon: Option<String>,
+    pub script: Option<String>,
+    pub source: String,
+    pub lifecycle: String,
+    pub registrar_runtime_id: Option<String>,
+    pub executor_runtime_id: Option<String>,
     pub permission_requirements: Vec<String>,
 }
 
@@ -26,6 +33,13 @@ pub struct PluginCommandUpsert {
     pub subtitle: Option<String>,
     pub keywords: Vec<String>,
     pub mode: String,
+    pub executor: Option<String>,
+    pub icon: Option<String>,
+    pub script: Option<String>,
+    pub source: String,
+    pub lifecycle: String,
+    pub registrar_runtime_id: Option<String>,
+    pub executor_runtime_id: Option<String>,
     pub permission_requirements: Vec<String>,
 }
 
@@ -55,24 +69,34 @@ impl<'a> PluginCommandRepository<'a> {
         Ok(())
     }
 
-    fn upsert_command(&self, command: &PluginCommandUpsert) -> rusqlite::Result<()> {
+    pub fn upsert_command(&self, command: &PluginCommandUpsert) -> rusqlite::Result<()> {
         let keywords_json = serde_json::to_string(&command.keywords)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
         let permission_requirements_json = serde_json::to_string(&command.permission_requirements)
             .map_err(|error| rusqlite::Error::ToSqlConversionFailure(error.into()))?;
 
         self.connection.execute(
-            "INSERT INTO plugin_commands (id, plugin_id, command_id, title, subtitle, keywords, mode, permission_requirements)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+            "INSERT INTO plugin_commands (id, plugin_id, command_id, title, subtitle, keywords, mode, executor, icon, script, source, lifecycle, registrar_runtime_id, executor_runtime_id, permission_requirements)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
              ON CONFLICT(id) DO UPDATE SET
                 plugin_id = excluded.plugin_id, command_id = excluded.command_id,
                 title = excluded.title, subtitle = excluded.subtitle,
                 keywords = excluded.keywords, mode = excluded.mode,
+                executor = excluded.executor, icon = excluded.icon,
+                script = excluded.script, source = excluded.source,
+                lifecycle = excluded.lifecycle,
+                registrar_runtime_id = excluded.registrar_runtime_id,
+                executor_runtime_id = excluded.executor_runtime_id,
                 permission_requirements = excluded.permission_requirements",
             params![
                 &command.id, &command.plugin_id, &command.command_id,
                 &command.title, command.subtitle.as_deref(),
-                keywords_json, &command.mode, permission_requirements_json,
+                keywords_json, &command.mode,
+                command.executor.as_deref(), command.icon.as_deref(),
+                command.script.as_deref(), &command.source,
+                &command.lifecycle, command.registrar_runtime_id.as_deref(),
+                command.executor_runtime_id.as_deref(),
+                permission_requirements_json,
             ],
         )?;
         Ok(())
@@ -81,7 +105,10 @@ impl<'a> PluginCommandRepository<'a> {
     pub fn list_enabled_plugin_commands(&self) -> rusqlite::Result<Vec<PluginCommandRecord>> {
         let mut statement = self.connection.prepare(
             "SELECT pc.id, pc.plugin_id, p.name, p.path, json_extract(p.manifest_json, '$.icon'),
-                    pc.command_id, pc.title, pc.subtitle, pc.keywords, pc.mode, pc.permission_requirements
+                    pc.command_id, pc.title, pc.subtitle, pc.keywords, pc.mode,
+                    pc.executor, pc.icon, pc.script, pc.source, pc.lifecycle,
+                    pc.registrar_runtime_id, pc.executor_runtime_id,
+                    pc.permission_requirements
              FROM plugin_commands pc
              JOIN plugins p ON p.id = pc.plugin_id
              WHERE p.enabled = 1
@@ -99,7 +126,10 @@ impl<'a> PluginCommandRepository<'a> {
         self.connection
             .query_row(
                 "SELECT pc.id, pc.plugin_id, p.name, p.path, json_extract(p.manifest_json, '$.icon'),
-                        pc.command_id, pc.title, pc.subtitle, pc.keywords, pc.mode, pc.permission_requirements
+                        pc.command_id, pc.title, pc.subtitle, pc.keywords, pc.mode,
+                        pc.executor, pc.icon, pc.script, pc.source, pc.lifecycle,
+                        pc.registrar_runtime_id, pc.executor_runtime_id,
+                        pc.permission_requirements
                  FROM plugin_commands pc
                  JOIN plugins p ON p.id = pc.plugin_id
                  WHERE pc.plugin_id = ?1 AND pc.command_id = ?2 AND p.enabled = 1",
@@ -124,6 +154,13 @@ fn plugin_command_record_from_row(
         subtitle: row.get(7)?,
         keywords: json_string_array(row.get::<_, String>(8)?)?,
         mode: row.get(9)?,
-        permission_requirements: json_string_array(row.get::<_, String>(10)?)?,
+        executor: row.get(10)?,
+        icon: row.get(11)?,
+        script: row.get(12)?,
+        source: row.get(13)?,
+        lifecycle: row.get(14)?,
+        registrar_runtime_id: row.get(15)?,
+        executor_runtime_id: row.get(16)?,
+        permission_requirements: json_string_array(row.get::<_, String>(17)?)?,
     })
 }

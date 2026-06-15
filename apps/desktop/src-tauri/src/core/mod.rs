@@ -1,6 +1,8 @@
 // litools-core Tauri 插件：主应用 + 内置(trusted)插件的能力
 
 pub mod diagnostics;
+pub mod events;
+pub mod executor;
 pub mod launcher;
 pub mod plugins;
 pub mod settings;
@@ -47,6 +49,9 @@ pub fn init() -> TauriPlugin<tauri::Wry> {
             crate::core::plugins::commands::install_plugin,
             crate::core::plugins::commands::uninstall_plugin,
             crate::core::plugins::commands::toggle_plugin,
+            crate::core::plugins::commands::add_commands,
+            crate::core::plugins::commands::remove_commands,
+            crate::core::plugins::commands::replace_commands,
             crate::core::plugins::runtime::commands::open_plugin_view,
             crate::core::plugins::runtime::commands::hide_plugin_view,
             crate::core::plugins::runtime::commands::detach_plugin_view,

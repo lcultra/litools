@@ -9,6 +9,7 @@ use litools_plugin::{
     InstalledPlugin, PluginDiscoveryRoot, PluginManager, PluginSource, discover_plugins,
     plugin_result_id,
 };
+use rusqlite::params;
 
 use crate::{
     app::{AppBootstrapPaths, LitoolsApp},
@@ -21,6 +22,22 @@ impl LitoolsApp {
         let manager = load_plugins_from_database(&self.context.database)?;
         self.context.plugins = manager;
         self.plugin_command_provider.invalidate_cache();
+        Ok(())
+    }
+
+    /// 原子 reload 插件：删除旧的 manifest 命令 → 重新加载 PluginManager
+    /// 调用方负责在调用前重新同步磁盘上的插件清单到数据库
+    pub fn reload_plugin(&mut self, plugin_id: &str) -> LitoolsResult<()> {
+        {
+            let connection = self.context.database.connection();
+            connection.execute(
+                "DELETE FROM plugin_commands WHERE plugin_id = ?1 AND source = 'manifest'",
+                params![plugin_id],
+            )?;
+        }
+
+        self.reload_plugins()?;
+
         Ok(())
     }
 
@@ -131,6 +148,13 @@ pub(crate) fn sync_and_load_plugins(
                     subtitle: command.subtitle.clone(),
                     keywords: command.keywords.clone(),
                     mode: command.mode.as_str().to_string(),
+                    executor: None,
+                    icon: None,
+                    script: None,
+                    source: "manifest".to_string(),
+                    lifecycle: "permanent".to_string(),
+                    registrar_runtime_id: None,
+                    executor_runtime_id: None,
                     permission_requirements: discovered.manifest.permissions.clone(),
                 })
                 .collect::<Vec<_>>();

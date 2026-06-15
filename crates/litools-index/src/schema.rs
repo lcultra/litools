@@ -41,7 +41,14 @@ CREATE TABLE IF NOT EXISTS plugin_commands (
     title TEXT NOT NULL,
     subtitle TEXT,
     keywords TEXT NOT NULL DEFAULT '[]',
-    mode TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'instant',
+    executor TEXT,
+    icon TEXT,
+    script TEXT,
+    source TEXT NOT NULL DEFAULT 'manifest',
+    lifecycle TEXT NOT NULL DEFAULT 'permanent',
+    registrar_runtime_id TEXT,
+    executor_runtime_id TEXT,
     permission_requirements TEXT NOT NULL DEFAULT '[]',
     FOREIGN KEY(plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
 );

@@ -53,6 +53,9 @@ impl LitoolsApp {
 
         std::fs::create_dir_all(&paths.data_dir)?;
         let database = IndexDatabase::open(paths.data_dir.join("database.sqlite"))?;
+        let db_connection = database.connection();
+        cleanup_session_commands(&db_connection);
+        drop(db_connection);
         let settings = crate::app::settings::load_settings(&database)?;
         let plugins = crate::app::plugins::sync_and_load_plugins(&database, &paths)?;
         let (search, plugin_command_provider) =
@@ -77,6 +80,9 @@ impl LitoolsApp {
         init_logging();
 
         let database = IndexDatabase::in_memory()?;
+        let db_connection = database.connection();
+        cleanup_session_commands(&db_connection);
+        drop(db_connection);
         let settings = crate::app::settings::load_settings(&database)?;
         let plugins = crate::app::plugins::load_plugins_from_database(&database)?;
         let (search, plugin_command_provider) =
@@ -105,6 +111,14 @@ impl LitoolsApp {
     pub fn settings(&self) -> &litools_settings::AppSettings {
         self.context.settings.get()
     }
+}
+
+/// 启动时清理上一次会话遗留的 lifecycle=session 命令。
+fn cleanup_session_commands(connection: &rusqlite::Connection) {
+    let _ = connection.execute(
+        "DELETE FROM plugin_commands WHERE lifecycle = 'session'",
+        [],
+    );
 }
 
 // ── sub-modules each contribute an `impl LitoolsApp { … }` block ──

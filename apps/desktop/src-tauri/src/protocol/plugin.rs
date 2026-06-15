@@ -50,7 +50,12 @@ pub fn resolve_entry_url(plugin_id: &str, manifest: &PluginManifest) -> Result<S
     if let Some(ref dev) = manifest.development {
         return Ok(dev.main.clone());
     }
-    plugin_entry_url(plugin_id, &manifest.entry)
+    let Some(entry) = &manifest.entry else {
+        return Err(format!(
+            "plugin {plugin_id} has no entry and no development server configured"
+        ));
+    };
+    plugin_entry_url(plugin_id, entry)
 }
 
 fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static str), StatusCode> {
@@ -156,7 +161,7 @@ mod tests {
             id: "dev.litools.test".to_string(),
             name: "Test".to_string(),
             version: "0.1.0".to_string(),
-            entry: "dist/index.html".to_string(),
+            entry: Some("dist/index.html".to_string()),
             description: None,
             author: None,
             icon: "dist/icon.svg".to_string(),
@@ -177,7 +182,7 @@ mod tests {
             id: "dev.litools.test".to_string(),
             name: "Test".to_string(),
             version: "0.1.0".to_string(),
-            entry: "dist/index.html".to_string(),
+            entry: Some("dist/index.html".to_string()),
             description: None,
             author: None,
             icon: "dist/icon.svg".to_string(),
@@ -188,5 +193,24 @@ mod tests {
         };
         let url = resolve_entry_url("dev.litools.test", &manifest).expect("resolve");
         assert_eq!(url, "litools-plugin://dev.litools.test/dist/index.html");
+    }
+
+    #[test]
+    fn resolve_entry_url_errors_without_entry_or_development() {
+        let manifest = PluginManifest {
+            id: "dev.litools.test".to_string(),
+            name: "Test".to_string(),
+            version: "0.1.0".to_string(),
+            entry: None,
+            description: None,
+            author: None,
+            icon: "dist/icon.svg".to_string(),
+            commands: vec![],
+            singleton: true,
+            permissions: vec![],
+            development: None,
+        };
+        let result = resolve_entry_url("dev.litools.test", &manifest);
+        assert!(result.is_err());
     }
 }
