@@ -11,7 +11,7 @@
             "id": "settings",
             "title": "打开设置",
             "subtitle": "配置快捷键与主题",
-            "keywords": ["settings", "设置", "配置", "theme", "hotkey"],
+            "keywords": ["设置"],
             "mode": "view"
         }
     ],
@@ -19,8 +19,5 @@
         "litools-sdk:allow-runtime",
         "litools-sdk:allow-settings-read",
         "litools-sdk:allow-settings-write"
-    ],
-    "development": {
-        "main": "http://localhost:5175/"
-    }
+    ]
 }

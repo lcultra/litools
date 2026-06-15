@@ -14,7 +14,9 @@
     "dependencies": {
         "@dnd-kit/helpers": "^0.4.0",
         "@dnd-kit/solid": "^0.4.0",
+        "@litools/design-tokens": "workspace:*",
         "@litools/plugin-core": "workspace:*",
+        "@litools/ui": "workspace:*",
         "@tauri-apps/plugin-global-shortcut": "~2.3.2"
     },
     "devDependencies": {

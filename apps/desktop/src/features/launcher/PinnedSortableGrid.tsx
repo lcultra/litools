@@ -83,10 +83,10 @@ function SortablePinnedTile(props: SortablePinnedTileProps) {
             }}
             class="relative grid size-full cursor-pointer grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-[opacity,background-color,border-color] duration-150"
             classList={{
-                'border-accent/40 bg-accent/15 text-fg': props.selected && !sortable.isDragging(),
-                'bg-transparent hover:bg-surface-muted/60 focus-visible:bg-surface-muted/60': !props.selected && !sortable.isDragging(),
+                'border-primary/40 bg-primary/15 text-text': props.selected && !sortable.isDragging(),
+                'bg-transparent hover:bg-surface-hover/60 focus-visible:bg-surface-hover/60': !props.selected && !sortable.isDragging(),
                 'pointer-events-none opacity-45 will-change-transform': sortable.isDragging(),
-                'border-accent/70': sortable.isDropTarget() && !sortable.isDragging(),
+                'border-primary/70': sortable.isDropTarget() && !sortable.isDragging(),
             }}
             data-interactive
             onClick={handleClick}

@@ -5,3 +5,23 @@
 @import './tokens/typography.css';
 @import './tokens/shadows.css';
 @import './tokens/z-index.css';
+
+
+@layer base {
+    html,
+    body {
+        overscroll-behavior: none;
+    }
+
+    body {
+        @apply font-sans text-text select-none;
+    }
+
+    div, p {
+        @apply select-none cursor-default;
+    }
+
+    button {
+        @apply cursor-pointer!;
+    }
+}

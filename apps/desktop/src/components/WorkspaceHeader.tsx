@@ -108,7 +108,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
 
     return (
         <header class="flex h-17 shrink-0 items-center gap-2 border-border border-b px-3 box-border">
-            <div class="flex items-center overflow-hidden rounded-full border border-border bg-surface-muted text-sm">
+            <div class="flex items-center overflow-hidden rounded-full border border-border bg-surface-hover text-sm">
                 <Show when={props.icon}>
                     <img alt="" class="ml-2 size-6 shrink-0 object-contain" draggable={false} onPointerDown={handleDragPointerDown} src={props.icon} />
                 </Show>
@@ -117,16 +117,16 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
                         {(breadcrumb, index) => (
                             <>
                                 <Show when={index() > 0}>
-                                    <span class="text-muted">/</span>
+                                    <span class="text-text-muted">/</span>
                                 </Show>
-                                <span class={index() === 0 ? 'font-semibold text-fg' : 'text-muted'}>{breadcrumb}</span>
+                                <span class={index() === 0 ? 'font-semibold text-text' : 'text-text-muted'}>{breadcrumb}</span>
                             </>
                         )}
                     </For>
                 </div>
                 <button
                     aria-label="关闭插件视图"
-                    class="grid size-8 cursor-pointer place-items-center border-border border-l text-muted outline-none transition-colors hover:bg-danger/10 hover:text-danger focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+                    class="grid size-8 cursor-pointer place-items-center border-border border-l text-text-muted outline-none transition-colors hover:bg-danger/10 hover:text-danger focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
                     data-interactive
                     onClick={props.onClose}
                     type="button"
@@ -137,7 +137,7 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
             <div aria-hidden="true" class="min-w-0 flex-1 self-stretch cursor-grab active:cursor-grabbing" onPointerDown={handleDragPointerDown} />
             <button
                 aria-label="打开菜单"
-                class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-muted outline-none transition-colors hover:bg-surface/80 hover:text-fg focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+                class="grid size-8 cursor-pointer place-items-center rounded-full border border-border text-text-muted outline-none transition-colors hover:bg-surface-card/80 hover:text-text focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none"
                 data-interactive
                 onClick={showMenu}
                 title={menuError() ?? '更多操作'}

@@ -17,7 +17,7 @@ export function App() {
     });
 
     return (
-        <main class="h-screen overflow-hidden text-fg transition-colors">
+        <main class="h-screen overflow-hidden text-text transition-colors">
             <HashRouter>
                 <Route path="/" component={LauncherPage} />
                 <Route path={PLUGIN_ROUTE_PATTERN} component={WorkspacePage} />

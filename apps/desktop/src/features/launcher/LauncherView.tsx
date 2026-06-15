@@ -68,8 +68,8 @@ function ResultButton(props: ResultButtonProps) {
             ref={buttonElement}
             class="relative grid size-full cursor-pointer grid-rows-[1fr_auto] place-items-center gap-1.5 rounded-2xl border border-transparent p-2 text-center text-inherit outline-none transition-colors"
             classList={{
-                'border-accent/40 bg-accent/15 text-fg': props.selected,
-                'bg-transparent hover:bg-surface-muted/60 focus-visible:bg-surface-muted/60': !props.selected,
+                'border-primary/40 bg-primary/15 text-text': props.selected,
+                'bg-transparent hover:bg-surface-hover/60 focus-visible:bg-surface-hover/60': !props.selected,
             }}
             draggable={false}
             onClick={props.onClick}
@@ -131,13 +131,13 @@ export function LauncherView(props: LauncherViewProps) {
             <Show when={shouldShowResults()}>
                 <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">
                     <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
-                        <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-muted">未找到结果</p>}>
+                        <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-text-muted">未找到结果</p>}>
                             {/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown/focusin handler 仅用于阻止焦点转移，非用户交互功能 */}
                             <div class="grid gap-3" role="presentation" onMouseDown={handleMouseDown} onFocusIn={handleFocusIn}>
                                 <For each={props.renderSections}>
                                     {(section) => (
                                         <section class="grid gap-2">
-                                            <div class="flex h-6 items-center justify-between px-2 text-xs font-medium text-muted">
+                                            <div class="flex h-6 items-center justify-between px-2 text-xs font-medium text-text-muted">
                                                 <span class="leading-none">{section.title}</span>
                                                 <div class="flex h-full items-center gap-2">
                                                     <Show when={section.totalCount > section.shownCount}>
@@ -147,7 +147,7 @@ export function LauncherView(props: LauncherViewProps) {
                                                     </Show>
                                                     <Show when={section.canExpand && !section.expanded}>
                                                         <button
-                                                            class="h-5 rounded-md px-2 text-xs leading-none text-accent hover:bg-surface-muted"
+                                                            class="h-5 rounded-md px-2 text-xs leading-none text-primary hover:bg-surface-hover"
                                                             onClick={(event) => {
                                                                 stopEvent(event);
                                                                 props.onSectionExpandedToggle(section.id);

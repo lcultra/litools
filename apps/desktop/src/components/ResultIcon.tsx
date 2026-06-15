@@ -7,7 +7,7 @@ export function ResultIcon(props: { result: SearchResult }) {
     const fallback = () => providerLabel(props.result.provider).slice(0, 1);
 
     return (
-        <span class="grid size-10 place-items-center overflow-hidden text-sm font-semibold text-muted">
+        <span class="grid size-10 place-items-center overflow-hidden text-sm font-semibold text-text-muted">
             <Show when={props.result.iconUri && !failed()} fallback={fallback()}>
                 <img alt="" class="size-10 object-contain" draggable={false} onError={() => setFailed(true)} src={props.result.iconUri ?? undefined} />
             </Show>
