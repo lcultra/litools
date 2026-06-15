@@ -1,16 +1,16 @@
 {
-  "name": "@litools/plugin-ui",
+  "name": "@litools/ui",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "dist/plugin-ui.js",
+  "main": "dist/ui.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/plugin-ui.js"
+      "default": "./dist/ui.js"
     },
-    "./style.css": "./dist/plugin-ui.css"
+    "./style.css": "./dist/ui.css"
   },
   "scripts": {
     "build": "tsc && vite build",

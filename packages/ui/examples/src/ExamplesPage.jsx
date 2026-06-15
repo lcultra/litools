@@ -13,7 +13,7 @@ import {
     ToastProvider,
     toast,
     ConfirmDialog
-} from '@litools/plugin-ui';
+} from '@litools/ui';
 
 
 const Section = (props) => (

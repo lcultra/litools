@@ -1,5 +1,5 @@
 {
-    "name": "@litools/plugin-ui-example",
+    "name": "@litools/ui-example",
     "private": true,
     "version": "0.1.0",
     "scripts": {
@@ -7,7 +7,7 @@
     },
     "dependencies": {
         "@litools/design-tokens": "workspace:*",
-        "@litools/plugin-ui": "workspace:*"
+        "@litools/ui": "workspace:*"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.1.0",

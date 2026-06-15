@@ -113,7 +113,7 @@ importers:
       '@litools/design-tokens':
         specifier: workspace:*
         version: link:../../design-tokens
-      '@litools/plugin-ui':
+      '@litools/ui':
         specifier: workspace:*
         version: link:..
     devDependencies:
@@ -138,7 +138,7 @@ importers:
       '@litools/plugin-sdk':
         specifier: workspace:*
         version: link:../../../packages/sdk
-      '@litools/plugin-ui':
+      '@litools/ui':
         specifier: workspace:*
         version: link:../../../packages/ui
     devDependencies:
@@ -166,7 +166,7 @@ importers:
       '@litools/plugin-sdk':
         specifier: workspace:*
         version: link:../../../packages/sdk
-      '@litools/plugin-ui':
+      '@litools/ui':
         specifier: workspace:*
         version: link:../../../packages/ui
     devDependencies:

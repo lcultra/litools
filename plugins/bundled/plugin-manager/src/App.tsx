@@ -1,7 +1,7 @@
 import { createSignal, createResource, For, Show, onMount } from 'solid-js';
 import { ready } from '@litools/plugin-sdk';
 import { listPlugins, togglePlugin, installPlugin, uninstallPlugin } from '@litools/plugin-core';
-import { PluginLayout, Button, Switch, Badge, Card, ConfirmDialog } from '@litools/plugin-ui';
+import { PluginLayout, Button, Switch, Badge, Card, ConfirmDialog } from '@litools/ui';
 import { RefreshCw, PackagePlus, Trash2 } from 'lucide-solid';
 import type { PluginSummary } from '@litools/plugin-core';
 

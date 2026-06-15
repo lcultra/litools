@@ -1,7 +1,7 @@
 import { createSignal, onMount } from 'solid-js';
 import { settingsGet, settingsUpdate, ready } from '@litools/plugin-sdk';
 import type { ThemeValue, AppSettings } from '@litools/plugin-core';
-import { PluginLayout, SegmentedControl, Input } from '@litools/plugin-ui';
+import { PluginLayout, SegmentedControl, Input } from '@litools/ui';
 
 const THEME_ITEMS = [
     { value: 'system', label: '跟随系统' },
