@@ -24,6 +24,7 @@ pub fn init() -> TauriPlugin<tauri::Wry> {
             crate::core::launcher::unpin_result,
             crate::core::launcher::reorder_pinned_results,
             crate::core::launcher::execute_result,
+            crate::core::surface::commands::get_base_info,
             crate::core::surface::commands::detach_route,
             crate::core::surface::commands::update_surface_route,
             crate::core::surface::commands::list_windows,

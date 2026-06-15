@@ -22,29 +22,16 @@ pub fn route_plugin_view_call(
     state: &AppState,
     app_handle: &AppHandle,
 ) -> Result<Value, PluginRuntimeError> {
-    if !crate::windowing::labels::is_plugin_webview_label(webview.label()) {
-        return Err(PluginRuntimeError::permission_denied(format!(
-            "not a plugin runtime webview: {}",
-            webview.label()
-        )));
-    }
-
-    // 通过 webview_label → surface_id → runtime_id 查找 runtime context
+    log::debug!("[dispatch] {method} from webview={}", webview.label());
+    // 通过 webview_label（即 surface_id）直接查找 runtime context
     let context = state
-        .surfaces
+        .plugin_runtimes
         .lock()
-        .ok()
-        .and_then(|r| {
-            let surface_id = r.surface_id_for_webview_label(webview.label())?;
-            state
-                .plugin_runtimes
-                .lock()
-                .ok()?
-                .runtime_for_surface_id(&surface_id)
-        })
+        .map_err(|e| PluginRuntimeError::internal(e.to_string()))?
+        .runtime_for_surface_id(webview.label())
         .ok_or_else(|| {
             PluginRuntimeError::permission_denied(format!(
-                "not a registered plugin runtime webview: {}",
+                "not a registered plugin runtime: {}",
                 webview.label()
             ))
         })?;

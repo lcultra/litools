@@ -2,13 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::Utc;
 use litools_plugin::RuntimePolicy;
+use uuid::Uuid;
 
 use crate::core::plugins::runtime::model::{PluginRuntimeContext, PluginRuntimeLifecycle};
-pub use litools_config::labels::RUNTIME_ID_PREFIX;
 
 #[derive(Debug, Default)]
 pub struct PluginRuntimeRegistry {
-    next_runtime_index: u64,
     runtimes_by_id: BTreeMap<String, PluginRuntimeContext>,
     runtime_id_by_surface_id: BTreeMap<String, String>,
     /// (plugin_id, command_id) → BTreeSet<runtime_id>
@@ -35,8 +34,7 @@ impl PluginRuntimeRegistry {
     }
 
     pub fn next_runtime_id(&mut self) -> String {
-        self.next_runtime_index += 1;
-        format!("{RUNTIME_ID_PREFIX}_{:06}", self.next_runtime_index)
+        Uuid::new_v4().to_string()
     }
 
     pub fn register_runtime(
@@ -44,6 +42,11 @@ impl PluginRuntimeRegistry {
         registration: PluginRuntimeRegistration,
         id: String,
     ) -> Result<PluginRuntimeContext, String> {
+        log::debug!(
+            "[runtime] 注册 runtime={id} plugin={}:{} surface={} policy={:?}",
+            registration.plugin_id, registration.command_id,
+            registration.surface_id, registration.policy
+        );
         if self.runtimes_by_id.contains_key(&id) {
             return Err(format!("plugin runtime already exists: {id}"));
         }
@@ -195,6 +198,7 @@ impl PluginRuntimeRegistry {
     }
 
     pub fn remove(&mut self, target: &str) -> Option<PluginRuntimeContext> {
+        log::debug!("[runtime] remove: target={target}");
         // 先按 runtime_id 查找
         let id = if self.runtimes_by_id.contains_key(target) {
             target.to_string()
@@ -242,7 +246,7 @@ mod tests {
             plugin_name: "Test".to_string(),
             title: "Hello".to_string(),
             entry_url: "litools-plugin://dev.litools.test/dist/index.html".to_string(),
-            surface_id: "surface_000001".to_string(),
+            surface_id: "plugin-a1b2c3d4-e5f6-7890-abcd-ef1111111111".to_string(),
             permissions: vec!["ui:window".to_string()],
             trusted: false,
             policy: RuntimePolicy::Singleton,
@@ -251,7 +255,7 @@ mod tests {
 
     fn multi_registration() -> PluginRuntimeRegistration {
         let mut reg = registration();
-        reg.surface_id = "surface_000001_multi".to_string();
+        reg.surface_id = "plugin-b2c3d4e5-f6a7-8901-bcde-f22222222222".to_string();
         reg.policy = RuntimePolicy::MultiInstance;
         reg
     }
@@ -260,13 +264,13 @@ mod tests {
     fn registers_and_finds_runtime() {
         let mut registry = PluginRuntimeRegistry::default();
         let context = registry
-            .register_runtime(registration(), "runtime_000001".to_string())
+            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
 
         assert_eq!(context.lifecycle, PluginRuntimeLifecycle::Created);
         assert_eq!(context.policy, RuntimePolicy::Singleton);
         assert_eq!(
-            registry.runtime_for_surface_id("surface_000001"),
+            registry.runtime_for_surface_id("plugin-a1b2c3d4-e5f6-7890-abcd-ef1111111111"),
             Some(context.clone())
         );
         assert_eq!(
@@ -279,14 +283,14 @@ mod tests {
     fn rejects_duplicate_singleton_runtime() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(registration(), "runtime_000001".to_string())
+            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
 
         let mut reg2 = registration();
-        reg2.surface_id = "surface_000002".to_string();
+        reg2.surface_id = "plugin-c3d4e5f6-a7b8-9012-cdef-333333333333".to_string();
         assert!(
             registry
-                .register_runtime(reg2, "runtime_000002".to_string(),)
+                .register_runtime(reg2, "550e8400-e29b-41d4-a716-446655440002".to_string(),)
                 .is_err()
         );
     }
@@ -295,13 +299,13 @@ mod tests {
     fn allows_multi_instance_runtimes() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(multi_registration(), "runtime_000001".to_string())
+            .register_runtime(multi_registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("first runtime registered");
 
         let mut reg2 = multi_registration();
-        reg2.surface_id = "surface_000002_multi".to_string();
+        reg2.surface_id = "plugin-d4e5f6a7-b8c9-0123-def4-444444444444".to_string();
         let second = registry
-            .register_runtime(reg2, "runtime_000002".to_string())
+            .register_runtime(reg2, "550e8400-e29b-41d4-a716-446655440002".to_string())
             .expect("second runtime registered");
 
         assert_eq!(second.policy, RuntimePolicy::MultiInstance);
@@ -313,18 +317,18 @@ mod tests {
     fn transitions_lifecycle() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(registration(), "runtime_000001".to_string())
+            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
 
         let context = registry
-            .mark_focus_enter("runtime_000001")
+            .mark_focus_enter("550e8400-e29b-41d4-a716-446655440001")
             .expect("runtime updated");
         assert_eq!(context.lifecycle, PluginRuntimeLifecycle::Created);
         assert!(context.pending_enter);
         assert!(!context.entered);
 
         let context = registry
-            .mark_ready("runtime_000001")
+            .mark_ready("550e8400-e29b-41d4-a716-446655440001")
             .expect("runtime ready");
         assert_eq!(context.lifecycle, PluginRuntimeLifecycle::Active);
         assert!(!context.pending_enter);
@@ -335,11 +339,11 @@ mod tests {
     fn removes_runtime_indexes() {
         let mut registry = PluginRuntimeRegistry::default();
         registry
-            .register_runtime(registration(), "runtime_000001".to_string())
+            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
 
-        assert!(registry.remove("runtime_000001").is_some());
-        assert!(registry.runtime("runtime_000001").is_none());
-        assert!(registry.runtime_for_surface_id("surface_000001").is_none());
+        assert!(registry.remove("550e8400-e29b-41d4-a716-446655440001").is_some());
+        assert!(registry.runtime("550e8400-e29b-41d4-a716-446655440001").is_none());
+        assert!(registry.runtime_for_surface_id("plugin-a1b2c3d4-e5f6-7890-abcd-ef1111111111").is_none());
     }
 }

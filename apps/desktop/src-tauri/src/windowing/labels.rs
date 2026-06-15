@@ -1,29 +1,24 @@
-pub use litools_config::labels::{
-    DETACHED_PANEL_WINDOW_PREFIX, MAIN_WINDOW_LABEL, PLUGIN_WEBVIEW_PREFIX, PLUGIN_WINDOW_PREFIX,
-    SURFACE_WEBVIEW_LABEL_PREFIX,
-};
+pub use litools_config::labels::{DETACH_WINDOW_PREFIX, MAIN_WINDOW_LABEL};
 
-pub fn is_detached_panel_window_label(label: &str) -> bool {
-    label.starts_with(DETACHED_PANEL_WINDOW_PREFIX)
+use uuid::Uuid;
+
+pub fn is_detach_window_label(label: &str) -> bool {
+    label.starts_with(DETACH_WINDOW_PREFIX)
 }
 
-pub fn is_plugin_window_label(label: &str) -> bool {
-    label.starts_with(PLUGIN_WINDOW_PREFIX)
+/// 生成分离窗口标签：`detach-window-{uuid}`。
+pub fn detach_window_label() -> String {
+    format!("{DETACH_WINDOW_PREFIX}{}", Uuid::new_v4())
 }
 
-pub fn is_plugin_webview_label(label: &str) -> bool {
-    label.starts_with(PLUGIN_WEBVIEW_PREFIX)
+/// 生成 Core provider 的 surface / webview 标签：`core-webview-{uuid}`。
+pub fn core_webview_label() -> String {
+    let prefix = litools_config::labels::CORE_WEBVIEW_PREFIX;
+    format!("{prefix}{}", Uuid::new_v4())
 }
 
-pub fn surface_webview_label(surface_id: &str) -> String {
-    format!("{SURFACE_WEBVIEW_LABEL_PREFIX}{surface_id}")
-}
-
-pub fn plugin_window_label(runtime_id: &str) -> String {
-    format!("{PLUGIN_WINDOW_PREFIX}{runtime_id}")
-}
-
-#[allow(dead_code)]
-pub fn plugin_webview_label(runtime_id: &str) -> String {
-    format!("{PLUGIN_WEBVIEW_PREFIX}{runtime_id}")
+/// 生成 Plugin provider 的 surface / webview 标签：`plugin-webview-{uuid}`。
+pub fn plugin_webview_label() -> String {
+    let prefix = litools_config::labels::PLUGIN_WEBVIEW_PREFIX;
+    format!("{prefix}{}", Uuid::new_v4())
 }

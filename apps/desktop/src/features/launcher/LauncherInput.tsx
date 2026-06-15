@@ -118,7 +118,7 @@ export function LauncherInput(props: LauncherInputProps) {
     });
 
     return (
-        <form ref={handleRootElement} class="relative flex h-[68px] border-b border-border" onSubmit={props.onSubmit}>
+        <form ref={handleRootElement} class="relative flex h-[68px]" onSubmit={props.onSubmit}>
             <input
                 ref={props.inputRef}
                 aria-autocomplete="none"

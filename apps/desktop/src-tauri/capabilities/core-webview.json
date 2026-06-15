@@ -1,9 +1,12 @@
 {
-    "identifier": "main-capability",
-    "description": "主窗口能力",
+    "identifier": "core-webview",
+    "description": "Core webview 及窗口的基础能力",
+    "webviews": [
+        "core-webview-*"
+    ],
     "windows": [
-        "main",
-        "detached-panel-*"
+        "main-window",
+        "detach-window-*"
     ],
     "remote": {
         "urls": [
@@ -12,6 +15,7 @@
     },
     "permissions": [
         "core:default",
+        "core:event:allow-listen",
         "litools-core:default",
         "global-shortcut:default",
         "litools-sdk:default"

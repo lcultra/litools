@@ -47,6 +47,7 @@ export type PluginViewState = {
 };
 export type ViewProvider = 'core' | { plugin: { pluginId: string } };
 export type WindowHostKind = 'main' | 'detached';
+export type BaseInfo = { mainWindowLabel: string; detachWindowPrefix: string };
 export type SurfaceMetadata = {
     id: string; webviewLabel: string; viewId: string; provider: ViewProvider; route: string;
     title: string; hostWindowLabel: string; hostKind: WindowHostKind;
@@ -141,6 +142,7 @@ export function focusSurface(target?: WindowHostKind | string): Promise<void> { 
 export function listSurfaces(): Promise<SurfaceMetadata[]> { return invokeCore('list_windows'); }
 export function getCurrentSurfaceMetadata(): Promise<SurfaceMetadata | null> { return invokeCore('get_current_window_metadata'); }
 export function destroySurface(target: string): Promise<void> { return invokeCore('destroy_window', { target }); }
+export function getBaseInfo(): Promise<BaseInfo> { return invokeCore('get_base_info'); }
 export function startWindowDragging(): Promise<void> { return invokeCore('start_window_dragging'); }
 export function hideMainWindow(): Promise<void> { return invokeCore('hide_main_window'); }
 export function showMainWindow(): Promise<void> { return invokeCore('show_main_window'); }

@@ -1,4 +1,5 @@
 use litools_index::repository::AppRepository;
+use serde::Serialize;
 use tauri::{AppHandle, Manager, State, Webview};
 use tauri_plugin_opener::OpenerExt;
 
@@ -7,6 +8,22 @@ use crate::{
     state::AppState,
     windowing::{factory, labels},
 };
+
+/// 前端启动时获取的基础信息，避免硬编码后端常量。
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaseInfo {
+    pub main_window_label: &'static str,
+    pub detach_window_prefix: &'static str,
+}
+
+#[tauri::command]
+pub fn get_base_info() -> Result<BaseInfo, String> {
+    Ok(BaseInfo {
+        main_window_label: labels::MAIN_WINDOW_LABEL,
+        detach_window_prefix: labels::DETACH_WINDOW_PREFIX,
+    })
+}
 
 #[tauri::command]
 pub fn detach_route(

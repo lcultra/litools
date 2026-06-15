@@ -12,13 +12,11 @@ pub fn handle_window_event(window: &Window, event: &WindowEvent) {
         return;
     };
 
+    log::debug!("[lifecycle] {} {:?}", window.label(), event);
     match window.label() {
         labels::MAIN_WINDOW_LABEL => handle_main_window_event(window, event, &state),
-        label if labels::is_detached_panel_window_label(label) => {
-            handle_detached_panel_event(window, event, &state)
-        }
-        label if labels::is_plugin_window_label(label) => {
-            handle_plugin_runtime_event(window, event, &state)
+        label if labels::is_detach_window_label(label) => {
+            handle_detach_window_event(window, event, &state)
         }
         _ => {}
     }
@@ -38,8 +36,6 @@ fn handle_main_window_event(window: &Window, event: &WindowEvent, state: &AppSta
             factory::hide_window(window);
         }
         WindowEvent::Moved(position) => {
-            // 程序化布局窗口内（show/resize/set_position）的所有 Moved 忽略，
-            // 只有用户拖拽触发的才会写入位置记忆。
             if state.is_programmatic_layout() {
                 return;
             }
@@ -56,7 +52,10 @@ fn handle_main_window_event(window: &Window, event: &WindowEvent, state: &AppSta
     }
 }
 
-fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &AppState) {
+/// 所有 detach- 窗口统一事件处理。
+/// 通过 surface metadata 的 provider 区分是 Core 还是 Plugin 面板，
+/// 执行对应的生命周期逻辑。
+fn handle_detach_window_event(window: &Window, event: &WindowEvent, state: &AppState) {
     match event {
         WindowEvent::CloseRequested { api, .. } if !state.is_quitting() => {
             api.prevent_close();
@@ -71,6 +70,7 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
             }
         }
         WindowEvent::Focused(focused) => {
+            // 聚焦/失焦状态更新
             if let Some(metadata) = state
                 .surfaces
                 .lock()
@@ -79,47 +79,39 @@ fn handle_detached_panel_event(window: &Window, event: &WindowEvent, state: &App
             {
                 events::emit_metadata_changed(window.app_handle(), &metadata);
             }
-            if *focused
-                && let Some(metadata) =
-                    state.surfaces.lock().ok().and_then(|mut r| {
+            if *focused {
+                // Plugin 运行时窗口：聚焦时 enter_runtime
+                if let Some(context) = find_runtime_by_window_label(state, window.label()) {
+                    let _ = crate::core::plugins::runtime::service::enter_runtime(
+                        window.app_handle(),
+                        state,
+                        &context.id,
+                    );
+                }
+                // 通用：标记 Active
+                if let Some(metadata) = state
+                    .surfaces
+                    .lock()
+                    .ok()
+                    .and_then(|mut r| {
                         r.mark_lifecycle(window.label(), SurfaceLifecycle::Active)
                     })
-            {
-                events::emit_metadata_changed(window.app_handle(), &metadata);
-            }
-        }
-        WindowEvent::Destroyed => {
-            state
-                .surfaces
-                .lock()
-                .ok()
-                .and_then(|mut r| r.remove(window.label()));
-        }
-        _ => {}
-    }
-}
-
-fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &AppState) {
-    match event {
-        WindowEvent::Focused(true) => {
-            if let Some(context) = find_runtime_by_window_label(state, window.label()) {
-                let _ = crate::core::plugins::runtime::service::enter_runtime(
-                    window.app_handle(),
-                    state,
-                    &context.id,
-                );
-            }
-        }
-        WindowEvent::Focused(false) => {
-            if let Some(context) = find_runtime_by_window_label(state, window.label()) {
-                let _ = crate::core::plugins::runtime::service::leave_runtime(
-                    window.app_handle(),
-                    state,
-                    &context.id,
-                );
+                {
+                    events::emit_metadata_changed(window.app_handle(), &metadata);
+                }
+            } else {
+                // Plugin 运行时窗口：失焦时 leave_runtime
+                if let Some(context) = find_runtime_by_window_label(state, window.label()) {
+                    let _ = crate::core::plugins::runtime::service::leave_runtime(
+                        window.app_handle(),
+                        state,
+                        &context.id,
+                    );
+                }
             }
         }
         WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+            // Plugin 运行时窗口需要重新布局
             let _ = crate::core::plugins::runtime::service::layout_runtime_window(
                 window.app_handle(),
                 state,
@@ -127,6 +119,8 @@ fn handle_plugin_runtime_event(window: &Window, event: &WindowEvent, state: &App
             );
         }
         WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed => {
+            // 窗口已关闭/销毁：清理运行时
+            log::info!("[lifecycle] 分离窗口销毁: {}", window.label());
             let _ = crate::core::plugins::runtime::service::cleanup_runtime_window(
                 window.app_handle(),
                 state,

@@ -1,0 +1,17 @@
+{
+    "identifier": "plugin-webview",
+    "description": "插件 webview 匹配模板，所有权限由运行时根据插件声明动态注入",
+    "webviews": [
+        "plugin-webview-*"
+    ],
+    "windows": [
+        "main-window",
+        "detach-window-*"
+    ],
+    "remote": {
+        "urls": [
+            "http://localhost:*"
+        ]
+    },
+    "permissions": []
+}

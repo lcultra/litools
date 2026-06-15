@@ -53,7 +53,7 @@ export function WorkspacePage() {
         const rid = runtimeId();
         if (rid) {
             void closePluginViewById(rid);
-        } else {
+        } else if (params.pluginId && params.commandId) {
             void closePluginView(params.pluginId, params.commandId);
         }
     });

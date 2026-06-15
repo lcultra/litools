@@ -3,6 +3,7 @@ export {
     closePluginViewById,
     detachPluginView,
     executeResult,
+    getBaseInfo,
     getCurrentSurfaceMetadata,
     getPluginViewDescriptor,
     getSettings,

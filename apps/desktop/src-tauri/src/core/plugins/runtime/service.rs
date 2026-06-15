@@ -82,13 +82,15 @@ pub fn dock_plugin_runtime(
     if let Some(action) = resolve_launch_action(state, plugin_id, command_id, policy) {
         return match action {
             LaunchAction::EnsureVisible(context) => {
+                log::debug!("[runtime] dock: 复用已停靠 runtime={}", context.id);
                 ensure_docked_runtime_webview(app, state, context)
             }
             LaunchAction::FocusDetached(context) => {
+                log::debug!("[runtime] dock: 聚焦已分离 runtime={}", context.id);
                 focus_runtime_host(app, state, &context)?;
                 Ok(context)
             }
-            LaunchAction::Create => unreachable!(), // Create 不在 resolve 中返回
+            LaunchAction::Create => unreachable!(),
         };
     }
 
@@ -225,13 +227,13 @@ pub fn detach_plugin_runtime(
             window
                 .set_title(&context.title)
                 .map_err(|e| e.to_string())?;
-            // 唯一标签已消除碰撞，同步补充预热窗口
+            // 补充预热窗口
             spawn_pooled_detached(app, state);
             (window, pooled_label, true)
         } else {
-            let label = labels::plugin_window_label(&context.id);
+            let label = labels::detach_window_label();
             let window =
-                factory::create_plugin_runtime_detached_host(app, label.clone(), &context.title)?;
+                factory::create_detach_host(app, label.clone(), &context.title)?;
             (window, label, false)
         };
 
@@ -243,11 +245,12 @@ pub fn detach_plugin_runtime(
             let _ = wv.eval(&format!("window.location.hash = '#{}';", plugin_route));
         }
     } else {
+        let surface_id = labels::core_webview_label();
         webview::add_surface_webview(
             &detached_window,
             &crate::core::surface::model::SurfaceMetadata {
-                id: format!("detached_{}", context.id),
-                webview_label: labels::surface_webview_label(&context.id),
+                id: surface_id.clone(),
+                webview_label: surface_id,
                 view_id: "plugin".to_string(),
                 provider: crate::view::ViewProvider::Plugin {
                     plugin_id: context.plugin_id.clone(),
@@ -313,36 +316,28 @@ pub fn warm_detached_pool(app: &tauri::AppHandle, state: &AppState) {
 }
 
 fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
-    // 每次生成唯一标签，避免复用已被实际分离窗口占用的标签
     let Ok(pooled_label) = state
         .surfaces
         .lock()
         .map(|mut r| r.next_detached_host_label())
     else {
+        log::warn!("[runtime] 预热池: 无法生成窗口标签");
         return;
     };
 
+    log::debug!("[runtime] 预热池: 创建 {pooled_label}");
     let Ok(window) =
-        factory::create_plugin_runtime_detached_host(app, pooled_label.clone(), "litools")
+        factory::create_detach_host(app, pooled_label.clone(), "litools")
     else {
         return;
     };
     let _ = window.hide();
 
     // Pre-warm: load SolidJS app at /pooled (no route matches → empty page).
+    let surface_id = labels::core_webview_label();
     let metadata = crate::core::surface::model::SurfaceMetadata {
-        id: format!(
-            "detached_pool_{}",
-            pooled_label
-                .strip_prefix(labels::DETACHED_PANEL_WINDOW_PREFIX)
-                .unwrap_or("unknown")
-        ),
-        webview_label: labels::surface_webview_label(&format!(
-            "pool_{}",
-            pooled_label
-                .strip_prefix(labels::DETACHED_PANEL_WINDOW_PREFIX)
-                .unwrap_or("unknown")
-        )),
+        id: surface_id.clone(),
+        webview_label: surface_id,
         view_id: "core.launcher".to_string(),
         provider: crate::view::ViewProvider::Core,
         route: "/pooled".to_string(),
@@ -486,12 +481,16 @@ pub fn close_runtime(
     state: &AppState,
     runtime_id: &str,
 ) -> Result<(), String> {
-    let context = state
+    log::info!("[runtime] close_runtime: runtime_id={runtime_id}");
+    let Some(context) = state
         .plugin_runtimes
         .lock()
         .map_err(|e| e.to_string())?
         .runtime(runtime_id)
-        .ok_or_else(|| format!("plugin runtime not found: {runtime_id}"))?;
+    else {
+        log::debug!("[runtime] close_runtime: 已关闭，跳过");
+        return Ok(());
+    };
     let _ = leave_runtime(app, state, runtime_id);
 
     let surface_id = context.surface_id.clone();
@@ -517,15 +516,26 @@ pub fn close_runtime(
         .to_string();
 
     if let Some(webview) = app.get_webview(&webview_label) {
-        let _ = webview.close();
+        log::debug!("[runtime] close_runtime: 关闭 webview={webview_label}");
+        if let Err(e) = webview.close() {
+            log::warn!("[runtime] close_runtime: 关闭 webview 失败: {e}");
+        }
+    } else {
+        log::warn!("[runtime] close_runtime: webview 不存在: {webview_label}");
     }
     if host_kind == WindowHostKind::Detached {
         if let Some(window) = app.get_window(&host_window_label) {
-            let _ = window.destroy();
+            log::debug!("[runtime] close_runtime: 销毁分离窗口 {host_window_label}");
+            if let Err(e) = window.destroy() {
+                log::warn!("[runtime] close_runtime: 销毁窗口失败: {e}");
+            }
         }
     }
     if host_kind == WindowHostKind::Main {
-        let _ = surface_service::open_view_route(app, state, "/");
+        log::info!("[runtime] close_runtime: 回到启动器");
+        if let Err(e) = surface_service::open_view_route(app, state, "/") {
+            log::error!("[runtime] close_runtime: 回到启动器失败: {e}");
+        }
     }
 
     state
@@ -551,6 +561,7 @@ pub fn cleanup_runtime_window(
     state: &AppState,
     window_label: &str,
 ) -> Result<(), String> {
+    log::debug!("[runtime] cleanup_runtime_window: window={window_label}");
     let context = find_runtime_by_window_label(state, window_label);
     let Some(context) = context else {
         return Ok(());

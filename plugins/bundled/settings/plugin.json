@@ -19,5 +19,8 @@
         "litools-sdk:allow-runtime",
         "litools-sdk:allow-settings-read",
         "litools-sdk:allow-settings-write"
-    ]
+    ],
+    "development": {
+        "main": "http://localhost:5175/"
+    }
 }

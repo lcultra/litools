@@ -5,26 +5,19 @@ use chrono::Utc;
 use crate::{
     core::surface::model::{SurfaceBounds, SurfaceLifecycle, SurfaceMetadata},
     view::{ViewDefinition, ViewProvider, WindowHostKind},
-    windowing::labels::{MAIN_WINDOW_LABEL, surface_webview_label},
+    windowing::labels::{MAIN_WINDOW_LABEL, core_webview_label, plugin_webview_label},
 };
-pub use litools_config::labels::{DETACHED_HOST_ID_PREFIX, SURFACE_ID_PREFIX};
 
 #[derive(Debug)]
 pub struct SurfaceRegistry {
-    next_surface_index: u64,
-    next_detached_host_index: u64,
     surfaces_by_id: BTreeMap<String, SurfaceMetadata>,
-    surface_id_by_webview_label: BTreeMap<String, String>,
     pub(crate) surface_id_by_window_label: BTreeMap<String, String>,
 }
 
 impl Default for SurfaceRegistry {
     fn default() -> Self {
         Self {
-            next_surface_index: 1,
-            next_detached_host_index: 1,
             surfaces_by_id: BTreeMap::new(),
-            surface_id_by_webview_label: BTreeMap::new(),
             surface_id_by_window_label: BTreeMap::new(),
         }
     }
@@ -41,21 +34,19 @@ impl SurfaceRegistry {
         host_window_label: String,
         host_kind: WindowHostKind,
     ) -> SurfaceMetadata {
-        let id = format!("{SURFACE_ID_PREFIX}_{:06}", self.next_surface_index);
-        self.next_surface_index += 1;
-        let webview_label = match &view.provider {
-            ViewProvider::Plugin { .. } => {
-                let index = id
-                    .strip_prefix(&format!("{}_", SURFACE_ID_PREFIX))
-                    .unwrap_or(&id);
-                format!("plugin-{index}")
-            }
-            _ => surface_webview_label(&id),
+        // surface_id 即 webview_label，按 provider 生成对应前缀的 UUID 标签
+        let id = match &view.provider {
+            ViewProvider::Plugin { .. } => plugin_webview_label(),
+            _ => core_webview_label(),
         };
+        log::debug!(
+            "[surface] 注册 surface={id} provider={:?} route={} host_window={host_window_label} host_kind={:?}",
+            view.provider, view.route, host_kind
+        );
         let now = Self::now();
         let metadata = SurfaceMetadata {
             id: id.clone(),
-            webview_label: webview_label.clone(),
+            webview_label: id.clone(),
             view_id: view.id,
             provider: view.provider,
             route: view.route,
@@ -69,24 +60,17 @@ impl SurfaceRegistry {
             updated_at: now,
         };
         self.surfaces_by_id.insert(id.clone(), metadata.clone());
-        self.surface_id_by_webview_label
-            .insert(webview_label, id.clone());
         self.surface_id_by_window_label
             .insert(host_window_label, id);
         metadata
     }
 
     pub fn next_detached_host_label(&mut self) -> String {
-        let label = format!(
-            "{}{DETACHED_HOST_ID_PREFIX}_{:06}",
-            crate::windowing::labels::DETACHED_PANEL_WINDOW_PREFIX,
-            self.next_detached_host_index
-        );
-        self.next_detached_host_index += 1;
-        label
+        crate::windowing::labels::detach_window_label()
     }
 
-    /// 通过 id、webview_label 或 window_label 查找 surface 元数据。
+    /// 通过 id 或 window_label 查找 surface 元数据。
+    /// 由于 surface_id == webview_label，按任意标签查找均可直接命中。
     pub fn metadata(&self, target: &str) -> Option<SurfaceMetadata> {
         if target == MAIN_WINDOW_LABEL {
             let id = self.surface_id_by_window_label.get(MAIN_WINDOW_LABEL)?;
@@ -98,11 +82,6 @@ impl SurfaceRegistry {
             return Some(metadata.clone());
         }
 
-        // 按 webview_label 查找
-        if let Some(id) = self.surface_id_by_webview_label.get(target) {
-            return self.surfaces_by_id.get(id).cloned();
-        }
-
         // 按 window_label 查找
         if let Some(id) = self.surface_id_by_window_label.get(target) {
             return self.surfaces_by_id.get(id).cloned();
@@ -111,13 +90,9 @@ impl SurfaceRegistry {
         None
     }
 
-    pub fn surface_id_for_webview_label(&self, label: &str) -> Option<String> {
-        self.surface_id_by_webview_label.get(label).cloned()
-    }
-
     pub fn metadata_for_webview_label(&self, label: &str) -> Option<SurfaceMetadata> {
-        let id = self.surface_id_by_webview_label.get(label)?;
-        self.surfaces_by_id.get(id).cloned()
+        // surface_id == webview_label，直接按 id 查找
+        self.surfaces_by_id.get(label).cloned()
     }
 
     pub fn host_window_label(&self, id: &str) -> Option<&str> {
@@ -163,8 +138,9 @@ impl SurfaceRegistry {
         host_window_label: String,
         host_kind: WindowHostKind,
     ) -> Option<SurfaceMetadata> {
-        let id = self.surface_id_by_webview_label.get(webview_label)?;
-        let metadata = self.surfaces_by_id.get_mut(id)?;
+        log::info!("[surface] move_to_host: webview={webview_label} → window={host_window_label} kind={host_kind:?}");
+        // webview_label 即 surface_id，直接查找
+        let metadata = self.surfaces_by_id.get_mut(webview_label)?;
         // 移除旧的 window_label → id 映射
         self.surface_id_by_window_label
             .remove(&metadata.host_window_label);
@@ -175,7 +151,7 @@ impl SurfaceRegistry {
         metadata.updated_at = Self::now();
         // 插入新的 window_label → id 映射
         self.surface_id_by_window_label
-            .insert(metadata.host_window_label.clone(), id.clone());
+            .insert(metadata.host_window_label.clone(), metadata.id.clone());
         Some(metadata.clone())
     }
 
@@ -184,8 +160,8 @@ impl SurfaceRegistry {
         webview_label: &str,
         view: ViewDefinition,
     ) -> Option<SurfaceMetadata> {
-        let id = self.surface_id_by_webview_label.get(webview_label)?;
-        let metadata = self.surfaces_by_id.get_mut(id)?;
+        // webview_label 即 surface_id
+        let metadata = self.surfaces_by_id.get_mut(webview_label)?;
         metadata.view_id = view.id;
         metadata.provider = view.provider;
         metadata.route = view.route;
@@ -199,6 +175,7 @@ impl SurfaceRegistry {
         target: &str,
         lifecycle: SurfaceLifecycle,
     ) -> Option<SurfaceMetadata> {
+        log::debug!("[surface] mark_lifecycle: target={target} → {lifecycle:?}");
         let id = self.resolve_id(target)?;
         let metadata = self.surfaces_by_id.get_mut(&id)?;
         metadata.lifecycle = lifecycle;
@@ -215,31 +192,25 @@ impl SurfaceRegistry {
     }
 
     pub fn remove(&mut self, target: &str) -> Option<SurfaceMetadata> {
-        let id = if let Some(id) = self.surface_id_by_webview_label.remove(target) {
-            id
+        log::debug!("[surface] remove: target={target}");
+        let id = if self.surfaces_by_id.contains_key(target) {
+            target.to_string()
         } else if let Some(id) = self.surface_id_by_window_label.remove(target) {
             id
-        } else if self.surfaces_by_id.contains_key(target) {
-            target.to_string()
         } else {
             return None;
         };
 
         let context = self.surfaces_by_id.remove(&id)?;
-        self.surface_id_by_webview_label
-            .remove(&context.webview_label);
         self.surface_id_by_window_label
             .remove(&context.host_window_label);
         Some(context)
     }
 
-    /// 通过任意 target（id、webview_label、window_label）解析为 surface_id。
+    /// 通过任意 target（id、window_label）解析为 surface_id。
     fn resolve_id(&self, target: &str) -> Option<String> {
         if self.surfaces_by_id.contains_key(target) {
             return Some(target.to_string());
-        }
-        if let Some(id) = self.surface_id_by_webview_label.get(target) {
-            return Some(id.clone());
         }
         if let Some(id) = self.surface_id_by_window_label.get(target) {
             return Some(id.clone());
@@ -267,6 +238,21 @@ mod tests {
         }
     }
 
+    fn test_plugin_view(route: &str) -> ViewDefinition {
+        ViewDefinition {
+            id: "plugin.test.cmd".to_string(),
+            provider: ViewProvider::Plugin {
+                plugin_id: "test".to_string(),
+            },
+            kind: ViewKind::Plugin,
+            route: route.to_string(),
+            title: "Test Plugin".to_string(),
+            default_host: WindowHostKind::Detached,
+            allowed_hosts: vec![WindowHostKind::Main, WindowHostKind::Detached],
+            detachable: true,
+        }
+    }
+
     #[test]
     fn registers_and_finds_surface() {
         let mut registry = SurfaceRegistry::default();
@@ -277,10 +263,30 @@ mod tests {
         assert_eq!(metadata.route, "/");
         assert_eq!(metadata.host_kind, WindowHostKind::Main);
         assert!(matches!(metadata.lifecycle, SurfaceLifecycle::Active));
+        // surface_id == webview_label
+        assert_eq!(metadata.id, metadata.webview_label);
 
         let found = registry.metadata(&metadata.webview_label);
         assert!(found.is_some());
         assert_eq!(found.unwrap().id, metadata.id);
+    }
+
+    #[test]
+    fn core_surface_has_core_prefix() {
+        let mut registry = SurfaceRegistry::default();
+        let view = test_view("/");
+        let metadata =
+            registry.register_surface(view, MAIN_WINDOW_LABEL.to_string(), WindowHostKind::Main);
+        assert!(metadata.id.starts_with("core-webview-"), "expected core- prefix, got: {}", metadata.id);
+    }
+
+    #[test]
+    fn plugin_surface_has_plugin_prefix() {
+        let mut registry = SurfaceRegistry::default();
+        let view = test_plugin_view("/plugin/test/cmd");
+        let metadata =
+            registry.register_surface(view, "detach-test-uuid".to_string(), WindowHostKind::Detached);
+        assert!(metadata.id.starts_with("plugin-webview-"), "expected plugin- prefix, got: {}", metadata.id);
     }
 
     #[test]
@@ -392,5 +398,27 @@ mod tests {
         registry.remove(&metadata.id);
         assert!(registry.metadata_for_window_label("my-host").is_none());
         assert!(registry.metadata(&metadata.id).is_none());
+    }
+
+    #[test]
+    fn find_by_webview_label_same_as_surface_id() {
+        let mut registry = SurfaceRegistry::default();
+        let metadata =
+            registry.register_surface(test_view("/"), "main".to_string(), WindowHostKind::Main);
+
+        // surface_id 即 webview_label，用 webview_label 可直接查到
+        let found = registry.metadata_for_webview_label(&metadata.webview_label);
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, metadata.id);
+    }
+
+    #[test]
+    fn detach_label_generates_unique_values() {
+        let mut registry = SurfaceRegistry::default();
+        let label1 = registry.next_detached_host_label();
+        let label2 = registry.next_detached_host_label();
+        assert!(label1.starts_with("detach-window-"));
+        assert!(label2.starts_with("detach-window-"));
+        assert_ne!(label1, label2);
     }
 }

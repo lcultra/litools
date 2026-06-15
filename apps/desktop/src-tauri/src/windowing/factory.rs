@@ -13,10 +13,12 @@ pub fn main_window(app: &tauri::AppHandle) -> Option<Window> {
 
 pub fn create_main_host(app: &tauri::AppHandle) -> Result<Window, String> {
     if let Some(window) = main_window(app) {
+        log::debug!("[factory] 复用主窗口: {}", MAIN_WINDOW_LABEL);
         configure_space_behavior(&window);
         return Ok(window);
     }
 
+    log::info!("[factory] 创建主窗口: {}", MAIN_WINDOW_LABEL);
     let window = WindowBuilder::new(app, MAIN_WINDOW_LABEL)
         .title("litools")
         .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_MAIN_WINDOW_HEIGHT)
@@ -31,40 +33,16 @@ pub fn create_main_host(app: &tauri::AppHandle) -> Result<Window, String> {
     Ok(window)
 }
 
-pub fn create_detached_panel_host(app: &tauri::AppHandle, label: String) -> Result<Window, String> {
+pub fn create_detach_host(app: &tauri::AppHandle, label: String, title: &str) -> Result<Window, String> {
     if let Some(window) = app.get_window(&label) {
+        log::debug!("[factory] 复用分离窗口: {label}");
         configure_space_behavior(&window);
         return Ok(window);
     }
+
+    log::info!("[factory] 创建分离窗口: {label} title={title}");
 
     let window = WindowBuilder::new(app, label)
-        .title("litools")
-        .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
-        .resizable(false)
-        .decorations(false)
-        .transparent(true)
-        .visible(false)
-        .visible_on_all_workspaces(true)
-        .build()
-        .map_err(|error| error.to_string())?;
-    configure_space_behavior(&window);
-    Ok(window)
-}
-
-pub fn create_plugin_runtime_detached_host(
-    app: &tauri::AppHandle,
-    window_label: String,
-    title: &str,
-) -> Result<Window, String> {
-    if let Some(window) = app.get_window(&window_label) {
-        configure_space_behavior(&window);
-        center_window_on_show(&window);
-        window.show().map_err(|error| error.to_string())?;
-        window.set_focus().map_err(|error| error.to_string())?;
-        return Ok(window);
-    }
-
-    let window = WindowBuilder::new(app, window_label)
         .title(title)
         .inner_size(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         .resizable(false)

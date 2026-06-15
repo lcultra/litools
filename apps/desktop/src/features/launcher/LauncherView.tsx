@@ -129,7 +129,7 @@ export function LauncherView(props: LauncherViewProps) {
             <LauncherInput inputRef={props.inputRef} onInput={props.onInput} onKeyDown={props.onKeyDown} onSubmit={props.onSubmit} query={props.query} />
 
             <Show when={shouldShowResults()}>
-                <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain p-2">
+                <div class="max-h-[424px] min-h-0 overflow-y-auto overscroll-contain border-t border-border p-2">
                     <Show when={!props.error} fallback={<p class="m-0 px-4 py-3 text-sm text-danger">{props.error}</p>}>
                         <Show when={totalVisibleItems() > 0} fallback={<p class="m-0 px-4 py-3 text-sm text-text-muted">未找到结果</p>}>
                             {/* biome-ignore lint/a11y/noStaticElementInteractions: mousedown/focusin handler 仅用于阻止焦点转移，非用户交互功能 */}

@@ -107,7 +107,7 @@ pub fn detach_current_surface(
         .lock()
         .map_err(|e| e.to_string())?
         .next_detached_host_label();
-    let detached_window = factory::create_detached_panel_host(app, detached_label)?;
+    let detached_window = factory::create_detach_host(app, detached_label, "litools")?;
     let detached_window_label = detached_window.label().to_string();
 
     webview::reparent_surface_webview(webview, &detached_window)?;
@@ -249,7 +249,7 @@ pub fn focus_surface_or_host(
     fallback_window: Window,
 ) -> Result<(), String> {
     let target_window = match target {
-        Some("main") => factory::main_window(app),
+        Some(MAIN_WINDOW_LABEL) => factory::main_window(app),
         Some(target) => host_by_surface_id_or_label(app, state, target),
         None => Some(fallback_window),
     };
