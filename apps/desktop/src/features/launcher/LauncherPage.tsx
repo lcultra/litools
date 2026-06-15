@@ -115,6 +115,14 @@ export function LauncherPage() {
         }
     }
 
+    function parsePluginResultId(resultId: string): { pluginId: string; commandId: string } | null {
+        // 格式: plugin:{plugin_id}:{command_id}
+        if (!resultId.startsWith('plugin:')) return null;
+        const parts = resultId.slice(7).split(':');
+        if (parts.length < 2 || !parts[0] || !parts[1]) return null;
+        return { pluginId: parts[0], commandId: parts[1] };
+    }
+
     async function runResult(result: SearchResult | undefined) {
         const [firstAction] = result?.actions ?? [];
 
@@ -123,6 +131,19 @@ export function LauncherPage() {
         }
 
         try {
+            // 插件结果：直接调 openPluginView，不经过 executeResult
+            const parsed = parsePluginResultId(result.id);
+            if (parsed) {
+                const info = await openPluginView(parsed.pluginId, parsed.commandId);
+                setQuery('');
+                setError(null);
+                if (info.hostKind !== 'detached') {
+                    const route = `/plugin/${parsed.pluginId}/${parsed.commandId}`;
+                    navigate(route, { state: { runtimeId: info.runtimeId } });
+                }
+                return;
+            }
+
             const response = await executeResult(result.id, firstAction.id);
             setQuery('');
             setError(null);
@@ -138,10 +159,11 @@ export function LauncherPage() {
                     return;
                 }
                 const info = await openPluginView(pluginId, commandId);
-                // 仅停靠态才跳转；分离态后端已聚焦窗口，前端留在启动器
                 if (info.hostKind !== 'detached') {
                     navigate(route, { state: { runtimeId: info.runtimeId } });
                 }
+            } else {
+                // 非插件结果：executeResult 已处理后端副作用，无需额外操作
             }
         } catch (executeError) {
             setError(`执行失败：${String(executeError)}`);

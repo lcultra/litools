@@ -136,6 +136,19 @@ pub fn dock_plugin_runtime(
         )?;
 
     log::info!("打开插件视图: {plugin_id}:{command_id}");
+
+    // 记录使用历史（所有入口统一在此记录，不依赖 execute_result）
+    if let Ok(app_lock) = state.app().lock() {
+        let connection = app_lock.context().database.connection();
+        let _ = litools_index::repository::UsageRepository::new(&connection).record_selection(
+            &uuid::Uuid::new_v4().to_string(),
+            litools_plugin::PLUGIN_TARGET_TYPE,
+            &litools_plugin::ids::plugin_target_id(plugin_id, command_id),
+            None,
+            &chrono::Utc::now().to_rfc3339(),
+        );
+    }
+
     ensure_docked_runtime_webview(app, state, context)
 }
 
