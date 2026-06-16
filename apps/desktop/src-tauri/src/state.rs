@@ -2,7 +2,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc,
-        Mutex,
+        Mutex, RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, SystemTime},
@@ -18,6 +18,7 @@ use crate::{
     core::events::PluginEventBus,
     core::executor::{BackgroundRuntimeExecutor, ExecutorRegistry, WebviewExecutor},
     core::plugins::runtime::registry::PluginRuntimeRegistry,
+    core::plugins::runtime::search_bridge::WebviewSearchBridge,
     core::surface::registry::SurfaceRegistry,
     index_refresh::IndexStatus,
 };
@@ -69,7 +70,7 @@ impl Default for ShortcutStatus {
 }
 
 pub struct AppState {
-    app: Mutex<LitoolsApp>,
+    app: RwLock<LitoolsApp>,
     data_dir: PathBuf,
     quitting: AtomicBool,
     shortcut_status: Mutex<ShortcutStatus>,
@@ -82,6 +83,7 @@ pub struct AppState {
     pub bg_runtime_manager: Arc<BackgroundRuntimeManager>,
     #[allow(dead_code)]
     pub executor_registry: ExecutorRegistry,
+    pub search_bridge: Arc<WebviewSearchBridge>,
     launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
     pooled_detached: Mutex<Option<String>>,
@@ -102,15 +104,21 @@ impl AppState {
             Box::new(BackgroundRuntimeExecutor::new(bg_runtime_manager.clone())),
         );
 
+        let app = LitoolsApp::bootstrap(paths)?;
+        let search_engine = app.context().search.clone();
+        let search_bridge = Arc::new(WebviewSearchBridge::new(search_engine));
+        let runtimes = PluginRuntimeRegistry::new(search_bridge.clone());
+
         Ok(Self {
-            app: Mutex::new(LitoolsApp::bootstrap(paths)?),
+            app: RwLock::new(app),
             data_dir,
             quitting: AtomicBool::new(false),
             shortcut_status: Mutex::new(ShortcutStatus::default()),
+            search_bridge,
             index_status: Mutex::new(IndexStatus::default()),
             app_watcher: AppWatcherState::default(),
             surfaces: Mutex::new(SurfaceRegistry::default()),
-            plugin_runtimes: Mutex::new(PluginRuntimeRegistry::default()),
+            plugin_runtimes: Mutex::new(runtimes),
             plugin_events: PluginEventBus::new(),
             bg_runtime_manager,
             executor_registry,
@@ -119,7 +127,7 @@ impl AppState {
         })
     }
 
-    pub fn app(&self) -> &Mutex<LitoolsApp> {
+    pub fn app(&self) -> &RwLock<LitoolsApp> {
         &self.app
     }
 
@@ -129,27 +137,23 @@ impl AppState {
 
     pub fn app_icon_png(&self, path: &std::path::Path) -> std::io::Result<Vec<u8>> {
         self.app
-            .lock()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+            .read().unwrap()
             .system_adapter()
             .app_icon_png(path)
     }
 
     pub fn application_dirs(&self) -> Vec<std::path::PathBuf> {
         self.app
-            .lock()
-            .map(|app| app.system_adapter().application_dirs())
-            .unwrap_or_default()
+            .read().unwrap()
+            .system_adapter()
+            .application_dirs()
     }
 
     pub fn watch_app_dirs(
         &self,
         on_change: Box<dyn Fn() + Send + 'static>,
     ) -> std::io::Result<litools_system::adapter::AppWatchGuard> {
-        let app = self
-            .app
-            .lock()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        let app = self.app.read().unwrap();
         app.system_adapter().watch_app_dirs(on_change)
     }
 
@@ -167,16 +171,14 @@ impl AppState {
 
     pub fn close_to_tray(&self) -> bool {
         self.app
-            .lock()
-            .map(|app| app.settings().window.close_to_tray)
-            .unwrap_or(true)
+            .read().unwrap()
+            .settings().window.close_to_tray
     }
 
     pub fn hide_on_blur(&self) -> bool {
         self.app
-            .lock()
-            .map(|app| app.settings().window.hide_on_blur)
-            .unwrap_or(true)
+            .read().unwrap()
+            .settings().window.hide_on_blur
     }
 
     pub fn launcher_saved_position(&self) -> Option<LauncherSavedPosition> {
@@ -228,9 +230,8 @@ impl AppState {
 
     pub fn global_hotkey(&self) -> String {
         self.app
-            .lock()
-            .map(|app| app.settings().palette.global_hotkey.clone())
-            .unwrap_or_else(|_| "CommandOrControl+Space".to_string())
+            .read().unwrap()
+            .settings().palette.global_hotkey.clone()
     }
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {

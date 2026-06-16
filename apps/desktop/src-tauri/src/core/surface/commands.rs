@@ -143,7 +143,7 @@ pub fn reveal_in_file_manager(
     let app_id = litools_core::app_provider::app_id_from_result_id(&result_id)
         .ok_or_else(|| format!("非应用结果：{result_id}"))?;
 
-    let app_lock = state.app().lock().map_err(|error| error.to_string())?;
+    let app_lock = state.app().read().unwrap();
     let connection = app_lock.context().database.connection();
     let app = AppRepository::new(&connection)
         .find_app(app_id)

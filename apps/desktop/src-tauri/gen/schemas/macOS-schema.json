@@ -7203,10 +7203,16 @@
           "markdownDescription": "Denies the update_surface_route command without any pre-configured scope."
         },
         {
-          "description": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`",
+          "description": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`\n- `allow-sdk-commands-add`\n- `allow-sdk-commands-remove`\n- `allow-sdk-commands-replace`\n- `allow-sdk-commands-update`\n- `allow-sdk-search-register-provider`\n- `allow-sdk-search-unregister-provider`\n- `allow-sdk-search-submit`",
           "type": "string",
           "const": "litools-sdk:default",
-          "markdownDescription": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`"
+          "markdownDescription": "Default plugin permissions.\n#### This default permission set includes:\n\n- `allow-sdk-runtime-ready`\n- `allow-sdk-runtime-get-info`\n- `allow-sdk-permissions-query`\n- `allow-sdk-ui-close`\n- `allow-sdk-ui-set-title`\n- `allow-sdk-ui-toast`\n- `allow-sdk-storage-get`\n- `allow-sdk-storage-set`\n- `allow-sdk-storage-remove`\n- `allow-sdk-storage-clear`\n- `allow-sdk-settings-get`\n- `allow-sdk-settings-update`\n- `allow-sdk-diagnostics-get`\n- `allow-sdk-plugins-list`\n- `allow-sdk-commands-add`\n- `allow-sdk-commands-remove`\n- `allow-sdk-commands-replace`\n- `allow-sdk-commands-update`\n- `allow-sdk-search-register-provider`\n- `allow-sdk-search-unregister-provider`\n- `allow-sdk-search-submit`"
+        },
+        {
+          "description": "Enables the plugin to dynamically register, remove, update, and replace search commands at runtime",
+          "type": "string",
+          "const": "litools-sdk:allow-commands",
+          "markdownDescription": "Enables the plugin to dynamically register, remove, update, and replace search commands at runtime"
         },
         {
           "description": "Enables reading diagnostics data",
@@ -7225,6 +7231,30 @@
           "type": "string",
           "const": "litools-sdk:allow-runtime",
           "markdownDescription": "Enables runtime lifecycle commands: ready, getInfo, permissions.query"
+        },
+        {
+          "description": "Enables the sdk_commands_add command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-commands-add",
+          "markdownDescription": "Enables the sdk_commands_add command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the sdk_commands_remove command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-commands-remove",
+          "markdownDescription": "Enables the sdk_commands_remove command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the sdk_commands_replace command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-commands-replace",
+          "markdownDescription": "Enables the sdk_commands_replace command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the sdk_commands_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-commands-update",
+          "markdownDescription": "Enables the sdk_commands_update command without any pre-configured scope."
         },
         {
           "description": "Enables the sdk_diagnostics_get command without any pre-configured scope.",
@@ -7255,6 +7285,24 @@
           "type": "string",
           "const": "litools-sdk:allow-sdk-runtime-ready",
           "markdownDescription": "Enables the sdk_runtime_ready command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the sdk_search_register_provider command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-search-register-provider",
+          "markdownDescription": "Enables the sdk_search_register_provider command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the sdk_search_submit command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-search-submit",
+          "markdownDescription": "Enables the sdk_search_submit command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the sdk_search_unregister_provider command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:allow-sdk-search-unregister-provider",
+          "markdownDescription": "Enables the sdk_search_unregister_provider command without any pre-configured scope."
         },
         {
           "description": "Enables the sdk_settings_get command without any pre-configured scope.",
@@ -7311,6 +7359,12 @@
           "markdownDescription": "Enables the sdk_ui_toast command without any pre-configured scope."
         },
         {
+          "description": "Enables the plugin to register custom search providers and result executors",
+          "type": "string",
+          "const": "litools-sdk:allow-search-provider",
+          "markdownDescription": "Enables the plugin to register custom search providers and result executors"
+        },
+        {
           "description": "Enables reading app settings",
           "type": "string",
           "const": "litools-sdk:allow-settings-read",
@@ -7329,6 +7383,12 @@
           "markdownDescription": "Enables plugin storage get/set/remove/clear commands"
         },
         {
+          "description": "Enables the plugin to control its view UI (close, set title, toast)",
+          "type": "string",
+          "const": "litools-sdk:allow-ui",
+          "markdownDescription": "Enables the plugin to control its view UI (close, set title, toast)"
+        },
+        {
           "description": "Enables close and setTitle commands",
           "type": "string",
           "const": "litools-sdk:allow-ui-close",
@@ -7339,6 +7399,30 @@
           "type": "string",
           "const": "litools-sdk:allow-ui-toast",
           "markdownDescription": "Enables the toast command"
+        },
+        {
+          "description": "Denies the sdk_commands_add command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-commands-add",
+          "markdownDescription": "Denies the sdk_commands_add command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the sdk_commands_remove command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-commands-remove",
+          "markdownDescription": "Denies the sdk_commands_remove command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the sdk_commands_replace command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-commands-replace",
+          "markdownDescription": "Denies the sdk_commands_replace command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the sdk_commands_update command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-commands-update",
+          "markdownDescription": "Denies the sdk_commands_update command without any pre-configured scope."
         },
         {
           "description": "Denies the sdk_diagnostics_get command without any pre-configured scope.",
@@ -7369,6 +7453,24 @@
           "type": "string",
           "const": "litools-sdk:deny-sdk-runtime-ready",
           "markdownDescription": "Denies the sdk_runtime_ready command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the sdk_search_register_provider command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-search-register-provider",
+          "markdownDescription": "Denies the sdk_search_register_provider command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the sdk_search_submit command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-search-submit",
+          "markdownDescription": "Denies the sdk_search_submit command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the sdk_search_unregister_provider command without any pre-configured scope.",
+          "type": "string",
+          "const": "litools-sdk:deny-sdk-search-unregister-provider",
+          "markdownDescription": "Denies the sdk_search_unregister_provider command without any pre-configured scope."
         },
         {
           "description": "Denies the sdk_settings_get command without any pre-configured scope.",

@@ -130,9 +130,9 @@ fn main() {
                             PluginEvent::CommandsAdded(_, _)
                             | PluginEvent::CommandsRemoved(_, _)
                             | PluginEvent::CommandsReplaced(_, _) => {
-                                if let Ok(app) = app_handle.state::<AppState>().app().lock() {
-                                    app.invalidate_plugin_command_cache();
-                                }
+                                let app = app_handle.state::<AppState>();
+                                let app_guard = app.app().read().unwrap();
+                                app_guard.invalidate_plugin_command_cache();
                             }
                             _ => {}
                         }
@@ -155,9 +155,8 @@ fn main() {
                 let state = app.state::<AppState>();
                 let settings = state
                     .app()
-                    .lock()
-                    .map(|app| app.settings().clone())
-                    .unwrap_or_default();
+                    .read().unwrap()
+                    .settings().clone();
                 core::settings::apply_theme_to_all_windows(app.handle(), &settings.theme);
             }
             // start_app_watcher 内部已设置 AppState 中的状态，

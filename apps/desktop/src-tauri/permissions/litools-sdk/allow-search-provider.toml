@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-search-provider"
+description = "Enables the plugin to register custom search providers and result executors"
+
+commands.allow = [
+    "sdk_search_register_provider",
+    "sdk_search_unregister_provider",
+    "sdk_search_submit",
+]

@@ -1,7 +1,8 @@
 {
-  "name": "@litools/plugin-sdk",
+  "name": "@litools/sdk",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
+  "description": "litools 统一插件 SDK —— 所有插件唯一的 API 入口",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts"

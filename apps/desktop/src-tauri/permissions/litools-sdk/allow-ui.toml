@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-ui"
+description = "Enables the plugin to control its view UI (close, set title, toast)"
+
+commands.allow = [
+    "sdk_ui_close",
+    "sdk_ui_set_title",
+    "sdk_ui_toast",
+]

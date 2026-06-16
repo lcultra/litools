@@ -1,6 +1,7 @@
 pub mod app;
 pub mod app_provider;
 pub mod command;
+pub mod commands_plugin;
 pub mod context;
 pub mod error;
 pub mod event;

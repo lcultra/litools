@@ -66,17 +66,20 @@ impl LitoolsApp {
         let plugins = Arc::new(crate::app::plugins::sync_and_load_plugins(
             &database, &paths,
         )?);
-        let mut search = crate::app::search::default_search_engine();
+        let search = SearchEngine::new();
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
 
+        let commands_plugin = Arc::new(crate::commands_plugin::CommandsPlugin::new());
+        register_internal_plugin(&*commands_plugin, &search, &mut executor_registry);
+
         let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        register_internal_plugin(&*launcher_plugin, &mut search, &mut executor_registry);
+        register_internal_plugin(&*launcher_plugin, &search, &mut executor_registry);
 
         let plugin_host = Arc::new(PluginHostPlugin::new(plugins.clone()));
         let plugin_command_provider = plugin_host.command_provider();
-        register_internal_plugin(&*plugin_host, &mut search, &mut executor_registry);
+        register_internal_plugin(&*plugin_host, &search, &mut executor_registry);
 
         log::info!("应用启动完成");
 
@@ -104,17 +107,20 @@ impl LitoolsApp {
         let settings = crate::app::settings::load_settings(&database)?;
         let plugins =
             Arc::new(crate::app::plugins::load_plugins_from_database(&database)?);
-        let mut search = crate::app::search::default_search_engine();
+        let search = SearchEngine::new();
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
 
+        let commands_plugin = Arc::new(crate::commands_plugin::CommandsPlugin::new());
+        register_internal_plugin(&*commands_plugin, &search, &mut executor_registry);
+
         let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        register_internal_plugin(&*launcher_plugin, &mut search, &mut executor_registry);
+        register_internal_plugin(&*launcher_plugin, &search, &mut executor_registry);
 
         let plugin_host = Arc::new(PluginHostPlugin::new(plugins.clone()));
         let plugin_command_provider = plugin_host.command_provider();
-        register_internal_plugin(&*plugin_host, &mut search, &mut executor_registry);
+        register_internal_plugin(&*plugin_host, &search, &mut executor_registry);
 
         Ok(Self {
             context: AppContext::new(
@@ -158,7 +164,7 @@ fn cleanup_session_commands(connection: &rusqlite::Connection) {
 /// 向 SearchEngine 和 ExecutorRegistry 注册一个内置插件的所有扩展。
 fn register_internal_plugin(
     plugin: &dyn InternalPlugin,
-    search: &mut SearchEngine,
+    search: &SearchEngine,
     executor_registry: &mut ExecutorRegistry,
 ) {
     let plugin_id = plugin.metadata().id;
@@ -205,7 +211,7 @@ mod tests {
         settings.palette.show_pinned = false;
         app.update_settings(settings).expect("update settings");
 
-        let panel = app.launcher_panel("").expect("launcher panel");
+        let panel = app.launcher_panel_search_results("", vec![]).expect("launcher panel");
 
         assert!(panel.sections.is_empty());
     }
@@ -215,7 +221,7 @@ mod tests {
         let app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
 
         app.pin_result("reload-index").expect("pin command");
-        let panel = app.launcher_panel("").expect("launcher panel");
+        let panel = app.launcher_panel_search_results("", vec![]).expect("launcher panel");
 
         let pinned = panel
             .sections
@@ -226,7 +232,7 @@ mod tests {
         assert!(pinned.items[0].is_pinned);
 
         app.unpin_result("reload-index").expect("unpin command");
-        let panel = app.launcher_panel("").expect("launcher panel");
+        let panel = app.launcher_panel_search_results("", vec![]).expect("launcher panel");
         assert!(panel.sections.iter().all(|section| section.id != "pinned"));
     }
 
@@ -239,7 +245,7 @@ mod tests {
         app.reorder_pinned_results(vec!["reload-index".to_string(), "quit-app".to_string()])
             .expect("reorder pinned results");
 
-        let panel = app.launcher_panel("").expect("launcher panel");
+        let panel = app.launcher_panel_search_results("", vec![]).expect("launcher panel");
         let pinned = panel
             .sections
             .iter()
@@ -261,7 +267,7 @@ mod tests {
         app.execute_result("reload-index", "execute", "commands")
             .expect("record recent usage");
         app.pin_result("reload-index").expect("pin settings");
-        let panel = app.launcher_panel("").expect("launcher panel");
+        let panel = app.launcher_panel_search_results("", vec![]).expect("launcher panel");
 
         assert_eq!(panel.sections[0].id, "recent");
         assert_eq!(panel.sections[1].id, "pinned");

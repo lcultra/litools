@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "@litools/design-tokens": "workspace:*",
-    "@litools/plugin-core": "workspace:*",
-    "@litools/plugin-sdk": "workspace:*",
+    "@litools/sdk": "workspace:*",
     "@litools/ui": "workspace:*"
   },
   "devDependencies": {

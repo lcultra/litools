@@ -1,36 +1,64 @@
-use litools_core::{CommandEffect, CommandExecution, LauncherPanelResponse};
-use litools_search::SearchResult;
-use tauri::{AppHandle, Manager, State};
-use tauri_plugin_opener::OpenerExt;
+use litools_core::{CommandExecution, LauncherPanelResponse};
+use litools_search::{SearchQuery, SearchResult};
+use tauri::State;
 
 use crate::state::AppState;
 
+const DEFAULT_LAUNCHER_RESULT_LIMIT: usize = 20;
+
 #[tauri::command]
-pub fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
-    Ok(app.search(query))
+pub async fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
+    let (search, enabled_providers) = {
+        let app = state.app().read().unwrap();
+        let s = app.context().search.clone();
+        let p = app.context().settings.get().search.enabled_providers.clone();
+        (s, p)
+    };
+    let results = search
+        .search_with_providers(
+            SearchQuery::with_limit(query, DEFAULT_LAUNCHER_RESULT_LIMIT),
+            enabled_providers.iter().map(String::as_str),
+        )
+        .await;
+    Ok(results)
 }
 
 #[tauri::command]
-pub fn launcher_panel(
+pub async fn launcher_panel(
     query: String,
     state: State<'_, AppState>,
 ) -> Result<LauncherPanelResponse, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
-    app.launcher_panel(query)
-        .map_err(|error| error.to_error_string())
+    let (search, enabled_providers) = {
+        let app = state.app().read().unwrap();
+        (
+            app.context().search.clone(),
+            app.context().settings.get().search.enabled_providers.clone(),
+        )
+    };
+
+    let trimmed = query.trim();
+    let search_results = search
+        .search_with_providers(
+            SearchQuery::without_limit(trimmed),
+            enabled_providers.iter().map(String::as_str),
+        )
+        .await;
+
+    let app = state.app().read().unwrap();
+    app.launcher_panel_search_results(trimmed, search_results)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn pin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     app.pin_result(result_id)
         .map_err(|error| error.to_error_string())
 }
 
 #[tauri::command]
 pub fn unpin_result(result_id: String, state: State<'_, AppState>) -> Result<(), String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     app.unpin_result(result_id)
         .map_err(|error| error.to_error_string())
 }
@@ -40,7 +68,7 @@ pub fn reorder_pinned_results(
     result_ids: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     app.reorder_pinned_results(result_ids)
         .map_err(|error| error.to_error_string())
 }
@@ -51,42 +79,8 @@ pub fn execute_result(
     action_id: String,
     provider: String,
     state: State<'_, AppState>,
-    app_handle: AppHandle,
 ) -> Result<CommandExecution, String> {
-    let execution = {
-        let mut app = state.app().lock().map_err(|error| error.to_string())?;
-        app.execute_result(result_id, action_id, provider)
-            .map_err(|error| error.to_error_string())?
-    };
-
-    match execution.effect {
-        CommandEffect::QuitApp => app_handle.exit(0),
-        CommandEffect::OpenLogsDirectory => {
-            let log_dir = log_directory(&app_handle)?;
-            app_handle
-                .opener()
-                .open_path(log_dir.to_string_lossy().as_ref(), None::<&str>)
-                .map_err(|e| e.to_string())?;
-        }
-        CommandEffect::OpenDataDirectory => {
-            let data_dir = state.data_dir().to_path_buf();
-            app_handle
-                .opener()
-                .open_path(data_dir.to_string_lossy().as_ref(), None::<&str>)
-                .map_err(|e| e.to_string())?;
-        }
-        // 前端已改由 openPluginView 驱动——先调 IPC 获取 placement，
-        // docked 才 navigate(route)，后端不再在这里操作窗口。
-        CommandEffect::OpenPluginView { .. } => {}
-        _ => {}
-    }
-
-    Ok(execution)
-}
-
-fn log_directory(app_handle: &AppHandle) -> Result<std::path::PathBuf, String> {
-    app_handle
-        .path()
-        .app_log_dir()
-        .map_err(|error| error.to_string())
+    let mut app = state.app().write().unwrap();
+    app.execute_result(&result_id, &action_id, &provider)
+        .map_err(|error| error.to_error_string())
 }

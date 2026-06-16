@@ -10,7 +10,7 @@ use crate::executor_registry::ExecutorRegistry;
 
 pub struct AppContext {
     pub database: IndexDatabase,
-    pub search: SearchEngine,
+    pub search: Arc<SearchEngine>,
     pub plugins: Arc<PluginManager>,
     pub settings: SettingsStore,
     pub system_adapter: NativeSystemAdapter,
@@ -28,7 +28,7 @@ impl AppContext {
     ) -> Self {
         Self {
             database,
-            search,
+            search: Arc::new(search),
             plugins,
             settings,
             system_adapter,

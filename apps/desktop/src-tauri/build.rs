@@ -61,6 +61,13 @@ fn main() {
                         "sdk_settings_update",
                         "sdk_diagnostics_get",
                         "sdk_plugins_list",
+                        "sdk_commands_add",
+                        "sdk_commands_remove",
+                        "sdk_commands_replace",
+                        "sdk_commands_update",
+                        "sdk_search_register_provider",
+                        "sdk_search_unregister_provider",
+                        "sdk_search_submit",
                     ])
                     .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
             ),

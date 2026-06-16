@@ -3,9 +3,10 @@ use std::sync::{Arc, Mutex};
 use litools_config::search::{ACTION_OPEN, PLUGIN_PROVIDER_ID};
 use litools_index::repository::PluginCommandRecord;
 use litools_plugin::{PluginCommandSearchItem, PluginManager, plugin_result_id};
+use async_trait::async_trait;
 use litools_search::{
-    FieldMatcher, FieldWeights, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
-    SearchResultMatches, VisibleField, match_text,
+    FieldMatcher, FieldWeights, SearchContext, SearchProvider, SearchQuery, SearchResult,
+    SearchResultAction, SearchResultMatches, VisibleField, match_text,
 };
 
 /// 插件命令搜索提供器。
@@ -34,12 +35,17 @@ impl PluginCommandProvider {
     pub fn invalidate_cache(&self) {}
 }
 
+#[async_trait]
 impl SearchProvider for PluginCommandProvider {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         PLUGIN_PROVIDER_ID
     }
 
-    fn search(&self, query: &SearchQuery) -> Vec<SearchResult> {
+    fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(20)
+    }
+
+    async fn search(&self, query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
         if let Some(pm) = self.plugin_manager.lock().ok().and_then(|o| o.clone()) {
             return pm
                 .enabled_view_commands()

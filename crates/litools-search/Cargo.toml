@@ -9,4 +9,6 @@ authors.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
 uuid.workspace = true

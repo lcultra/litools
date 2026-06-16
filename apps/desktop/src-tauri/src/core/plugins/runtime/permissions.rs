@@ -1,41 +1,28 @@
+use crate::core::plugins::runtime::capability::CapabilityDescriptor;
+use crate::core::plugins::runtime::method_registry::MethodDescriptor;
 use crate::core::plugins::runtime::model::{PermissionQueryState, PluginRuntimeContext};
 use crate::core::{CORE_PREFIX, SDK_PREFIX};
 use tauri::Manager;
 use tauri::ipc::CapabilityBuilder;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RuntimePermissionRequirement {
-    Intrinsic,
-    Permission(&'static str),
-}
+// ── 权限检查（基于 Capability 元模型）─────────────────────
 
-pub fn required_permission_for_method(method: &str) -> Option<RuntimePermissionRequirement> {
-    match method {
-        "runtime.ready" | "runtime.getInfo" | "permissions.query" => {
-            Some(RuntimePermissionRequirement::Intrinsic)
-        }
-        "ui.close" | "ui.setTitle" => {
-            Some(RuntimePermissionRequirement::Permission("litools-sdk:allow-ui-close"))
-        }
-        "ui.toast" => Some(RuntimePermissionRequirement::Permission(
-            "litools-sdk:allow-ui-toast",
-        )),
-        "storage.get" | "storage.set" | "storage.remove" | "storage.clear" => {
-            Some(RuntimePermissionRequirement::Permission("litools-sdk:allow-storage"))
-        }
-        "settings.get" => Some(RuntimePermissionRequirement::Permission(
-            "litools-sdk:allow-settings-read",
-        )),
-        "settings.update" => Some(RuntimePermissionRequirement::Permission(
-            "litools-sdk:allow-settings-write",
-        )),
-        "diagnostics.get" => Some(RuntimePermissionRequirement::Permission(
-            "litools-sdk:allow-diagnostics",
-        )),
-        "plugins.list" => Some(RuntimePermissionRequirement::Permission(
-            "litools-sdk:allow-plugins-list",
-        )),
-        _ => None,
+/// 基于 MethodDescriptor → Capability → CapabilityDescriptor 的权限检查。
+/// 新增 API 不再需要修改此处 —— 只需在 METHOD_REGISTRY 中注册即可。
+pub fn can_call_method(context: &PluginRuntimeContext, method: &str) -> bool {
+    let Some(descriptor) = MethodDescriptor::find_by_name(method) else {
+        return false;
+    };
+
+    let cap: CapabilityDescriptor = descriptor.capability.descriptor();
+
+    if cap.trusted_only && !context.trusted {
+        return false;
+    }
+
+    match cap.permission {
+        None => true, // Intrinsic
+        Some(perm) => is_permission_granted(context, perm),
     }
 }
 
@@ -44,16 +31,6 @@ pub fn is_permission_granted(context: &PluginRuntimeContext, permission: &str) -
         .permissions
         .iter()
         .any(|declared| declared == permission)
-}
-
-pub fn can_call_method(context: &PluginRuntimeContext, method: &str) -> bool {
-    match required_permission_for_method(method) {
-        Some(RuntimePermissionRequirement::Intrinsic) => true,
-        Some(RuntimePermissionRequirement::Permission(permission)) => {
-            is_permission_granted(context, permission)
-        }
-        None => false,
-    }
 }
 
 pub fn query_permission(context: &PluginRuntimeContext, permission: &str) -> PermissionQueryState {
@@ -240,7 +217,7 @@ mod tests {
     #[test]
     fn denies_unknown_methods() {
         assert!(!can_call_method(
-            &context(vec!["litools-sdk:allow-ui-close"]),
+            &context(vec!["litools-sdk:allow-ui"]),
             "window.invoke"
         ));
     }
@@ -249,11 +226,11 @@ mod tests {
     fn requires_declared_permissions() {
         assert!(!can_call_method(&context(vec![]), "ui.close"));
         assert!(can_call_method(
-            &context(vec!["litools-sdk:allow-ui-close"]),
+            &context(vec!["litools-sdk:allow-ui"]),
             "ui.close"
         ));
         assert!(!can_call_method(
-            &context(vec!["litools-sdk:allow-ui-close"]),
+            &context(vec!["litools-sdk:allow-ui"]),
             "storage.get"
         ));
         assert!(can_call_method(

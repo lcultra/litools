@@ -51,9 +51,9 @@ importers:
       '@litools/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
-      '@litools/plugin-core':
+      '@litools/sdk':
         specifier: workspace:*
-        version: link:../../packages/core
+        version: link:../../packages/sdk
       '@litools/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -79,8 +79,6 @@ importers:
       vite-plugin-solid:
         specifier: ^2.11.12
         version: 2.11.12(solid-js@1.9.13)(vite@8.0.16(esbuild@0.27.7)(jiti@2.7.0))
-
-  packages/core: {}
 
   packages/design-tokens: {}
 
@@ -138,10 +136,7 @@ importers:
       '@litools/design-tokens':
         specifier: workspace:*
         version: link:../../../packages/design-tokens
-      '@litools/plugin-core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@litools/plugin-sdk':
+      '@litools/sdk':
         specifier: workspace:*
         version: link:../../../packages/sdk
       '@litools/ui':
@@ -166,10 +161,7 @@ importers:
       '@litools/design-tokens':
         specifier: workspace:*
         version: link:../../../packages/design-tokens
-      '@litools/plugin-core':
-        specifier: workspace:*
-        version: link:../../../packages/core
-      '@litools/plugin-sdk':
+      '@litools/sdk':
         specifier: workspace:*
         version: link:../../../packages/sdk
       '@litools/ui':

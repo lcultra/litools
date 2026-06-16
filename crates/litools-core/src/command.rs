@@ -1,8 +1,9 @@
+use async_trait::async_trait;
 use serde::Serialize;
 
 use litools_search::{
-    FieldMatcher, FieldWeights, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
-    SearchResultMatches, VisibleField, match_text,
+    FieldMatcher, FieldWeights, SearchContext, SearchProvider, SearchQuery, SearchResult,
+    SearchResultAction, SearchResultMatches, VisibleField, match_text,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -112,12 +113,17 @@ const BUILTIN_COMMAND_WEIGHTS: FieldWeights = FieldWeights {
     fuzzy_cap: 68.0,
 };
 
+#[async_trait]
 impl SearchProvider for BuiltinCommandProvider {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         "commands"
     }
 
-    fn search(&self, query: &SearchQuery) -> Vec<SearchResult> {
+    fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(5)
+    }
+
+    async fn search(&self, query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
         BUILTIN_COMMANDS
             .iter()
             .filter(|command| {

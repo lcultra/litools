@@ -5,7 +5,7 @@ use crate::{shortcut, state::AppState};
 
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> Result<AppSettings, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     Ok(app.settings().clone())
 }
 
@@ -16,7 +16,7 @@ pub fn update_settings(
     app_handle: AppHandle,
 ) -> Result<AppSettings, String> {
     let updated_settings = {
-        let mut app = state.app().lock().map_err(|error| error.to_string())?;
+        let mut app = state.app().write().unwrap();
         app.update_settings(settings)
             .map_err(|error| error.to_error_string())?
     };

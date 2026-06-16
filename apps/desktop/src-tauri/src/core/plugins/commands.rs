@@ -50,7 +50,7 @@ pub struct PluginViewDescriptor {
 
 #[tauri::command]
 pub fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     Ok(app
         .context()
         .plugins
@@ -93,7 +93,7 @@ pub fn get_plugin_view_descriptor(
     let (plugin_name, title, permissions, _policy) =
         find_enabled_plugin_command(&state, &plugin_id, &command_id)?;
 
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     let plugin = app.context().plugins.find_plugin(&plugin_id).unwrap();
     let dev = plugin.manifest.development.is_some();
     let entry_url = resolve_entry_url(&plugin.manifest.id, &plugin.manifest)?;
@@ -165,7 +165,7 @@ pub fn install_plugin(
         }
     }
 
-    let mut app = state.app().lock().map_err(|e| e.to_string())?;
+    let mut app = state.app().write().unwrap();
     let now = chrono::Utc::now().to_rfc3339();
     let root_dir_str = dest_dir.to_string_lossy().to_string();
 
@@ -226,7 +226,7 @@ pub fn install_plugin(
 
 #[tauri::command]
 pub fn uninstall_plugin(state: State<'_, AppState>, plugin_id: String) -> Result<(), String> {
-    let mut app = state.app().lock().map_err(|e| e.to_string())?;
+    let mut app = state.app().write().unwrap();
 
     let plugin = app
         .context()
@@ -269,7 +269,7 @@ pub fn toggle_plugin(
     plugin_id: String,
     enabled: bool,
 ) -> Result<serde_json::Value, String> {
-    let mut app = state.app().lock().map_err(|e| e.to_string())?;
+    let mut app = state.app().write().unwrap();
     {
         let connection = app.context().database.connection();
         connection
@@ -291,7 +291,7 @@ pub fn add_commands_inner(
     webview: &Webview,
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
-    let app = state.app().lock().map_err(|e| e.to_string())?;
+    let app = state.app().read().unwrap();
     let runtime_id = webview
         .label()
         .strip_prefix("plugin-")
@@ -368,7 +368,7 @@ pub fn remove_commands_inner(
     webview: &Webview,
     ids: Vec<String>,
 ) -> Result<(), String> {
-    let app = state.app().lock().map_err(|e| e.to_string())?;
+    let app = state.app().read().unwrap();
     let runtime_id = webview
         .label()
         .strip_prefix("plugin-")
@@ -421,7 +421,7 @@ pub fn replace_commands_inner(
     webview: &Webview,
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
-    let app = state.app().lock().map_err(|e| e.to_string())?;
+    let app = state.app().read().unwrap();
     let runtime_id = webview
         .label()
         .strip_prefix("plugin-")
@@ -497,6 +497,112 @@ pub fn replace_commands(
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
     replace_commands_inner(&state, &webview, commands)
+}
+
+pub fn update_command_inner(
+    state: &AppState,
+    webview: &Webview,
+    id: &str,
+    cmd: &serde_json::Value,
+) -> Result<(), String> {
+    let app = state.app().read().unwrap();
+    let runtime_id = webview
+        .label()
+        .strip_prefix("plugin-")
+        .ok_or("not a plugin webview")?
+        .to_string();
+
+    let plugin_id = {
+        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
+        let rt = runtimes
+            .runtime(&runtime_id)
+            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
+        rt.plugin_id.clone()
+    };
+
+    let command_id = litools_plugin::plugin_result_id(&plugin_id, id);
+
+    {
+        let connection = app.context().database.connection();
+        let repo = litools_index::repository::PluginCommandRepository::new(&connection);
+
+        // 读取现有命令
+        let existing = repo
+            .find_plugin_command(&plugin_id, id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("command not found: {command_id}"))?;
+
+        // merge 部分更新
+        let title = cmd
+            .get("title")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .unwrap_or(existing.title);
+        let subtitle = cmd
+            .get("subtitle")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or(existing.subtitle);
+        let keywords: Vec<String> = cmd
+            .get("keywords")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or(existing.keywords);
+        let mode = cmd
+            .get("mode")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .unwrap_or(existing.mode);
+        let executor = cmd
+            .get("executor")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or(existing.executor);
+        let icon = cmd
+            .get("icon")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or(existing.icon);
+        let script = cmd
+            .get("script")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or(existing.script);
+        let lifecycle = cmd
+            .get("lifecycle")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .unwrap_or(existing.lifecycle);
+
+        repo.upsert_command(&litools_index::repository::PluginCommandUpsert {
+            id: command_id.clone(),
+            plugin_id: plugin_id.clone(),
+            command_id: id.to_string(),
+            title,
+            subtitle,
+            keywords,
+            mode,
+            executor,
+            icon,
+            script,
+            source: existing.source,
+            lifecycle,
+            registrar_runtime_id: existing.registrar_runtime_id,
+            executor_runtime_id: existing.executor_runtime_id,
+            permission_requirements: existing.permission_requirements,
+        })
+        .map_err(|e| e.to_string())?;
+    } // connection guard 在此释放
+
+    drop(app);
+    state
+        .plugin_events
+        .emit(PluginEvent::CommandsUpdated(plugin_id, vec![command_id]));
+    Ok(())
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {

@@ -75,8 +75,7 @@ fn plugin_asset_bytes(state: &AppState, uri: &Uri) -> Result<(Vec<u8>, &'static 
     let plugin_root = {
         let app = state
             .app()
-            .lock()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            .read().unwrap();
         let plugin = app
             .context()
             .plugins

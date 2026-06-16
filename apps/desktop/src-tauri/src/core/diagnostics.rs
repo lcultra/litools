@@ -48,7 +48,7 @@ pub fn get_diagnostics(state: State<'_, AppState>) -> Result<DiagnosticsResponse
 }
 
 pub fn get_diagnostics_inner(state: &AppState) -> Result<DiagnosticsResponse, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     let recent_usage: Vec<UsageEventResponse> = app
         .recent_usage_events(10)
         .map_err(|error| error.to_error_string())?

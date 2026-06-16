@@ -143,7 +143,7 @@ pub fn dock_plugin_runtime(
     log::info!("打开插件视图: {plugin_id}:{command_id}");
 
     // 记录使用历史（所有入口统一在此记录，不依赖 execute_result）
-    if let Ok(app_lock) = state.app().lock() {
+    if let Ok(app_lock) = state.app().read() {
         let connection = app_lock.context().database.connection();
         let _ = litools_index::repository::UsageRepository::new(&connection).record_selection(
             &uuid::Uuid::new_v4().to_string(),
@@ -838,7 +838,7 @@ pub fn find_enabled_plugin_command(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<(String, String, Vec<String>, RuntimePolicy), String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     let plugin = app
         .context()
         .plugins
@@ -867,7 +867,7 @@ fn runtime_launch_descriptor(
     plugin_id: &str,
     command_id: &str,
 ) -> Result<RuntimeLaunchDescriptor, String> {
-    let app = state.app().lock().map_err(|error| error.to_string())?;
+    let app = state.app().read().unwrap();
     let plugin = app
         .context()
         .plugins
@@ -903,7 +903,7 @@ fn runtime_launch_descriptor(
 /// 当运行时被移除时，清理数据库中 lifecycle=runtime 且 belong_to 该运行时的命令。
 fn cleanup_runtime_commands(state: &AppState, runtime_id: &str) {
     {
-        let app = state.app().lock().unwrap();
+        let app = state.app().read().unwrap();
         let connection = app.context().database.connection();
         let _ = connection.execute(
             "DELETE FROM plugin_commands WHERE lifecycle = 'runtime' AND registrar_runtime_id = ?1",

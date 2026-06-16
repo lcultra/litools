@@ -9,5 +9,5 @@ pub use matcher::{
     FieldMatcher, FieldWeights, MatchKind, MatchRange, SearchResultMatches, TextMatch,
     VisibleField, match_text,
 };
-pub use provider::{SearchProvider, SearchResult, SearchResultAction};
+pub use provider::{SearchContext, SearchProvider, SearchResult, SearchResultAction};
 pub use query::SearchQuery;

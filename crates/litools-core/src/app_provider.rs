@@ -1,11 +1,12 @@
+use async_trait::async_trait;
 use litools_config::search::{ACTION_OPEN, APP_PROVIDER_ID, APP_RESULT_PREFIX};
 use litools_index::{
     IndexDatabase,
     repository::{AppRecord, AppRepository},
 };
 use litools_search::{
-    MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
-    SearchResultMatches, TextMatch, match_text,
+    MatchKind, MatchRange, SearchContext, SearchProvider, SearchQuery, SearchResult,
+    SearchResultAction, SearchResultMatches, TextMatch, match_text,
 };
 
 pub struct AppSearchProvider {
@@ -18,12 +19,17 @@ impl AppSearchProvider {
     }
 }
 
+#[async_trait]
 impl SearchProvider for AppSearchProvider {
-    fn id(&self) -> &'static str {
+    fn id(&self) -> &str {
         APP_PROVIDER_ID
     }
 
-    fn search(&self, query: &SearchQuery) -> Vec<SearchResult> {
+    fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(100)
+    }
+
+    async fn search(&self, query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
         let connection = self.database.connection();
         let repository = AppRepository::new(&connection);
 

@@ -2,7 +2,7 @@ use chrono::Utc;
 use litools_index::repository::PluginStorageRepository;
 use litools_settings::AppSettings;
 use serde_json::{Value, json};
-use tauri::{AppHandle, Webview};
+use tauri::{AppHandle, Emitter, Webview};
 
 use crate::{
     core::plugins::runtime::{
@@ -26,8 +26,7 @@ pub fn route_plugin_view_call(
     // 通过 webview_label（即 surface_id）直接查找 runtime context
     let context = state
         .plugin_runtimes
-        .lock()
-        .map_err(|e| PluginRuntimeError::internal(e.to_string()))?
+        .lock().unwrap()
         .runtime_for_surface_id(webview.label())
         .ok_or_else(|| {
             PluginRuntimeError::permission_denied(format!(
@@ -43,36 +42,51 @@ pub fn route_plugin_view_call(
         )));
     }
 
-    match method {
-        "runtime.ready" => {
+    use crate::core::plugins::runtime::method_registry::{MethodDescriptor, MethodId};
+
+    let Some(desc) = MethodDescriptor::find_by_name(method) else {
+        return Err(PluginRuntimeError::permission_denied(format!(
+            "unknown plugin runtime method: {method}"
+        )));
+    };
+
+    match desc.id {
+        MethodId::RuntimeReady => {
             let context = service::mark_runtime_ready(app_handle, state, &context.id)
                 .map_err(PluginRuntimeError::internal)?;
             Ok(json!(service::build_runtime_info(state, &context)))
         }
-        "runtime.getInfo" => Ok(json!(service::build_runtime_info(state, &context))),
-        "permissions.query" => {
+        MethodId::RuntimeGetInfo => Ok(json!(service::build_runtime_info(state, &context))),
+        MethodId::RuntimeQueryPermission => {
             let permission = required_string_param(&params, "permission")?;
             Ok(json!(PermissionQueryResult {
                 permission: permission.clone(),
                 state: permissions::query_permission(&context, &permission),
             }))
         }
-        "ui.close" => {
+        MethodId::UIClose => {
             service::close_runtime(app_handle, state, &context.id)
                 .map_err(PluginRuntimeError::internal)?;
             Ok(Value::Null)
         }
-        "ui.setTitle" => {
+        MethodId::UISetTitle => {
             let title = required_string_param(&params, "title")?;
             validate_title(&title)?;
             service::mark_runtime_title(app_handle, state, &context.id, title)
                 .map_err(PluginRuntimeError::internal)?;
             Ok(Value::Null)
         }
-        "ui.toast" => Err(PluginRuntimeError::unsupported(
-            "ui.toast is not connected to a host toast presenter yet",
-        )),
-        "storage.get" => {
+        MethodId::UIToast => {
+            let message = required_string_param(&params, "message")?;
+            let payload = json!({
+                "pluginId": context.plugin_id,
+                "message": message,
+                "options": params.get("options").cloned().unwrap_or(Value::Null),
+            });
+            let _ = app_handle.emit("litools:toast", payload);
+            Ok(Value::Null)
+        }
+        MethodId::StorageGet => {
             let key = storage_key_param(&params)?;
             let value_json = with_storage(state, |repository| {
                 repository.get_json(&context.plugin_id, &key)
@@ -83,7 +97,7 @@ pub fn route_plugin_view_call(
                 None => Ok(Value::Null),
             }
         }
-        "storage.set" => {
+        MethodId::StorageSet => {
             let key = storage_key_param(&params)?;
             let value = params
                 .get("value")
@@ -105,34 +119,32 @@ pub fn route_plugin_view_call(
             })?;
             Ok(Value::Null)
         }
-        "storage.remove" => {
+        MethodId::StorageRemove => {
             let key = storage_key_param(&params)?;
             with_storage(state, |repository| {
                 repository.remove(&context.plugin_id, &key)
             })?;
             Ok(Value::Null)
         }
-        "storage.clear" => {
+        MethodId::StorageClear => {
             with_storage(state, |repository| repository.clear(&context.plugin_id))?;
             Ok(Value::Null)
         }
-        "settings.get" => {
+        MethodId::SettingsGet => {
             let app = state
                 .app()
-                .lock()
-                .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+                .read().unwrap();
             let settings = app.settings().clone();
             Ok(json!(settings))
         }
-        "settings.update" => {
+        MethodId::SettingsUpdate => {
             let new_settings: AppSettings =
                 serde_json::from_value(params.get("settings").cloned().unwrap_or(Value::Null))
                     .map_err(|error| PluginRuntimeError::invalid_params(error.to_string()))?;
             let updated_settings = {
                 let mut app = state
                     .app()
-                    .lock()
-                    .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+                    .write().unwrap();
                 app.update_settings(new_settings)
                     .map_err(|error| PluginRuntimeError::internal(error.to_string()))?
             };
@@ -140,15 +152,14 @@ pub fn route_plugin_view_call(
             crate::core::settings::apply_theme_to_all_windows(app_handle, &updated_settings.theme);
             Ok(json!(updated_settings))
         }
-        "diagnostics.get" => Ok(json!(
+        MethodId::DiagnosticsGet => Ok(json!(
             crate::core::diagnostics::get_diagnostics_inner(state,)
                 .map_err(|error| PluginRuntimeError::internal(error))?
         )),
-        "plugins.list" => {
+        MethodId::HostPluginsList => {
             let app = state
                 .app()
-                .lock()
-                .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+                .read().unwrap();
             let plugins: Vec<litools_plugin::manager::InstalledPlugin> = app
                 .context()
                 .plugins
@@ -180,7 +191,7 @@ pub fn route_plugin_view_call(
                 }))
                 .collect::<Vec<_>>()))
         }
-        "commands.add" => {
+        MethodId::CommandsAdd => {
             let commands: Vec<Value> = params
                 .get("commands")
                 .and_then(|v| v.as_array())
@@ -190,7 +201,7 @@ pub fn route_plugin_view_call(
                 .map_err(|e| PluginRuntimeError::internal(e))?;
             Ok(Value::Null)
         }
-        "commands.remove" => {
+        MethodId::CommandsRemove => {
             let ids: Vec<String> = params
                 .get("ids")
                 .and_then(|v| v.as_array())
@@ -204,7 +215,7 @@ pub fn route_plugin_view_call(
                 .map_err(|e| PluginRuntimeError::internal(e))?;
             Ok(Value::Null)
         }
-        "commands.replace" => {
+        MethodId::CommandsReplace => {
             let commands: Vec<Value> = params
                 .get("commands")
                 .and_then(|v| v.as_array())
@@ -212,6 +223,58 @@ pub fn route_plugin_view_call(
                 .unwrap_or_default();
             crate::core::plugins::commands::replace_commands_inner(state, webview, commands)
                 .map_err(|e| PluginRuntimeError::internal(e))?;
+            Ok(Value::Null)
+        }
+        MethodId::CommandsUpdate => {
+            let id = required_string_param(&params, "id")?;
+            let cmd = params.get("cmd").cloned().unwrap_or(Value::Null);
+            crate::core::plugins::commands::update_command_inner(state, webview, &id, &cmd)
+                .map_err(|e| PluginRuntimeError::internal(e))?;
+            Ok(Value::Null)
+        }
+        MethodId::SearchRegisterProvider => {
+            let provider_id = required_string_param(&params, "id")?;
+            let timeout_ms = params
+                .get("timeout")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(300);
+            let full_provider_id = format!("{}.{}", context.plugin_id, provider_id);
+
+            // 幂等 replace：先清理旧 provider
+            state
+                .search_bridge
+                .unregister_provider(&full_provider_id);
+
+            let provider: std::sync::Arc<dyn litools_search::SearchProvider> = std::sync::Arc::new(
+                crate::core::plugins::runtime::search_provider::WebviewSearchProvider::new(
+                    full_provider_id.clone(),
+                    webview.label().to_string(),
+                    app_handle.clone(),
+                    state.search_bridge.clone(),
+                    timeout_ms,
+                ),
+            );
+
+            // 统一通过 bridge 注册（自动写入 SearchEngine + 生命周期元数据）
+            state.search_bridge.register_provider(
+                crate::core::plugins::runtime::search_bridge::RegisteredSearchProvider {
+                    plugin_id: context.plugin_id.clone(),
+                    runtime_id: context.id.clone(),
+                    provider_id: full_provider_id.clone(),
+                    webview_label: webview.label().to_string(),
+                    registered_at: chrono::Utc::now().to_rfc3339(),
+                },
+                provider,
+            );
+
+            Ok(json!({ "providerId": full_provider_id }))
+        }
+        MethodId::SearchUnregisterProvider => {
+            let provider_id = required_string_param(&params, "id")?;
+            let full_provider_id = format!("{}.{}", context.plugin_id, provider_id);
+
+            // bridge 统一处理 — 同时清理 SearchEngine + 生命周期元数据
+            state.search_bridge.unregister_provider(&full_provider_id);
             Ok(Value::Null)
         }
         _ => Err(PluginRuntimeError::permission_denied(format!(
@@ -226,8 +289,7 @@ fn with_storage<T>(
 ) -> Result<T, PluginRuntimeError> {
     let app = state
         .app()
-        .lock()
-        .map_err(|error| PluginRuntimeError::internal(error.to_string()))?;
+        .read().unwrap();
     let connection = app.context().database.connection();
     operation(&PluginStorageRepository::new(&connection))
         .map_err(|error| PluginRuntimeError::internal(error.to_string()))

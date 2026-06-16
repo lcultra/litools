@@ -1,6 +1,10 @@
+pub mod capability;
 pub mod commands;
+pub mod method_registry;
 pub mod model;
 pub mod permissions;
 pub mod preload;
 pub mod registry;
+pub mod search_bridge;
+pub mod search_provider;
 pub mod service;

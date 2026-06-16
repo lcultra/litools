@@ -1,0 +1,10 @@
+[[permission]]
+identifier = "allow-commands"
+description = "Enables the plugin to dynamically register, remove, update, and replace search commands at runtime"
+
+commands.allow = [
+    "sdk_commands_add",
+    "sdk_commands_remove",
+    "sdk_commands_replace",
+    "sdk_commands_update",
+]

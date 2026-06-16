@@ -1,18 +1,18 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use chrono::Utc;
 use litools_plugin::RuntimePolicy;
 use uuid::Uuid;
 
 use crate::core::plugins::runtime::model::{PluginRuntimeContext, PluginRuntimeLifecycle};
+use crate::core::plugins::runtime::search_bridge::WebviewSearchBridge;
 
-#[derive(Debug, Default)]
 pub struct PluginRuntimeRegistry {
     runtimes_by_id: BTreeMap<String, PluginRuntimeContext>,
     runtime_id_by_surface_id: BTreeMap<String, String>,
-    /// (plugin_id, command_id) → BTreeSet<runtime_id>
-    /// 所有运行时无论 policy 都写入，Registry 只维护事实。
     runtime_ids_by_plugin_command: BTreeMap<(String, String), BTreeSet<String>>,
+    search_bridge: Arc<WebviewSearchBridge>,
 }
 
 #[derive(Clone, Debug)]
@@ -29,6 +29,15 @@ pub struct PluginRuntimeRegistration {
 }
 
 impl PluginRuntimeRegistry {
+    pub fn new(search_bridge: Arc<WebviewSearchBridge>) -> Self {
+        Self {
+            runtimes_by_id: BTreeMap::new(),
+            runtime_id_by_surface_id: BTreeMap::new(),
+            runtime_ids_by_plugin_command: BTreeMap::new(),
+            search_bridge,
+        }
+    }
+
     fn now() -> String {
         Utc::now().to_rfc3339()
     }
@@ -199,7 +208,6 @@ impl PluginRuntimeRegistry {
 
     pub fn remove(&mut self, target: &str) -> Option<PluginRuntimeContext> {
         log::debug!("[runtime] remove: target={target}");
-        // 先按 runtime_id 查找
         let id = if self.runtimes_by_id.contains_key(target) {
             target.to_string()
         } else if let Some(id) = self.runtime_id_by_surface_id.get(target) {
@@ -209,6 +217,10 @@ impl PluginRuntimeRegistry {
         };
 
         let context = self.runtimes_by_id.remove(&id)?;
+
+        // 清理该 runtime 注册的搜索 provider
+        self.search_bridge.unregister_runtime(&context.id);
+
         self.runtime_id_by_surface_id.remove(&context.surface_id);
         if let Some(ids) = self
             .runtime_ids_by_plugin_command
@@ -253,6 +265,12 @@ mod tests {
         }
     }
 
+    fn test_registry() -> PluginRuntimeRegistry {
+        PluginRuntimeRegistry::new(Arc::new(WebviewSearchBridge::new(
+            Arc::new(litools_search::SearchEngine::new()),
+        )))
+    }
+
     fn multi_registration() -> PluginRuntimeRegistration {
         let mut reg = registration();
         reg.surface_id = "plugin-b2c3d4e5-f6a7-8901-bcde-f22222222222".to_string();
@@ -262,7 +280,7 @@ mod tests {
 
     #[test]
     fn registers_and_finds_runtime() {
-        let mut registry = PluginRuntimeRegistry::default();
+        let mut registry = test_registry();
         let context = registry
             .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
@@ -281,7 +299,7 @@ mod tests {
 
     #[test]
     fn rejects_duplicate_singleton_runtime() {
-        let mut registry = PluginRuntimeRegistry::default();
+        let mut registry = test_registry();
         registry
             .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
@@ -297,7 +315,7 @@ mod tests {
 
     #[test]
     fn allows_multi_instance_runtimes() {
-        let mut registry = PluginRuntimeRegistry::default();
+        let mut registry = test_registry();
         registry
             .register_runtime(multi_registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("first runtime registered");
@@ -315,7 +333,7 @@ mod tests {
 
     #[test]
     fn transitions_lifecycle() {
-        let mut registry = PluginRuntimeRegistry::default();
+        let mut registry = test_registry();
         registry
             .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");
@@ -337,7 +355,7 @@ mod tests {
 
     #[test]
     fn removes_runtime_indexes() {
-        let mut registry = PluginRuntimeRegistry::default();
+        let mut registry = test_registry();
         registry
             .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
             .expect("runtime registered");

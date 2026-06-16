@@ -1,9 +1,8 @@
 import { createSignal, createResource, For, Show, onMount } from 'solid-js';
-import { ready } from '@litools/plugin-sdk';
-import { listPlugins, togglePlugin, installPlugin, uninstallPlugin } from '@litools/plugin-core';
+import { runtime, host } from '@litools/sdk';
 import { PluginLayout, Button, Switch, Badge, Card, ConfirmDialog } from '@litools/ui';
 import { RefreshCw, PackagePlus, Trash2 } from 'lucide-solid';
-import type { PluginSummary } from '@litools/plugin-core';
+import type { PluginSummary } from '@litools/sdk';
 
 type View = 'list' | { pluginId: string };
 
@@ -13,16 +12,16 @@ export default function App() {
     const [plugins, { refetch }] = createResource(fetchPlugins);
 
     onMount(async () => {
-        await ready();
+        await runtime.ready();
     });
 
     async function fetchPlugins(): Promise<PluginSummary[]> {
-        return listPlugins();
+        return host.plugins.list();
     }
 
     async function handleToggle(pluginId: string, enabled: boolean) {
         try {
-            await togglePlugin(pluginId, enabled);
+            await host.plugins.toggle(pluginId, enabled);
             refetch();
         } catch (e) {
             console.error('Toggle failed:', e);
@@ -37,7 +36,7 @@ export default function App() {
                 multiple: false,
             });
             if (filePath && typeof filePath === 'string') {
-                await installPlugin(filePath);
+                await host.plugins.install(filePath);
                 refetch();
             }
         } catch (e) {
@@ -49,7 +48,7 @@ export default function App() {
         const pluginId = uninstallTarget();
         if (!pluginId) return;
         try {
-            await uninstallPlugin(pluginId);
+            await host.plugins.uninstall(pluginId);
             setUninstallTarget(null);
             setView('list');
             refetch();

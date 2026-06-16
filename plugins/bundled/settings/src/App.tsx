@@ -1,6 +1,6 @@
 import { createSignal, onMount } from 'solid-js';
-import { settingsGet, settingsUpdate, ready } from '@litools/plugin-sdk';
-import type { ThemeValue, AppSettings } from '@litools/plugin-core';
+import { runtime, settings } from '@litools/sdk';
+import type { ThemeValue, AppSettings } from '@litools/sdk';
 import { PluginLayout, SegmentedControl, Input } from '@litools/ui';
 
 const THEME_ITEMS = [
@@ -16,36 +16,36 @@ function formatHotkey(accel: string): string {
 }
 
 export default function App() {
-    const [settings, setSettings] = createSignal<AppSettings | null>(null);
+    const [appSettings, setAppSettings] = createSignal<AppSettings | null>(null);
     const [recording, setRecording] = createSignal(false);
     const [hotkeyDisplay, setHotkeyDisplay] = createSignal('');
     let hotkeyInput!: HTMLInputElement;
 
     onMount(async () => {
-        await ready().catch(() => {});
-        const current = await settingsGet().catch(() => null);
+        await runtime.ready().catch(() => {});
+        const current = await settings.get().catch(() => null);
         if (current) {
-            setSettings(current);
+            setAppSettings(current);
             setHotkeyDisplay(formatHotkey(current.palette.global_hotkey));
         }
     });
 
     async function updateTheme(theme: string) {
-        const current = settings();
+        const current = appSettings();
         if (current?.theme === theme) return;
         const base = current ?? ({} as AppSettings);
         const updated = { ...base, theme: theme as ThemeValue };
-        setSettings(updated);
-        await settingsUpdate(updated).catch(() => {});
+        setAppSettings(updated);
+        await settings.update(updated).catch(() => {});
     }
 
     async function updateHotkey(accelerator: string) {
-        const current = settings();
+        const current = appSettings();
         if (!current) return;
         const updated = { ...current, palette: { ...current.palette, global_hotkey: accelerator } };
-        setSettings(updated);
+        setAppSettings(updated);
         setHotkeyDisplay(formatHotkey(accelerator));
-        await settingsUpdate(updated);
+        await settings.update(updated);
     }
 
     function handleHotkeyKeyDown(e: KeyboardEvent) {
@@ -72,7 +72,7 @@ export default function App() {
                     <h2 class="text-sm font-medium text-text-muted mb-2">主题</h2>
                     <SegmentedControl
                         items={THEME_ITEMS}
-                        value={settings()?.theme ?? 'system'}
+                        value={appSettings()?.theme ?? 'system'}
                         onChange={updateTheme}
                     />
                 </section>

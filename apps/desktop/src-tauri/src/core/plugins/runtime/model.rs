@@ -74,6 +74,7 @@ pub enum PermissionQueryState {
 pub enum PluginRuntimeErrorCode {
     PermissionDenied,
     InvalidParams,
+    #[allow(dead_code)]
     Unsupported,
     Internal,
 }
@@ -100,6 +101,7 @@ impl PluginRuntimeError {
         }
     }
 
+    #[allow(dead_code)]
     pub fn unsupported(message: impl Into<String>) -> Self {
         Self {
             code: PluginRuntimeErrorCode::Unsupported,

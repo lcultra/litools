@@ -2807,6 +2807,7 @@ dependencies = [
 name = "litools-desktop"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "icns",
  "image",
@@ -2875,6 +2876,8 @@ dependencies = [
  "async-trait",
  "serde",
  "thiserror 2.0.18",
+ "tokio",
+ "tokio-util",
  "uuid",
 ]
 
@@ -6105,6 +6108,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]
