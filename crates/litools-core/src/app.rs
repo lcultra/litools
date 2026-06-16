@@ -6,7 +6,11 @@ use litools_index::IndexDatabase;
 use litools_settings::storage::SettingsStore;
 use litools_telemetry::init_logging;
 
-use crate::{context::AppContext, error::LitoolsResult, plugin_provider::PluginCommandProvider};
+use crate::{
+    context::AppContext, error::LitoolsResult, executor_registry::ExecutorRegistry,
+    internal_plugin::InternalPlugin, launcher_plugin::LauncherPlugin,
+    plugin_provider::PluginCommandProvider,
+};
 
 use litools_config::app::{APP_SETTINGS_KEY, APPS_INDEX_STATUS_KEY, RELOAD_INDEX_TRIGGER_DIRECT};
 use litools_config::search::DEFAULT_LAUNCHER_RESULT_LIMIT;
@@ -60,8 +64,19 @@ impl LitoolsApp {
         let plugins = Arc::new(crate::app::plugins::sync_and_load_plugins(
             &database, &paths,
         )?);
-        let (search, plugin_command_provider) =
+        let (mut search, plugin_command_provider) =
             crate::app::search::default_search_engine(database.clone(), plugins.clone());
+
+        // ── 注册内置插件 ──
+        let mut executor_registry = ExecutorRegistry::new();
+
+        let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
+        for provider in launcher_plugin.search_providers() {
+            search.register_plugin_provider("dev.litools.launcher", provider);
+        }
+        for (provider_id, executor) in launcher_plugin.result_executors() {
+            executor_registry.register(&provider_id, executor);
+        }
 
         log::info!("应用启动完成");
 
@@ -72,6 +87,7 @@ impl LitoolsApp {
                 plugins,
                 SettingsStore::new(settings),
                 litools_system::NativeSystemAdapter::default(),
+                executor_registry,
             ),
             paths,
             plugin_command_provider,
@@ -88,8 +104,19 @@ impl LitoolsApp {
         let settings = crate::app::settings::load_settings(&database)?;
         let plugins =
             Arc::new(crate::app::plugins::load_plugins_from_database(&database)?);
-        let (search, plugin_command_provider) =
+        let (mut search, plugin_command_provider) =
             crate::app::search::default_search_engine(database.clone(), plugins.clone());
+
+        // ── 注册内置插件 ──
+        let mut executor_registry = ExecutorRegistry::new();
+
+        let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
+        for provider in launcher_plugin.search_providers() {
+            search.register_plugin_provider("dev.litools.launcher", provider);
+        }
+        for (provider_id, executor) in launcher_plugin.result_executors() {
+            executor_registry.register(&provider_id, executor);
+        }
 
         Ok(Self {
             context: AppContext::new(
@@ -98,6 +125,7 @@ impl LitoolsApp {
                 plugins,
                 SettingsStore::new(settings),
                 litools_system::NativeSystemAdapter::default(),
+                executor_registry,
             ),
             paths: AppBootstrapPaths::new(""),
             plugin_command_provider,

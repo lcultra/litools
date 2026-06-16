@@ -6,12 +6,15 @@ use litools_search::SearchEngine;
 use litools_settings::storage::SettingsStore;
 use litools_system::NativeSystemAdapter;
 
+use crate::executor_registry::ExecutorRegistry;
+
 pub struct AppContext {
     pub database: IndexDatabase,
     pub search: SearchEngine,
     pub plugins: Arc<PluginManager>,
     pub settings: SettingsStore,
     pub system_adapter: NativeSystemAdapter,
+    pub executor_registry: ExecutorRegistry,
 }
 
 impl AppContext {
@@ -21,6 +24,7 @@ impl AppContext {
         plugins: Arc<PluginManager>,
         settings: SettingsStore,
         system_adapter: NativeSystemAdapter,
+        executor_registry: ExecutorRegistry,
     ) -> Self {
         Self {
             database,
@@ -28,6 +32,7 @@ impl AppContext {
             plugins,
             settings,
             system_adapter,
+            executor_registry,
         }
     }
 }

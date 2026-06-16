@@ -21,13 +21,15 @@ impl LitoolsApp {
             .ok_or_else(|| LitoolsError::CommandNotFound(result_id.clone()))?;
 
         match parsed {
-            ResultId::App(app_id) => execution_service::execute_app(
-                &self.context.database,
-                &self.context.system_adapter,
-                &result_id,
-                &app_id,
-                &action_id,
-            ),
+            ResultId::App(_) => {
+                // 委托给 ExecutorRegistry，按 provider "apps" 路由到 AppResultExecutor
+                self.context.executor_registry.execute(
+                    "apps",
+                    &result_id,
+                    &action_id,
+                    &self.context,
+                )
+            }
             ResultId::Plugin {
                 plugin_id,
                 command_id,

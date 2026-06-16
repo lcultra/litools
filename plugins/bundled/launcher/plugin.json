@@ -1,0 +1,21 @@
+{
+  "id": "dev.litools.launcher",
+  "name": "启动器",
+  "version": "0.1.0",
+  "entry": null,
+  "description": "提供系统应用搜索与启动能力",
+  "author": "litools",
+  "icon": "launcher.svg",
+  "commands": [
+    {
+      "id": "search-apps",
+      "title": "搜索应用",
+      "mode": "searchProvider"
+    }
+  ],
+  "singleton": true,
+  "permissions": [
+    "litools-core:allow-apps-search",
+    "litools-core:allow-apps-launch"
+  ]
+}

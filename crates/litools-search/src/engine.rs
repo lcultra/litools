@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{SearchResult, provider::SearchProvider, query::SearchQuery, ranking::rank_results};
@@ -5,6 +6,7 @@ use crate::{SearchResult, provider::SearchProvider, query::SearchQuery, ranking:
 #[derive(Default)]
 pub struct SearchEngine {
     providers: Vec<Arc<dyn SearchProvider>>,
+    plugin_providers: HashMap<String, Vec<String>>,
 }
 
 impl SearchEngine {
@@ -14,6 +16,27 @@ impl SearchEngine {
 
     pub fn register_provider(&mut self, provider: Arc<dyn SearchProvider>) {
         self.providers.push(provider);
+    }
+
+    /// 注册一个属于指定插件的搜索提供者，以便后续可以通过插件 ID 批量注销。
+    pub fn register_plugin_provider(
+        &mut self,
+        owner_plugin_id: &str,
+        provider: Arc<dyn SearchProvider>,
+    ) {
+        self.plugin_providers
+            .entry(owner_plugin_id.to_string())
+            .or_default()
+            .push(provider.id().to_string());
+        self.providers.push(provider);
+    }
+
+    /// 注销指定插件拥有的所有搜索提供者。
+    pub fn unregister_plugin(&mut self, plugin_id: &str) {
+        if let Some(provider_ids) = self.plugin_providers.remove(plugin_id) {
+            self.providers
+                .retain(|p| !provider_ids.contains(&p.id().to_string()));
+        }
     }
 
     pub fn search(&self, query: SearchQuery) -> Vec<SearchResult> {
@@ -149,5 +172,47 @@ mod tests {
 
         let results = engine.search(SearchQuery::with_limit("", 3));
         assert_eq!(results.len(), 3);
+    }
+
+    #[test]
+    fn register_plugin_provider_and_unregister() {
+        let mut engine = SearchEngine::new();
+        engine.register_plugin_provider(
+            "plugin_a",
+            Arc::new(StubProvider {
+                id: "pa",
+                results: vec![result_for("Pa1", "pa", 100.0)],
+            }),
+        );
+        engine.register_plugin_provider(
+            "plugin_a",
+            Arc::new(StubProvider {
+                id: "pa2",
+                results: vec![result_for("Pa2", "pa2", 80.0)],
+            }),
+        );
+        engine.register_plugin_provider(
+            "plugin_b",
+            Arc::new(StubProvider {
+                id: "pb",
+                results: vec![result_for("Pb1", "pb", 90.0)],
+            }),
+        );
+
+        // 注册三个，全部可见
+        assert_eq!(engine.search(SearchQuery::without_limit("")).len(), 3);
+
+        // 注销 plugin_a，应只剩 plugin_b 的 pb
+        engine.unregister_plugin("plugin_a");
+        let results = engine.search(SearchQuery::without_limit(""));
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].provider, "pb");
+
+        // 再次注销已不存在的插件，不应报错
+        engine.unregister_plugin("plugin_a");
+
+        // 注销 plugin_b，引擎应清空
+        engine.unregister_plugin("plugin_b");
+        assert!(engine.search(SearchQuery::without_limit("")).is_empty());
     }
 }
