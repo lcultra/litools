@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use litools_index::IndexDatabase;
 use litools_plugin::PluginManager;
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 
@@ -28,12 +27,11 @@ impl LitoolsApp {
     }
 }
 
-/// 创建搜索引擎，内置注册 BuiltinCommandProvider 和 PluginCommandProvider。
+/// 创建搜索引擎并注册内置 provider（BuiltinCommandProvider、PluginCommandProvider）。
 ///
-/// AppSearchProvider 不再在此硬编码——由 LauncherPlugin 在 bootstrap 时通过
-/// InternalPlugin::search_providers() 注册。
+/// AppSearchProvider 由 LauncherPlugin 在 bootstrap 时通过 InternalPlugin 注册，
+/// 不在此硬编码。
 pub(crate) fn default_search_engine(
-    _database: IndexDatabase,
     plugin_manager: Arc<PluginManager>,
 ) -> (SearchEngine, Arc<PluginCommandProvider>) {
     let plugin_provider = Arc::new(PluginCommandProvider::new());

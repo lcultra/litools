@@ -14,8 +14,9 @@ impl SearchEngine {
         Self::default()
     }
 
+    /// 注册一个无主搜索提供者（内部归入 `__builtin__` 分组，统一走插件生命周期路径）。
     pub fn register_provider(&mut self, provider: Arc<dyn SearchProvider>) {
-        self.providers.push(provider);
+        self.register_plugin_provider("__builtin__", provider);
     }
 
     /// 注册一个属于指定插件的搜索提供者，以便后续可以通过插件 ID 批量注销。

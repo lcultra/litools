@@ -11,6 +11,7 @@ use crate::{
     internal_plugin::InternalPlugin, launcher_plugin::LauncherPlugin,
     plugin_provider::PluginCommandProvider,
 };
+use litools_search::SearchEngine;
 
 use litools_config::app::{APP_SETTINGS_KEY, APPS_INDEX_STATUS_KEY, RELOAD_INDEX_TRIGGER_DIRECT};
 use litools_config::search::DEFAULT_LAUNCHER_RESULT_LIMIT;
@@ -65,18 +66,15 @@ impl LitoolsApp {
             &database, &paths,
         )?);
         let (mut search, plugin_command_provider) =
-            crate::app::search::default_search_engine(database.clone(), plugins.clone());
+            crate::app::search::default_search_engine(plugins.clone());
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
-
-        let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        for provider in launcher_plugin.search_providers() {
-            search.register_plugin_provider("dev.litools.launcher", provider);
-        }
-        for (provider_id, executor) in launcher_plugin.result_executors() {
-            executor_registry.register(&provider_id, executor);
-        }
+        register_internal_plugin(
+            &(Arc::new(LauncherPlugin::new(database.clone())) as Arc<dyn InternalPlugin>),
+            &mut search,
+            &mut executor_registry,
+        );
 
         log::info!("应用启动完成");
 
@@ -105,18 +103,15 @@ impl LitoolsApp {
         let plugins =
             Arc::new(crate::app::plugins::load_plugins_from_database(&database)?);
         let (mut search, plugin_command_provider) =
-            crate::app::search::default_search_engine(database.clone(), plugins.clone());
+            crate::app::search::default_search_engine(plugins.clone());
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
-
-        let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        for provider in launcher_plugin.search_providers() {
-            search.register_plugin_provider("dev.litools.launcher", provider);
-        }
-        for (provider_id, executor) in launcher_plugin.result_executors() {
-            executor_registry.register(&provider_id, executor);
-        }
+        register_internal_plugin(
+            &(Arc::new(LauncherPlugin::new(database.clone())) as Arc<dyn InternalPlugin>),
+            &mut search,
+            &mut executor_registry,
+        );
 
         Ok(Self {
             context: AppContext::new(
@@ -155,6 +150,21 @@ fn cleanup_session_commands(connection: &rusqlite::Connection) {
         "DELETE FROM plugin_commands WHERE lifecycle = 'session'",
         [],
     );
+}
+
+/// 向 SearchEngine 和 ExecutorRegistry 注册一个内置插件的所有扩展。
+fn register_internal_plugin(
+    plugin: &Arc<dyn InternalPlugin>,
+    search: &mut SearchEngine,
+    executor_registry: &mut ExecutorRegistry,
+) {
+    let plugin_id = plugin.metadata().id;
+    for provider in plugin.search_providers() {
+        search.register_plugin_provider(&plugin_id, provider);
+    }
+    for (provider_id, executor) in plugin.result_executors() {
+        executor_registry.register(&provider_id, executor);
+    }
 }
 
 // ── sub-modules each contribute an `impl LitoolsApp { … }` block ──
