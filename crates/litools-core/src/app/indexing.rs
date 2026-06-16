@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
-use litools_index::repository::{
-    AppRecord, AppRepository, AppUpsert, CommandRepository, IndexMetadataRepository,
-    UsageEventRecord, UsageRepository,
-};
+use chrono::Utc;
+use litools_index::repository::{AppRepository, CommandRepository, IndexMetadataRepository};
 use litools_system::{NativeSystemAdapter, SystemAdapter};
 
 use crate::{
     app::{LitoolsApp, ReloadIndexSummary},
     command::BUILTIN_COMMANDS,
     error::LitoolsResult,
+    indexing_service,
 };
 
 use super::{APPS_INDEX_STATUS_KEY, RELOAD_INDEX_TRIGGER_DIRECT};
@@ -28,7 +26,6 @@ impl LitoolsApp {
         let discovered_apps = NativeSystemAdapter.discover_apps();
         let apps_discovered = discovered_apps.len();
 
-        // 启动时 bootstrap() 已同步过插件，无需重复扫描磁盘
         if trigger != "startup" {
             let manager = Arc::new(super::plugins::sync_and_load_plugins(
                 &self.context.database,
@@ -55,7 +52,7 @@ impl LitoolsApp {
         let apps = AppRepository::new(&transaction);
         let last_seen_at = started_at.to_rfc3339();
         for app in &discovered_apps {
-            apps.upsert_app(AppUpsert {
+            apps.upsert_app(litools_index::repository::AppUpsert {
                 id: &app.id,
                 name: &app.name,
                 path: &app.path,
@@ -70,7 +67,7 @@ impl LitoolsApp {
 
         let apps_removed = apps.delete_apps_not_seen_at(std::env::consts::OS, &last_seen_at)?;
         let finished_at = Utc::now();
-        let summary = reload_index_summary(
+        let summary = indexing_service::build_summary(
             trigger,
             started_at,
             finished_at,
@@ -96,63 +93,33 @@ impl LitoolsApp {
         Ok(summary)
     }
 
-    pub fn recent_usage_events(&self, limit: usize) -> LitoolsResult<Vec<UsageEventRecord>> {
-        let connection = self.context.database.connection();
-        Ok(UsageRepository::new(&connection).recent_events(limit)?)
+    pub fn recent_usage_events(
+        &self,
+        limit: usize,
+    ) -> LitoolsResult<Vec<litools_index::repository::UsageEventRecord>> {
+        indexing_service::recent_usage_events(&self.context.database, limit)
     }
 
-    pub fn find_app(&self, id: &str) -> LitoolsResult<Option<AppRecord>> {
-        let connection = self.context.database.connection();
-        Ok(AppRepository::new(&connection).find_app(id)?)
+    pub fn find_app(
+        &self,
+        id: &str,
+    ) -> LitoolsResult<Option<litools_index::repository::AppRecord>> {
+        indexing_service::find_app(&self.context.database, id)
     }
 
     pub fn command_count(&self) -> LitoolsResult<usize> {
-        let connection = self.context.database.connection();
-        Ok(CommandRepository::new(&connection).count_commands()?)
+        indexing_service::command_count(&self.context.database)
     }
 
     pub fn app_count(&self) -> LitoolsResult<usize> {
-        let connection = self.context.database.connection();
-        Ok(AppRepository::new(&connection).count_apps()?)
+        indexing_service::app_count(&self.context.database)
     }
 
     pub fn index_status(&self) -> LitoolsResult<Option<ReloadIndexSummary>> {
-        let connection = self.context.database.connection();
-        let Some(metadata) =
-            IndexMetadataRepository::new(&connection).get(APPS_INDEX_STATUS_KEY)?
-        else {
-            return Ok(None);
-        };
-
-        Ok(Some(serde_json::from_str(&metadata.value_json)?))
+        indexing_service::index_status(&self.context.database)
     }
 
     pub fn usage_event_count(&self) -> LitoolsResult<usize> {
-        let connection = self.context.database.connection();
-        Ok(UsageRepository::new(&connection).count_events()?)
-    }
-}
-
-fn reload_index_summary(
-    trigger: &str,
-    started_at: DateTime<Utc>,
-    finished_at: DateTime<Utc>,
-    commands_upserted: usize,
-    apps_discovered: usize,
-    apps_upserted: usize,
-    apps_removed: usize,
-    error: Option<String>,
-) -> ReloadIndexSummary {
-    ReloadIndexSummary {
-        trigger: trigger.to_string(),
-        started_at: started_at.to_rfc3339(),
-        finished_at: finished_at.to_rfc3339(),
-        duration_ms: (finished_at - started_at).num_milliseconds(),
-        commands_upserted,
-        apps_discovered,
-        apps_upserted,
-        apps_removed,
-        success: error.is_none(),
-        error,
+        indexing_service::usage_event_count(&self.context.database)
     }
 }
