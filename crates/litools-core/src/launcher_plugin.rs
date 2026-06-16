@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use litools_index::IndexDatabase;
 use litools_plugin::{PluginCommand, PluginCommandMode, PluginManifest};
-use litools_search::SearchProvider;
-
 use crate::app_provider::{AppSearchProvider, app_id_from_result_id};
 use crate::command::CommandExecution;
 use crate::context::AppContext;
 use crate::error::{LitoolsError, LitoolsResult};
 use crate::executor_registry::ResultExecutor;
 use crate::execution_service;
+use crate::extension_registry::ExtensionRegistry;
 use crate::internal_plugin::InternalPlugin;
 
 /// 启动器内置插件：提供 App 搜索 + 启动能力。
@@ -34,12 +33,9 @@ impl InternalPlugin for LauncherPlugin {
         self.metadata.clone()
     }
 
-    fn search_providers(&self) -> Vec<Arc<dyn SearchProvider>> {
-        vec![self.app_search_provider.clone()]
-    }
-
-    fn result_executors(&self) -> Vec<(String, Arc<dyn ResultExecutor>)> {
-        vec![("apps".to_string(), self.app_executor.clone())]
+    fn register_extensions(&self, registry: &mut ExtensionRegistry) {
+        registry.add_search_provider(self.app_search_provider.clone());
+        registry.add_result_executor("apps", self.app_executor.clone());
     }
 }
 

@@ -144,7 +144,7 @@ export function LauncherPage() {
                 return;
             }
 
-            const response = await executeResult(result.id, firstAction.id);
+            const response = await executeResult(result.id, firstAction.id, result.provider);
             setQuery('');
             setError(null);
             const effect = response.effect;

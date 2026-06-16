@@ -8,8 +8,8 @@ use litools_telemetry::init_logging;
 
 use crate::{
     context::AppContext, error::LitoolsResult, executor_registry::ExecutorRegistry,
-    internal_plugin::InternalPlugin, launcher_plugin::LauncherPlugin,
-    plugin_provider::PluginCommandProvider,
+    extension_registry::ExtensionRegistry, internal_plugin::InternalPlugin,
+    launcher_plugin::LauncherPlugin, plugin_provider::PluginCommandProvider,
 };
 use litools_search::SearchEngine;
 
@@ -70,8 +70,9 @@ impl LitoolsApp {
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
+        let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
         register_internal_plugin(
-            &(Arc::new(LauncherPlugin::new(database.clone())) as Arc<dyn InternalPlugin>),
+            &*launcher_plugin,
             &mut search,
             &mut executor_registry,
         );
@@ -107,8 +108,9 @@ impl LitoolsApp {
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
+        let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
         register_internal_plugin(
-            &(Arc::new(LauncherPlugin::new(database.clone())) as Arc<dyn InternalPlugin>),
+            &*launcher_plugin,
             &mut search,
             &mut executor_registry,
         );
@@ -154,15 +156,18 @@ fn cleanup_session_commands(connection: &rusqlite::Connection) {
 
 /// 向 SearchEngine 和 ExecutorRegistry 注册一个内置插件的所有扩展。
 fn register_internal_plugin(
-    plugin: &Arc<dyn InternalPlugin>,
+    plugin: &dyn InternalPlugin,
     search: &mut SearchEngine,
     executor_registry: &mut ExecutorRegistry,
 ) {
     let plugin_id = plugin.metadata().id;
-    for provider in plugin.search_providers() {
+    let mut extensions = ExtensionRegistry::new();
+    plugin.register_extensions(&mut extensions);
+    let (search_providers, result_executors) = extensions.decompose();
+    for provider in search_providers {
         search.register_plugin_provider(&plugin_id, provider);
     }
-    for (provider_id, executor) in plugin.result_executors() {
+    for (provider_id, executor) in result_executors {
         executor_registry.register(&provider_id, executor);
     }
 }
@@ -252,7 +257,7 @@ mod tests {
     fn launcher_panel_keeps_recent_above_pinned_without_deduplication() {
         let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
 
-        app.execute_result("reload-index", "execute")
+        app.execute_result("reload-index", "execute", "commands")
             .expect("record recent usage");
         app.pin_result("reload-index").expect("pin settings");
         let panel = app.launcher_panel("").expect("launcher panel");
@@ -298,7 +303,7 @@ mod tests {
     fn toggle_theme_persists_theme_change() {
         let mut app = LitoolsApp::bootstrap_in_memory().expect("bootstrap app");
 
-        app.execute_result("toggle-theme", "execute")
+        app.execute_result("toggle-theme", "execute", "commands")
             .expect("toggle theme");
 
         assert_eq!(app.settings().theme, "dark");

@@ -9,22 +9,26 @@ use crate::{
 
 impl LitoolsApp {
     /// 执行一个搜索结果的操作。根据 ResultId 分派到 App/Plugin/Builtin 三条路径。
+    ///
+    /// `provider` 对应 `SearchResult.provider`，由前端传入，用于 ExecutorRegistry 路由。
     pub fn execute_result(
         &mut self,
         result_id: impl Into<String>,
         action_id: impl Into<String>,
+        provider: impl Into<String>,
     ) -> LitoolsResult<CommandExecution> {
         let result_id = result_id.into();
         let action_id = action_id.into();
+        let provider = provider.into();
 
         let parsed = ResultId::parse(&result_id)
             .ok_or_else(|| LitoolsError::CommandNotFound(result_id.clone()))?;
 
         match parsed {
             ResultId::App(_) => {
-                // 委托给 ExecutorRegistry，按 provider "apps" 路由到 AppResultExecutor
+                // 委托给 ExecutorRegistry，按前端传入的 provider 路由
                 self.context.executor_registry.execute(
-                    "apps",
+                    &provider,
                     &result_id,
                     &action_id,
                     &self.context,

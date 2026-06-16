@@ -134,7 +134,7 @@ export function launcherPanel(query: string): Promise<LauncherPanelResponse> { r
 export function pinResult(resultId: string): Promise<void> { return invokeCore('pin_result', { resultId }); }
 export function unpinResult(resultId: string): Promise<void> { return invokeCore('unpin_result', { resultId }); }
 export function reorderPinnedResults(resultIds: string[]): Promise<void> { return invokeCore('reorder_pinned_results', { resultIds }); }
-export function executeResult(resultId: string, actionId: string): Promise<CommandExecution> { return invokeCore('execute_result', { resultId, actionId }); }
+export function executeResult(resultId: string, actionId: string, provider: string): Promise<CommandExecution> { return invokeCore('execute_result', { resultId, actionId, provider }); }
 export function detachRoute(route: string): Promise<SurfaceMetadata> { return invokeCore('detach_route', { route }); }
 export function updateSurfaceRoute(route: string): Promise<SurfaceMetadata> { return invokeCore('update_surface_route', { route }); }
 export function hideSurface(target?: WindowHostKind | string): Promise<void> { return invokeCore('hide_window', { target }); }

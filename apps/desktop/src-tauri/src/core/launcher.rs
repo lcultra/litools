@@ -49,12 +49,13 @@ pub fn reorder_pinned_results(
 pub fn execute_result(
     result_id: String,
     action_id: String,
+    provider: String,
     state: State<'_, AppState>,
     app_handle: AppHandle,
 ) -> Result<CommandExecution, String> {
     let execution = {
         let mut app = state.app().lock().map_err(|error| error.to_string())?;
-        app.execute_result(result_id, action_id)
+        app.execute_result(result_id, action_id, provider)
             .map_err(|error| error.to_error_string())?
     };
 

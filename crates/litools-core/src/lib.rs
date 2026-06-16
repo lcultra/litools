@@ -5,6 +5,7 @@ pub mod context;
 pub mod error;
 pub mod event;
 pub mod executor_registry;
+pub mod extension_registry;
 pub mod internal_plugin;
 pub mod launcher_plugin;
 pub mod execution_service;
