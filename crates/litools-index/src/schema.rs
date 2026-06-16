@@ -80,14 +80,6 @@ CREATE TABLE IF NOT EXISTS index_metadata (
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS permission_grants (
-    plugin_id TEXT NOT NULL,
-    permission TEXT NOT NULL,
-    granted INTEGER NOT NULL,
-    updated_at TEXT NOT NULL,
-    PRIMARY KEY(plugin_id, permission)
-);
-
 CREATE TABLE IF NOT EXISTS plugin_storage (
     plugin_id TEXT NOT NULL,
     key TEXT NOT NULL,
@@ -96,4 +88,13 @@ CREATE TABLE IF NOT EXISTS plugin_storage (
     PRIMARY KEY(plugin_id, key),
     FOREIGN KEY(plugin_id) REFERENCES plugins(id) ON DELETE CASCADE
 );
+
+-- 插件命令查询索引
+CREATE INDEX IF NOT EXISTS idx_plugin_commands_plugin ON plugin_commands(plugin_id);
+CREATE INDEX IF NOT EXISTS idx_plugin_commands_lifecycle ON plugin_commands(lifecycle);
+CREATE INDEX IF NOT EXISTS idx_plugin_commands_runtime ON plugin_commands(registrar_runtime_id);
+
+-- 使用事件排序/去重索引（搜索核心路径）
+CREATE INDEX IF NOT EXISTS idx_usage_events_selected ON usage_events(selected_at);
+CREATE INDEX IF NOT EXISTS idx_usage_events_target ON usage_events(target_type, target_id, selected_at);
 "#;

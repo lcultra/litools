@@ -2,88 +2,26 @@ use rusqlite::Connection;
 
 use crate::schema::INITIAL_SCHEMA;
 
+/// 执行数据库迁移。
+///
+/// MVP 阶段：所有表由 `INITIAL_SCHEMA` 通过 `CREATE TABLE IF NOT EXISTS` 统一创建，
+/// 无需增量列迁移。
+///
+/// # 未来版本化迁移占位
+///
+/// 当首次需要修改已有表的 schema（非新增表）时，引入版本化迁移系统：
+///
+/// ```ignore
+/// fn migrations() -> Vec<Migration> {
+///     vec![
+///         Migration::new(1, "initial schema", |c| c.execute_batch(INITIAL_SCHEMA)),
+///         Migration::new(2, "add new_table.foo column", |c| { ... }),
+///     ]
+/// }
+/// ```
+///
+/// 配合 `schema_version` 表记录当前版本，按版本号顺序执行未应用的迁移。
 pub fn run_migrations(connection: &Connection) -> rusqlite::Result<()> {
     connection.execute_batch(INITIAL_SCHEMA)?;
-    ensure_plugin_columns(connection)?;
-    ensure_plugin_command_columns(connection)?;
     Ok(())
-}
-
-fn ensure_plugin_columns(connection: &Connection) -> rusqlite::Result<()> {
-    if !column_exists(connection, "plugins", "source")? {
-        connection.execute(
-            "ALTER TABLE plugins ADD COLUMN source TEXT NOT NULL DEFAULT 'user'",
-            [],
-        )?;
-    }
-    Ok(())
-}
-
-fn ensure_plugin_command_columns(connection: &Connection) -> rusqlite::Result<()> {
-    if !column_exists(connection, "plugin_commands", "mode")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN mode TEXT NOT NULL DEFAULT 'view'",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "executor")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN executor TEXT",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "icon")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN icon TEXT",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "script")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN script TEXT",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "source")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN source TEXT NOT NULL DEFAULT 'manifest'",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "lifecycle")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN lifecycle TEXT NOT NULL DEFAULT 'permanent'",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "registrar_runtime_id")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN registrar_runtime_id TEXT",
-            [],
-        )?;
-    }
-    if !column_exists(connection, "plugin_commands", "executor_runtime_id")? {
-        connection.execute(
-            "ALTER TABLE plugin_commands ADD COLUMN executor_runtime_id TEXT",
-            [],
-        )?;
-    }
-    connection.execute(
-        "UPDATE plugin_commands SET keywords = '[]' WHERE keywords IS NULL",
-        [],
-    )?;
-    Ok(())
-}
-
-fn column_exists(connection: &Connection, table: &str, column: &str) -> rusqlite::Result<bool> {
-    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
-    let rows = statement.query_map([], |row| row.get::<_, String>(1))?;
-
-    for row in rows {
-        if row? == column {
-            return Ok(true);
-        }
-    }
-
-    Ok(false)
 }

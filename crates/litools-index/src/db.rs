@@ -119,5 +119,5 @@ impl IndexDatabase {
 }
 
 fn prepare_connection(connection: &Connection) -> rusqlite::Result<()> {
-    connection.execute_batch("PRAGMA foreign_keys = ON;")
+    connection.execute_batch("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;")
 }
