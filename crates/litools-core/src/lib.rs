@@ -6,6 +6,7 @@ pub mod error;
 pub mod event;
 pub mod execution_service;
 pub mod launcher;
+pub mod pinning_service;
 pub mod plugin_provider;
 
 pub use app::{AppBootstrapPaths, LitoolsApp, ReloadIndexSummary, plugin_route};

@@ -1,58 +1,51 @@
-use chrono::Utc;
-use litools_config::search::ResultId;
-use litools_index::repository::{AppRepository, PinnedRepository, PluginCommandRepository};
+use litools_index::repository::PinnedRepository;
 
 use crate::{
     app::LitoolsApp,
-    command::find_builtin_command,
     error::{LitoolsError, LitoolsResult},
+    pinning_service,
 };
 
 impl LitoolsApp {
     pub fn pin_result(&self, result_id: impl Into<String>) -> LitoolsResult<()> {
         let result_id = result_id.into();
-        let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
-        self.context.database.read(|conn| {
-            PinnedRepository::new(&conn).pin(
-                target_type,
-                &target_id,
-                &Utc::now().to_rfc3339(),
-            )
-        })?;
-        Ok(())
+        let (target_type, target_id) =
+            pinning_service::validate_target(&self.context.database, &result_id)?;
+        pinning_service::pin(&self.context.database, target_type, &target_id)
     }
 
     pub fn unpin_result(&self, result_id: impl Into<String>) -> LitoolsResult<()> {
         let result_id = result_id.into();
-        let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
-        self.context.database.read(|conn| {
-            PinnedRepository::new(&conn).unpin(target_type, &target_id)
-        })?;
-        Ok(())
+        let (target_type, target_id) =
+            pinning_service::validate_target(&self.context.database, &result_id)?;
+        pinning_service::unpin(&self.context.database, target_type, &target_id)
     }
 
     pub fn reorder_pinned_results(&self, result_ids: Vec<String>) -> LitoolsResult<()> {
         let mut targets = Vec::with_capacity(result_ids.len());
 
-        for result_id in result_ids {
-            let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
-            targets.push((target_type.to_string(), target_id, result_id));
+        for result_id in &result_ids {
+            let (target_type, target_id) =
+                pinning_service::validate_target(&self.context.database, result_id)?;
+            targets.push((target_type.to_string(), target_id, result_id.clone()));
         }
 
+        // 验证所有目标已固定
         self.context.database.read(|conn| {
             let pinned = PinnedRepository::new(&conn);
-            let mut ordered_targets = Vec::with_capacity(targets.len());
-
-            for (target_type, target_id, result_id) in targets {
-                if !pinned.is_pinned(&target_type, &target_id)? {
-                    return Err(LitoolsError::CommandNotFound(result_id));
+            for (target_type, target_id, result_id) in &targets {
+                if !pinned.is_pinned(target_type, target_id)? {
+                    return Err(LitoolsError::CommandNotFound(result_id.clone()));
                 }
-                ordered_targets.push((target_type, target_id));
             }
-
-            pinned.reorder(&ordered_targets)?;
             Ok(())
-        })
+        })?;
+
+        let ordered: Vec<(String, String)> = targets
+            .into_iter()
+            .map(|(tt, tid, _)| (tt, tid))
+            .collect();
+        pinning_service::reorder(&self.context.database, &ordered)
     }
 
     pub(crate) fn is_target_pinned(
@@ -60,54 +53,17 @@ impl LitoolsApp {
         target_type: &str,
         target_id: &str,
     ) -> LitoolsResult<bool> {
-        Ok(self
-            .context
-            .database
-            .read(|conn| PinnedRepository::new(&conn).is_pinned(target_type, target_id))?)
+        pinning_service::is_pinned(&self.context.database, target_type, target_id)
     }
 
     pub(crate) fn validated_target_from_result_id(
         &self,
         result_id: &str,
     ) -> LitoolsResult<(&'static str, String)> {
-        let parsed =
-            ResultId::parse(result_id)
-                .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
-
-        // 验证目标实体真实存在
-        match &parsed {
-            ResultId::App(app_id) => {
-                self.context
-                    .database
-                    .read(|conn| AppRepository::new(&conn).find_app(app_id))?
-                    .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
-            }
-            ResultId::Builtin(id) => {
-                find_builtin_command(id)
-                    .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
-            }
-            ResultId::Plugin {
-                plugin_id,
-                command_id,
-            } => {
-                self.context
-                    .database
-                    .read(|conn| {
-                        PluginCommandRepository::new(&conn)
-                            .find_plugin_command(plugin_id, command_id)
-                    })?
-                    .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
-            }
-        }
-
-        Ok(parsed.to_target())
+        pinning_service::validate_target(&self.context.database, result_id)
     }
 
-    /// 将 result_id 解析为 `(target_type, target_id)`，不做存在性验证。
-    ///
-    /// 用于 [`launcher_panel`] 中的 `is_pinned` 快速检查——搜索结果已保证 ID 有效，
-    /// 无需额外查询数据库。
     pub(crate) fn target_from_result_id(&self, result_id: &str) -> Option<(&'static str, String)> {
-        ResultId::parse(result_id).map(|r| r.to_target())
+        pinning_service::parse_target(result_id)
     }
 }
