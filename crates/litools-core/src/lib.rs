@@ -12,6 +12,7 @@ pub mod execution_service;
 pub mod indexing_service;
 pub mod launcher;
 pub mod pinning_service;
+pub mod plugin_host;
 pub mod plugin_provider;
 
 pub use app::{AppBootstrapPaths, LitoolsApp, ReloadIndexSummary, plugin_route};

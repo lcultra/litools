@@ -1,11 +1,7 @@
-use std::sync::Arc;
-
-use litools_plugin::PluginManager;
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 
-use crate::{
-    app::LitoolsApp, command::BuiltinCommandProvider, plugin_provider::PluginCommandProvider,
-};
+use crate::app::LitoolsApp;
+use crate::command::BuiltinCommandProvider;
 
 use super::DEFAULT_LAUNCHER_RESULT_LIMIT;
 
@@ -27,17 +23,11 @@ impl LitoolsApp {
     }
 }
 
-/// 创建搜索引擎并注册内置 provider（BuiltinCommandProvider、PluginCommandProvider）。
+/// 创建搜索引擎并注册内置 provider（BuiltinCommandProvider）。
 ///
-/// AppSearchProvider 由 LauncherPlugin 在 bootstrap 时通过 InternalPlugin 注册，
-/// 不在此硬编码。
-pub(crate) fn default_search_engine(
-    plugin_manager: Arc<PluginManager>,
-) -> (SearchEngine, Arc<PluginCommandProvider>) {
-    let plugin_provider = Arc::new(PluginCommandProvider::new());
-    plugin_provider.set_plugin_manager(plugin_manager);
+/// LauncherPlugin 和 PluginHostPlugin 在 bootstrap 时通过 InternalPlugin 注册。
+pub(crate) fn default_search_engine() -> SearchEngine {
     let mut search = SearchEngine::new();
-    search.register_provider(Arc::new(BuiltinCommandProvider));
-    search.register_provider(plugin_provider.clone());
-    (search, plugin_provider)
+    search.register_provider(std::sync::Arc::new(BuiltinCommandProvider));
+    search
 }

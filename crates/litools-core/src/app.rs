@@ -9,7 +9,8 @@ use litools_telemetry::init_logging;
 use crate::{
     context::AppContext, error::LitoolsResult, executor_registry::ExecutorRegistry,
     extension_registry::ExtensionRegistry, internal_plugin::InternalPlugin,
-    launcher_plugin::LauncherPlugin, plugin_provider::PluginCommandProvider,
+    launcher_plugin::LauncherPlugin, plugin_host::PluginHostPlugin,
+    plugin_provider::PluginCommandProvider,
 };
 use litools_search::SearchEngine;
 
@@ -65,17 +66,17 @@ impl LitoolsApp {
         let plugins = Arc::new(crate::app::plugins::sync_and_load_plugins(
             &database, &paths,
         )?);
-        let (mut search, plugin_command_provider) =
-            crate::app::search::default_search_engine(plugins.clone());
+        let mut search = crate::app::search::default_search_engine();
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
+
         let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        register_internal_plugin(
-            &*launcher_plugin,
-            &mut search,
-            &mut executor_registry,
-        );
+        register_internal_plugin(&*launcher_plugin, &mut search, &mut executor_registry);
+
+        let plugin_host = Arc::new(PluginHostPlugin::new(plugins.clone()));
+        let plugin_command_provider = plugin_host.command_provider();
+        register_internal_plugin(&*plugin_host, &mut search, &mut executor_registry);
 
         log::info!("应用启动完成");
 
@@ -103,17 +104,17 @@ impl LitoolsApp {
         let settings = crate::app::settings::load_settings(&database)?;
         let plugins =
             Arc::new(crate::app::plugins::load_plugins_from_database(&database)?);
-        let (mut search, plugin_command_provider) =
-            crate::app::search::default_search_engine(plugins.clone());
+        let mut search = crate::app::search::default_search_engine();
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
+
         let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        register_internal_plugin(
-            &*launcher_plugin,
-            &mut search,
-            &mut executor_registry,
-        );
+        register_internal_plugin(&*launcher_plugin, &mut search, &mut executor_registry);
+
+        let plugin_host = Arc::new(PluginHostPlugin::new(plugins.clone()));
+        let plugin_command_provider = plugin_host.command_provider();
+        register_internal_plugin(&*plugin_host, &mut search, &mut executor_registry);
 
         Ok(Self {
             context: AppContext::new(
