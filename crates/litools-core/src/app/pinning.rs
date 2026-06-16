@@ -1,6 +1,6 @@
 use chrono::Utc;
+use litools_config::search::ResultId;
 use litools_index::repository::{AppRepository, PinnedRepository, PluginCommandRepository};
-use litools_plugin::PLUGIN_TARGET_TYPE;
 
 use crate::{
     app::LitoolsApp,
@@ -66,54 +66,41 @@ impl LitoolsApp {
         &self,
         result_id: &str,
     ) -> LitoolsResult<(&'static str, String)> {
-        let Some((target_type, target_id)) = self.target_from_result_id(result_id) else {
-            return Err(LitoolsError::CommandNotFound(result_id.to_string()));
-        };
+        let parsed =
+            ResultId::parse(result_id)
+                .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
 
-        if target_id.is_empty() {
-            return Err(LitoolsError::CommandNotFound(result_id.to_string()));
-        }
-
-        match target_type {
-            "app" => {
+        // 验证目标实体真实存在
+        match &parsed {
+            ResultId::App(app_id) => {
                 let connection = self.context.database.connection();
                 AppRepository::new(&connection)
-                    .find_app(&target_id)?
+                    .find_app(app_id)?
                     .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
             }
-            "command" => {
-                find_builtin_command(&target_id)
+            ResultId::Builtin(id) => {
+                find_builtin_command(id)
                     .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
             }
-            PLUGIN_TARGET_TYPE => {
-                let Some((plugin_id, command_id)) =
-                    litools_plugin::plugin_command_from_target_id(&target_id)
-                else {
-                    return Err(LitoolsError::CommandNotFound(result_id.to_string()));
-                };
+            ResultId::Plugin {
+                plugin_id,
+                command_id,
+            } => {
                 let connection = self.context.database.connection();
                 PluginCommandRepository::new(&connection)
                     .find_plugin_command(plugin_id, command_id)?
                     .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
             }
-            _ => return Err(LitoolsError::CommandNotFound(result_id.to_string())),
         }
 
-        Ok((target_type, target_id))
+        Ok(parsed.to_target())
     }
 
+    /// 将 result_id 解析为 `(target_type, target_id)`，不做存在性验证。
+    ///
+    /// 用于 [`launcher_panel`] 中的 `is_pinned` 快速检查——搜索结果已保证 ID 有效，
+    /// 无需额外查询数据库。
     pub(crate) fn target_from_result_id(&self, result_id: &str) -> Option<(&'static str, String)> {
-        use crate::app_provider::app_id_from_result_id;
-        use litools_plugin::{plugin_command_from_result_id, plugin_target_id};
-
-        if let Some(app_id) = app_id_from_result_id(result_id) {
-            return Some(("app", app_id.to_string()));
-        }
-
-        if let Some((plugin_id, command_id)) = plugin_command_from_result_id(result_id) {
-            return Some((PLUGIN_TARGET_TYPE, plugin_target_id(plugin_id, command_id)));
-        }
-
-        find_builtin_command(result_id).map(|command| ("command", command.id.to_string()))
+        ResultId::parse(result_id).map(|r| r.to_target())
     }
 }

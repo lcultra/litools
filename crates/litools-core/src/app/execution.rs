@@ -4,7 +4,7 @@ use litools_plugin::{PluginCommandMode, plugin_target_id};
 use litools_system::{NativeSystemAdapter, SystemAdapter};
 use uuid::Uuid;
 
-use litools_config::search::ACTION_OPEN;
+use litools_config::search::{ACTION_OPEN, ResultId};
 
 use crate::{
     app::LitoolsApp,
@@ -23,42 +23,48 @@ impl LitoolsApp {
         let result_id = result_id.into();
         let action_id = action_id.into();
 
-        if let Some(app_id) = crate::app_provider::app_id_from_result_id(&result_id) {
-            return self.execute_app_result(&result_id, app_id, &action_id);
-        }
+        let parsed = ResultId::parse(&result_id)
+            .ok_or_else(|| LitoolsError::CommandNotFound(result_id.clone()))?;
 
-        if let Some((plugin_id, command_id)) =
-            litools_plugin::plugin_command_from_result_id(&result_id)
-        {
-            return self
-                .execute_plugin_command_result(&result_id, plugin_id, command_id, &action_id);
-        }
-
-        let effect = builtin_effect_for_result(&result_id)?;
-
-        match effect {
-            CommandEffect::ReloadIndex => {
-                let _ = self.reload_index()?;
+        match parsed {
+            ResultId::App(app_id) => {
+                return self.execute_app_result(&result_id, &app_id, &action_id);
             }
-            CommandEffect::ToggleTheme => self.toggle_theme()?,
-            _ => {}
+            ResultId::Plugin {
+                plugin_id,
+                command_id,
+            } => {
+                return self
+                    .execute_plugin_command_result(&result_id, &plugin_id, &command_id, &action_id);
+            }
+            ResultId::Builtin(id) => {
+                let effect = builtin_effect_for_result(&id)?;
+
+                match effect {
+                    CommandEffect::ReloadIndex => {
+                        let _ = self.reload_index()?;
+                    }
+                    CommandEffect::ToggleTheme => self.toggle_theme()?,
+                    _ => {}
+                }
+
+                let connection = self.context.database.connection();
+                UsageRepository::new(&connection).record_selection(
+                    &Uuid::new_v4().to_string(),
+                    "command",
+                    &id,
+                    None,
+                    &Utc::now().to_rfc3339(),
+                )?;
+
+                Ok(CommandExecution {
+                    message: message_for_effect(&effect).to_string(),
+                    result_id,
+                    action_id,
+                    effect,
+                })
+            }
         }
-
-        let connection = self.context.database.connection();
-        UsageRepository::new(&connection).record_selection(
-            &Uuid::new_v4().to_string(),
-            "command",
-            &result_id,
-            None,
-            &Utc::now().to_rfc3339(),
-        )?;
-
-        Ok(CommandExecution {
-            message: message_for_effect(&effect).to_string(),
-            result_id,
-            action_id,
-            effect,
-        })
     }
 
     fn execute_app_result(
