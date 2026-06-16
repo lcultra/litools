@@ -38,18 +38,20 @@ fn resolve_launch_action(
 ) -> Option<LaunchAction> {
     match policy {
         RuntimePolicy::Singleton => {
-            let context = state
-                .plugin_runtimes
-                .lock()
-                .ok()?
-                .runtime_for_plugin_command(plugin_id, command_id)?;
-            let host_kind = state.surfaces.lock().ok()?.host_kind(&context.surface_id)?;
+            // 按固定顺序 surfaces → runtimes 获取锁
+            let (context, host_kind) = state
+                .with_surfaces_and_runtimes(|surfaces, runtimes| {
+                    let ctx = runtimes.runtime_for_plugin_command(plugin_id, command_id)?;
+                    let kind = surfaces.host_kind(&ctx.surface_id)?;
+                    Some((ctx, kind))
+                })
+                .ok()??;
             match host_kind {
                 WindowHostKind::Detached => Some(LaunchAction::FocusDetached(context)),
                 WindowHostKind::Main => Some(LaunchAction::EnsureVisible(context)),
             }
         }
-        RuntimePolicy::MultiInstance => None, // 总是创建新实例
+        RuntimePolicy::MultiInstance => None,
     }
 }
 
@@ -797,13 +799,12 @@ fn find_runtime_by_window_label(
     state: &AppState,
     window_label: &str,
 ) -> Option<PluginRuntimeContext> {
-    let surfaces = state.surfaces.lock().ok()?;
-    let surface_id = surfaces.surface_id_by_window_label.get(window_label)?;
     state
-        .plugin_runtimes
-        .lock()
+        .with_surfaces_and_runtimes(|surfaces, runtimes| {
+            let surface_id = surfaces.surface_id_by_window_label.get(window_label)?;
+            runtimes.runtime_for_surface_id(surface_id)
+        })
         .ok()?
-        .runtime_for_surface_id(surface_id)
 }
 
 /// 从 PluginRuntimeContext 构建 PluginRuntimeInfo。

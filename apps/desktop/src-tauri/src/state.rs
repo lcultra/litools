@@ -302,4 +302,63 @@ impl AppState {
             *pooled = Some(label);
         }
     }
+
+    // ── 锁辅助方法 ──
+    //
+    // 锁获取顺序（固定，防止死锁）：
+    //   1. surfaces
+    //   2. plugin_runtimes
+    //   3. app
+    // 跨方法需要同时持有多把锁时，始终按此顺序获取。
+
+    /// 在 surface 读锁内执行闭包。
+    pub fn with_surfaces<T>(&self, f: impl FnOnce(&SurfaceRegistry) -> T) -> Result<T, String> {
+        self.surfaces
+            .lock()
+            .map(|guard| f(&guard))
+            .map_err(|e| e.to_string())
+    }
+
+    /// 在 surface 写锁内执行闭包。
+    pub fn with_surfaces_mut<T>(
+        &self,
+        f: impl FnOnce(&mut SurfaceRegistry) -> T,
+    ) -> Result<T, String> {
+        self.surfaces
+            .lock()
+            .map(|mut guard| f(&mut guard))
+            .map_err(|e| e.to_string())
+    }
+
+    /// 在 runtime 读锁内执行闭包。
+    pub fn with_runtimes<T>(
+        &self,
+        f: impl FnOnce(&PluginRuntimeRegistry) -> T,
+    ) -> Result<T, String> {
+        self.plugin_runtimes
+            .lock()
+            .map(|guard| f(&guard))
+            .map_err(|e| e.to_string())
+    }
+
+    /// 在 runtime 写锁内执行闭包。
+    pub fn with_runtimes_mut<T>(
+        &self,
+        f: impl FnOnce(&mut PluginRuntimeRegistry) -> T,
+    ) -> Result<T, String> {
+        self.plugin_runtimes
+            .lock()
+            .map(|mut guard| f(&mut guard))
+            .map_err(|e| e.to_string())
+    }
+
+    /// 同时持有 surfaces + runtimes 读锁（按固定顺序 surfaces → runtimes）。
+    pub fn with_surfaces_and_runtimes<T>(
+        &self,
+        f: impl FnOnce(&SurfaceRegistry, &PluginRuntimeRegistry) -> T,
+    ) -> Result<T, String> {
+        let surfaces = self.surfaces.lock().map_err(|e| e.to_string())?;
+        let runtimes = self.plugin_runtimes.lock().map_err(|e| e.to_string())?;
+        Ok(f(&surfaces, &runtimes))
+    }
 }
