@@ -78,7 +78,9 @@ pub struct AppState {
     pub surfaces: Mutex<SurfaceRegistry>,
     pub plugin_runtimes: Mutex<PluginRuntimeRegistry>,
     pub plugin_events: PluginEventBus,
+    #[allow(dead_code)]
     pub bg_runtime_manager: Arc<BackgroundRuntimeManager>,
+    #[allow(dead_code)]
     pub executor_registry: ExecutorRegistry,
     launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
@@ -312,6 +314,7 @@ impl AppState {
     // 跨方法需要同时持有多把锁时，始终按此顺序获取。
 
     /// 在 surface 读锁内执行闭包。
+    #[allow(dead_code)]
     pub fn with_surfaces<T>(&self, f: impl FnOnce(&SurfaceRegistry) -> T) -> Result<T, String> {
         self.surfaces
             .lock()
@@ -320,6 +323,7 @@ impl AppState {
     }
 
     /// 在 surface 写锁内执行闭包。
+    #[allow(dead_code)]
     pub fn with_surfaces_mut<T>(
         &self,
         f: impl FnOnce(&mut SurfaceRegistry) -> T,
@@ -331,6 +335,7 @@ impl AppState {
     }
 
     /// 在 runtime 读锁内执行闭包。
+    #[allow(dead_code)]
     pub fn with_runtimes<T>(
         &self,
         f: impl FnOnce(&PluginRuntimeRegistry) -> T,
@@ -342,6 +347,7 @@ impl AppState {
     }
 
     /// 在 runtime 写锁内执行闭包。
+    #[allow(dead_code)]
     pub fn with_runtimes_mut<T>(
         &self,
         f: impl FnOnce(&mut PluginRuntimeRegistry) -> T,

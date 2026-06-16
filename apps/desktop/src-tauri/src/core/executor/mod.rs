@@ -6,12 +6,14 @@ pub use background::BackgroundRuntimeExecutor;
 
 use std::collections::HashMap;
 
-/// 命令执行器 trait
+/// 命令执行器 trait——为 Instant/SearchProvider 等模式预留。
+#[allow(dead_code)]
 pub trait CommandExecutor: Send + Sync {
     fn execute(&self, command: &ResolvedCommand, ctx: &ExecutionContext) -> Result<(), String>;
 }
 
-/// 解析后的命令（包含绝对路径）
+/// 解析后的命令（包含绝对路径）——当前为预留结构。
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ResolvedCommand {
     pub id: String,
@@ -26,15 +28,17 @@ pub struct ResolvedCommand {
 }
 
 /// 执行上下文
+#[allow(dead_code)]
 pub struct ExecutionContext {
     pub runtime_id: Option<String>,
     pub webview_label: Option<String>,
     pub app_handle: tauri::AppHandle,
 }
 
-/// 执行器注册表（字符串 key → 实现）
+/// 执行器注册表（字符串 key → 实现）——当前为预留架构。
 pub struct ExecutorRegistry {
     executors: HashMap<String, Box<dyn CommandExecutor>>,
+    #[allow(dead_code)]
     mode_defaults: HashMap<String, String>,
 }
 
@@ -56,6 +60,7 @@ impl ExecutorRegistry {
     }
 
     /// 解析命令的实际 executor：显式指定 > mode 默认映射 > "webview" fallback
+    #[allow(dead_code)]
     pub fn resolve_executor(&self, command: &ResolvedCommand) -> String {
         if !command.executor.is_empty() {
             return command.executor.clone();
@@ -66,6 +71,7 @@ impl ExecutorRegistry {
             .unwrap_or_else(|| "webview".to_string())
     }
 
+    #[allow(dead_code)]
     pub fn execute(
         &self,
         command: &ResolvedCommand,

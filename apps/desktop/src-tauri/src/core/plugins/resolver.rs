@@ -1,6 +1,7 @@
 use litools_index::repository::PluginCommandRecord;
 
-/// 解析后的命令（script 已转为绝对 URI）
+/// 解析后的命令（script 已转为绝对 URI）——当前为预留结构。
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct ResolvedCommand {
     pub id: String,
@@ -14,6 +15,7 @@ pub struct ResolvedCommand {
     pub permissions: Vec<String>,
 }
 
+#[allow(dead_code)]
 fn default_executor(mode: &str) -> String {
     match mode {
         "view" => "webview",
@@ -26,6 +28,7 @@ fn default_executor(mode: &str) -> String {
 
 /// 将 PluginCommandRecord 解析为 ResolvedCommand
 /// script 字段存在则使用；否则 fallback 到 dist/commands/{command_id}.js
+#[allow(dead_code)]
 pub fn resolve_command(command: &PluginCommandRecord) -> ResolvedCommand {
     let script = command.script.clone().or_else(|| {
         Some(format!("dist/commands/{}.js", command.command_id))

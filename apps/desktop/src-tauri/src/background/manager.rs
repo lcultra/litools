@@ -1,3 +1,6 @@
+//! 后台运行时管理器——为 Instant 模式插件提供后台 WebView 执行环境。
+//! 当前为预留架构，待 Instant 命令功能完整实现后激活。
+
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -7,6 +10,7 @@ use super::runtime::PluginRuntime;
 struct RuntimeEntry {
     runtime: Box<dyn PluginRuntime>,
     last_used: Instant,
+    #[allow(dead_code)]
     plugin_id: String,
 }
 
@@ -18,6 +22,7 @@ pub struct BackgroundRuntimeManager {
 
 #[derive(Clone, Copy)]
 pub enum RuntimePolicy {
+    #[allow(dead_code)]
     Shared,
     PerPlugin,
 }
@@ -31,6 +36,7 @@ impl BackgroundRuntimeManager {
         }
     }
 
+    #[allow(dead_code)]
     pub fn register_runtime(
         &self,
         plugin_id: &str,

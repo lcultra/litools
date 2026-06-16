@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum PluginEvent {
     CommandsAdded(String, Vec<String>),       // plugin_id, command_ids
     CommandsRemoved(String, Vec<String>),     // plugin_id, command_ids

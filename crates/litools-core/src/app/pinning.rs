@@ -56,13 +56,6 @@ impl LitoolsApp {
         pinning_service::is_pinned(&self.context.database, target_type, target_id)
     }
 
-    pub(crate) fn validated_target_from_result_id(
-        &self,
-        result_id: &str,
-    ) -> LitoolsResult<(&'static str, String)> {
-        pinning_service::validate_target(&self.context.database, result_id)
-    }
-
     pub(crate) fn target_from_result_id(&self, result_id: &str) -> Option<(&'static str, String)> {
         pinning_service::parse_target(result_id)
     }

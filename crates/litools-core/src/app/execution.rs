@@ -1,5 +1,4 @@
 use litools_config::search::ResultId;
-use litools_system::SystemAdapter;
 
 use crate::{
     app::LitoolsApp,
