@@ -48,14 +48,15 @@ impl LitoolsApp {
                     _ => {}
                 }
 
-                let connection = self.context.database.connection();
-                UsageRepository::new(&connection).record_selection(
-                    &Uuid::new_v4().to_string(),
-                    "command",
-                    &id,
-                    None,
-                    &Utc::now().to_rfc3339(),
-                )?;
+                self.context.database.read(|conn| {
+                    UsageRepository::new(&conn).record_selection(
+                        &Uuid::new_v4().to_string(),
+                        "command",
+                        &id,
+                        None,
+                        &Utc::now().to_rfc3339(),
+                    )
+                })?;
 
                 Ok(CommandExecution {
                     message: message_for_effect(&effect).to_string(),
@@ -140,14 +141,15 @@ impl LitoolsApp {
         }
 
         let route = plugin_route(plugin_id, command_id);
-        let connection = self.context.database.connection();
-        UsageRepository::new(&connection).record_selection(
-            &Uuid::new_v4().to_string(),
-            litools_plugin::PLUGIN_TARGET_TYPE,
-            &plugin_target_id(plugin_id, command_id),
-            None,
-            &Utc::now().to_rfc3339(),
-        )?;
+        self.context.database.read(|conn| {
+            UsageRepository::new(&conn).record_selection(
+                &Uuid::new_v4().to_string(),
+                litools_plugin::PLUGIN_TARGET_TYPE,
+                &plugin_target_id(plugin_id, command_id),
+                None,
+                &Utc::now().to_rfc3339(),
+            )
+        })?;
 
         Ok(CommandExecution {
             message: format!("正在打开 {}", command.title),

@@ -12,20 +12,22 @@ impl LitoolsApp {
     pub fn pin_result(&self, result_id: impl Into<String>) -> LitoolsResult<()> {
         let result_id = result_id.into();
         let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
-        let connection = self.context.database.connection();
-        PinnedRepository::new(&connection).pin(
-            target_type,
-            &target_id,
-            &Utc::now().to_rfc3339(),
-        )?;
+        self.context.database.read(|conn| {
+            PinnedRepository::new(&conn).pin(
+                target_type,
+                &target_id,
+                &Utc::now().to_rfc3339(),
+            )
+        })?;
         Ok(())
     }
 
     pub fn unpin_result(&self, result_id: impl Into<String>) -> LitoolsResult<()> {
         let result_id = result_id.into();
         let (target_type, target_id) = self.validated_target_from_result_id(&result_id)?;
-        let connection = self.context.database.connection();
-        PinnedRepository::new(&connection).unpin(target_type, &target_id)?;
+        self.context.database.read(|conn| {
+            PinnedRepository::new(&conn).unpin(target_type, &target_id)
+        })?;
         Ok(())
     }
 
@@ -37,20 +39,20 @@ impl LitoolsApp {
             targets.push((target_type.to_string(), target_id, result_id));
         }
 
-        let connection = self.context.database.connection();
-        let pinned = PinnedRepository::new(&connection);
-        let mut ordered_targets = Vec::with_capacity(targets.len());
+        self.context.database.read(|conn| {
+            let pinned = PinnedRepository::new(&conn);
+            let mut ordered_targets = Vec::with_capacity(targets.len());
 
-        for (target_type, target_id, result_id) in targets {
-            if !pinned.is_pinned(&target_type, &target_id)? {
-                return Err(LitoolsError::CommandNotFound(result_id));
+            for (target_type, target_id, result_id) in targets {
+                if !pinned.is_pinned(&target_type, &target_id)? {
+                    return Err(LitoolsError::CommandNotFound(result_id));
+                }
+                ordered_targets.push((target_type, target_id));
             }
 
-            ordered_targets.push((target_type, target_id));
-        }
-
-        pinned.reorder(&ordered_targets)?;
-        Ok(())
+            pinned.reorder(&ordered_targets)?;
+            Ok(())
+        })
     }
 
     pub(crate) fn is_target_pinned(
@@ -58,8 +60,10 @@ impl LitoolsApp {
         target_type: &str,
         target_id: &str,
     ) -> LitoolsResult<bool> {
-        let connection = self.context.database.connection();
-        Ok(PinnedRepository::new(&connection).is_pinned(target_type, target_id)?)
+        Ok(self
+            .context
+            .database
+            .read(|conn| PinnedRepository::new(&conn).is_pinned(target_type, target_id))?)
     }
 
     pub(crate) fn validated_target_from_result_id(
@@ -73,9 +77,9 @@ impl LitoolsApp {
         // 验证目标实体真实存在
         match &parsed {
             ResultId::App(app_id) => {
-                let connection = self.context.database.connection();
-                AppRepository::new(&connection)
-                    .find_app(app_id)?
+                self.context
+                    .database
+                    .read(|conn| AppRepository::new(&conn).find_app(app_id))?
                     .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
             }
             ResultId::Builtin(id) => {
@@ -86,9 +90,12 @@ impl LitoolsApp {
                 plugin_id,
                 command_id,
             } => {
-                let connection = self.context.database.connection();
-                PluginCommandRepository::new(&connection)
-                    .find_plugin_command(plugin_id, command_id)?
+                self.context
+                    .database
+                    .read(|conn| {
+                        PluginCommandRepository::new(&conn)
+                            .find_plugin_command(plugin_id, command_id)
+                    })?
                     .ok_or_else(|| LitoolsError::CommandNotFound(result_id.to_string()))?;
             }
         }

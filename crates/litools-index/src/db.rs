@@ -86,6 +86,21 @@ impl IndexDatabase {
         })
     }
 
+    /// 在数据库读锁内执行闭包，自动管理锁生命周期。
+    ///
+    /// 替代"获取 connection → 构造 Repository → 调用方法 → drop connection"
+    /// 的样板代码。`f` 接收 `&Connection`，返回值由调用方通过 `?` 传播。
+    ///
+    /// # 示例
+    ///
+    /// ```ignore
+    /// let result = db.read(|conn| AppRepository::new(&conn).find_app(id))?;
+    /// ```
+    pub fn read<T>(&self, f: impl FnOnce(&Connection) -> T) -> T {
+        let guard = self.connection();
+        f(&guard)
+    }
+
     /// Acquire the database connection lock.
     ///
     /// # Deadlock safety
