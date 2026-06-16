@@ -1,50 +1,37 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use litools_config::search::{ACTION_OPEN, PLUGIN_PROVIDER_ID};
-use litools_index::{
-    IndexDatabase,
-    repository::{PluginCommandRecord, PluginCommandRepository},
-};
-use litools_plugin::{PluginCommandMode, plugin_command_mode_from_str, plugin_result_id};
+use litools_index::repository::PluginCommandRecord;
+use litools_plugin::{PluginCommandSearchItem, PluginManager, plugin_result_id};
 use litools_search::{
     FieldMatcher, FieldWeights, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
     SearchResultMatches, VisibleField, match_text,
 };
 
+/// 插件命令搜索提供器。
+///
+/// 优先从 [`PluginManager`] 内存直接读取（始终最新、无需缓存失效），
+/// 回退到空结果以兼容未注入 PluginManager 的测试路径。
 pub struct PluginCommandProvider {
-    database: IndexDatabase,
-    cache: Mutex<Option<Vec<PluginCommandRecord>>>,
+    plugin_manager: Mutex<Option<Arc<PluginManager>>>,
 }
 
 impl PluginCommandProvider {
-    pub fn new(database: IndexDatabase) -> Self {
+    pub fn new() -> Self {
         Self {
-            database,
-            cache: Mutex::new(None),
+            plugin_manager: Mutex::new(None),
         }
     }
 
-    /// Invalidate the cached plugin command list so the next search reloads from DB.
-    pub fn invalidate_cache(&self) {
-        if let Ok(mut cache) = self.cache.lock() {
-            *cache = None;
+    /// 注入插件管理器，后续搜索直接从内存读取。
+    pub fn set_plugin_manager(&self, manager: Arc<PluginManager>) {
+        if let Ok(mut pm) = self.plugin_manager.lock() {
+            *pm = Some(manager);
         }
     }
 
-    fn load_commands(&self) -> Vec<PluginCommandRecord> {
-        let connection = self.database.connection();
-        PluginCommandRepository::new(&connection)
-            .list_enabled_plugin_commands()
-            .unwrap_or_default()
-    }
-
-    fn cached_commands(&self) -> Vec<PluginCommandRecord> {
-        let mut cache = self.cache.lock().expect("plugin provider cache lock");
-        if cache.is_none() {
-            *cache = Some(self.load_commands());
-        }
-        cache.clone().unwrap_or_default()
-    }
+    /// 保持旧 API 兼容。PluginManager 模式下不需要缓存失效。
+    pub fn invalidate_cache(&self) {}
 }
 
 impl SearchProvider for PluginCommandProvider {
@@ -53,15 +40,19 @@ impl SearchProvider for PluginCommandProvider {
     }
 
     fn search(&self, query: &SearchQuery) -> Vec<SearchResult> {
-        self.cached_commands()
-            .into_iter()
-            .filter(|command| command_mode(command) == Some(PluginCommandMode::View))
-            .filter_map(|command| search_result_for_plugin_command(command, &query.text))
-            .collect()
+        if let Some(pm) = self.plugin_manager.lock().ok().and_then(|o| o.clone()) {
+            return pm
+                .enabled_view_commands()
+                .into_iter()
+                .filter_map(|item| search_result_for_item(item, &query.text))
+                .collect();
+        }
+        Vec::new()
     }
 }
 
-/// 插件命令的字段匹配权重。
+// ── 从 PluginManager 直接生成搜索结果 ──
+
 const PLUGIN_COMMAND_WEIGHTS: FieldWeights = FieldWeights {
     exact: 108.0,
     prefix: 96.0,
@@ -69,17 +60,24 @@ const PLUGIN_COMMAND_WEIGHTS: FieldWeights = FieldWeights {
     fuzzy_cap: 64.0,
 };
 
-pub fn search_result_for_plugin_command_record(
-    command: PluginCommandRecord,
-    query: &str,
-) -> SearchResult {
-    let (score, title_ranges, subtitle_ranges) =
-        plugin_command_search_match(&command, query).finish();
+fn search_result_for_item(item: PluginCommandSearchItem, query: &str) -> Option<SearchResult> {
+    if query.trim().is_empty() {
+        return Some(build_result(item, FieldMatcher::with_score(95.0)));
+    }
+    let matcher = item_match(&item, query);
+    matcher.has_match().then(|| build_result(item, matcher))
+}
+
+fn build_result(item: PluginCommandSearchItem, matcher: FieldMatcher) -> SearchResult {
+    let (score, title_ranges, subtitle_ranges) = matcher.finish();
     SearchResult {
-        id: plugin_result_id(&command.plugin_id, &command.command_id),
-        title: command.title,
-        subtitle: command.subtitle.or(Some(command.plugin_name)),
-        icon_uri: Some(plugin_icon_uri(&command.plugin_id, &command.plugin_icon)),
+        id: plugin_result_id(&item.plugin_id, &item.command_id),
+        title: item.title,
+        subtitle: item.subtitle.or(Some(item.plugin_name)),
+        icon_uri: Some(format!(
+            "litools-plugin://{}/{}",
+            item.plugin_id, item.plugin_icon
+        )),
         provider: PLUGIN_PROVIDER_ID.to_string(),
         score,
         matches: SearchResultMatches {
@@ -93,28 +91,80 @@ pub fn search_result_for_plugin_command_record(
     }
 }
 
-fn plugin_icon_uri(plugin_id: &str, icon: &str) -> String {
-    format!("litools-plugin://{plugin_id}/{icon}")
+fn item_match(item: &PluginCommandSearchItem, query: &str) -> FieldMatcher {
+    let mut matcher = FieldMatcher::new();
+    matcher.consider(
+        match_text(&item.title, query),
+        0.0,
+        VisibleField::Title,
+        &PLUGIN_COMMAND_WEIGHTS,
+    );
+    if let Some(subtitle) = &item.subtitle {
+        matcher.consider(
+            match_text(subtitle, query),
+            -8.0,
+            VisibleField::Subtitle,
+            &PLUGIN_COMMAND_WEIGHTS,
+        );
+    }
+    matcher.consider(
+        match_text(&item.plugin_name, query),
+        -12.0,
+        VisibleField::Subtitle,
+        &PLUGIN_COMMAND_WEIGHTS,
+    );
+    for keyword in &item.keywords {
+        matcher.consider(
+            match_text(keyword, query),
+            -16.0,
+            VisibleField::Hidden,
+            &PLUGIN_COMMAND_WEIGHTS,
+        );
+    }
+    matcher.consider(
+        match_text(&item.plugin_id, query),
+        -20.0,
+        VisibleField::Hidden,
+        &PLUGIN_COMMAND_WEIGHTS,
+    );
+    matcher.consider(
+        match_text(&item.command_id, query),
+        -20.0,
+        VisibleField::Hidden,
+        &PLUGIN_COMMAND_WEIGHTS,
+    );
+    matcher
 }
 
-fn search_result_for_plugin_command(
+// ── 从 DB 记录生成搜索结果（launcher 中 pinned/recent 使用） ──
+
+pub fn search_result_for_plugin_command_record(
     command: PluginCommandRecord,
     query: &str,
-) -> Option<SearchResult> {
-    if query.trim().is_empty() || plugin_command_search_match(&command, query).has_match() {
-        return Some(search_result_for_plugin_command_record(command, query));
+) -> SearchResult {
+    let (score, title_ranges, subtitle_ranges) = record_match(&command, query).finish();
+    SearchResult {
+        id: plugin_result_id(&command.plugin_id, &command.command_id),
+        title: command.title,
+        subtitle: command.subtitle.or(Some(command.plugin_name)),
+        icon_uri: Some(format!(
+            "litools-plugin://{}/{}",
+            command.plugin_id, command.plugin_icon
+        )),
+        provider: PLUGIN_PROVIDER_ID.to_string(),
+        score,
+        matches: SearchResultMatches {
+            title: title_ranges,
+            subtitle: subtitle_ranges,
+        },
+        actions: vec![SearchResultAction {
+            id: ACTION_OPEN.to_string(),
+            label: "打开".to_string(),
+        }],
     }
-    None
 }
 
-fn command_mode(command: &PluginCommandRecord) -> Option<PluginCommandMode> {
-    plugin_command_mode_from_str(&command.mode)
-}
-
-fn plugin_command_search_match(
-    command: &PluginCommandRecord,
-    query: &str,
-) -> FieldMatcher {
+fn record_match(command: &PluginCommandRecord, query: &str) -> FieldMatcher {
     if query.trim().is_empty() {
         return FieldMatcher::with_score(95.0);
     }
@@ -160,11 +210,5 @@ fn plugin_command_search_match(
         VisibleField::Hidden,
         &PLUGIN_COMMAND_WEIGHTS,
     );
-
     matcher
-}
-
-#[cfg(test)]
-mod tests {
-    // Plugin ID parsing tests live in litools-plugin::ids.
 }

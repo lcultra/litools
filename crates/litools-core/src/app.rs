@@ -57,9 +57,11 @@ impl LitoolsApp {
         cleanup_session_commands(&db_connection);
         drop(db_connection);
         let settings = crate::app::settings::load_settings(&database)?;
-        let plugins = crate::app::plugins::sync_and_load_plugins(&database, &paths)?;
+        let plugins = Arc::new(crate::app::plugins::sync_and_load_plugins(
+            &database, &paths,
+        )?);
         let (search, plugin_command_provider) =
-            crate::app::search::default_search_engine(database.clone());
+            crate::app::search::default_search_engine(database.clone(), plugins.clone());
 
         log::info!("应用启动完成");
 
@@ -84,9 +86,10 @@ impl LitoolsApp {
         cleanup_session_commands(&db_connection);
         drop(db_connection);
         let settings = crate::app::settings::load_settings(&database)?;
-        let plugins = crate::app::plugins::load_plugins_from_database(&database)?;
+        let plugins =
+            Arc::new(crate::app::plugins::load_plugins_from_database(&database)?);
         let (search, plugin_command_provider) =
-            crate::app::search::default_search_engine(database.clone());
+            crate::app::search::default_search_engine(database.clone(), plugins.clone());
 
         Ok(Self {
             context: AppContext::new(

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
 use litools_index::repository::{
     AppRecord, AppRepository, AppUpsert, CommandRepository, IndexMetadataRepository,
@@ -28,9 +30,12 @@ impl LitoolsApp {
 
         // 启动时 bootstrap() 已同步过插件，无需重复扫描磁盘
         if trigger != "startup" {
-            self.context.plugins =
-                super::plugins::sync_and_load_plugins(&self.context.database, &self.paths)?;
-            self.plugin_command_provider.invalidate_cache();
+            let manager = Arc::new(super::plugins::sync_and_load_plugins(
+                &self.context.database,
+                &self.paths,
+            )?);
+            self.context.plugins = manager.clone();
+            self.plugin_command_provider.set_plugin_manager(manager);
         }
 
         let connection = self.context.database.connection();

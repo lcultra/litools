@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use chrono::Utc;
 use litools_index::{
@@ -17,11 +17,11 @@ use crate::{
 };
 
 impl LitoolsApp {
-    /// 从数据库重新加载 PluginManager 并使搜索缓存失效
+    /// 从数据库重新加载 PluginManager 并同步到搜索提供器。
     pub fn reload_plugins(&mut self) -> LitoolsResult<()> {
-        let manager = load_plugins_from_database(&self.context.database)?;
-        self.context.plugins = manager;
-        self.plugin_command_provider.invalidate_cache();
+        let manager = Arc::new(load_plugins_from_database(&self.context.database)?);
+        self.context.plugins = manager.clone();
+        self.plugin_command_provider.set_plugin_manager(manager);
         Ok(())
     }
 

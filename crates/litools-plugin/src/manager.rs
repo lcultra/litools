@@ -115,4 +115,44 @@ impl PluginManager {
     pub fn is_empty(&self) -> bool {
         self.installed_plugins.is_empty()
     }
+
+    /// 返回所有已启用插件的 View 模式命令，用于搜索提供器直接读取，
+    /// 无需经过数据库缓存。
+    pub fn enabled_view_commands(&self) -> Vec<PluginCommandSearchItem> {
+        self.enabled_plugins()
+            .into_iter()
+            .flat_map(|plugin| {
+                let plugin_id = plugin.manifest.id.clone();
+                let plugin_name = plugin.manifest.name.clone();
+                let plugin_icon = plugin.manifest.icon.clone();
+                plugin
+                    .manifest
+                    .commands
+                    .iter()
+                    .filter(|c| c.mode == crate::manifest::PluginCommandMode::View)
+                    .map(move |command| PluginCommandSearchItem {
+                        plugin_id: plugin_id.clone(),
+                        plugin_name: plugin_name.clone(),
+                        plugin_icon: plugin_icon.clone(),
+                        command_id: command.id.clone(),
+                        title: command.title.clone(),
+                        subtitle: command.subtitle.clone(),
+                        keywords: command.keywords.clone(),
+                    })
+            })
+            .collect()
+    }
+}
+
+/// 插件命令搜索项——从 [`PluginManager`] 直接提取的轻量结构，
+/// 避免通过数据库缓存中转。
+#[derive(Clone, Debug)]
+pub struct PluginCommandSearchItem {
+    pub plugin_id: String,
+    pub plugin_name: String,
+    pub plugin_icon: String,
+    pub command_id: String,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub keywords: Vec<String>,
 }

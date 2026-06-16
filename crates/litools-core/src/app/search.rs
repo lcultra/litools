@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use litools_index::IndexDatabase;
+use litools_plugin::PluginManager;
 use litools_search::{SearchEngine, SearchQuery, SearchResult};
 
 use crate::{
@@ -30,9 +31,11 @@ impl LitoolsApp {
 
 pub(crate) fn default_search_engine(
     database: IndexDatabase,
+    plugin_manager: Arc<PluginManager>,
 ) -> (SearchEngine, Arc<PluginCommandProvider>) {
-    let app_provider = Arc::new(AppSearchProvider::new(database.clone()));
-    let plugin_provider = Arc::new(PluginCommandProvider::new(database));
+    let app_provider = Arc::new(AppSearchProvider::new(database));
+    let plugin_provider = Arc::new(PluginCommandProvider::new());
+    plugin_provider.set_plugin_manager(plugin_manager);
     let mut search = SearchEngine::new();
     search.register_provider(Arc::new(BuiltinCommandProvider));
     search.register_provider(app_provider);
