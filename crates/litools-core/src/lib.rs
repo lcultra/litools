@@ -4,6 +4,7 @@ pub mod command;
 pub mod context;
 pub mod error;
 pub mod event;
+pub mod execution_service;
 pub mod launcher;
 pub mod plugin_provider;
 
