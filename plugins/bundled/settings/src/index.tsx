@@ -1,8 +1,8 @@
 import { render } from 'solid-js/web';
-import '@litools/design-tokens/index.css';
 import { initTheme } from '@litools/design-tokens';
 import App from './App';
 import '@litools/ui/style.css';
+import '@litools/design-tokens/index.css';
 import './index.css';
 
 initTheme();
