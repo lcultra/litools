@@ -156,6 +156,184 @@ pub fn merge_ranges(mut ranges: Vec<MatchRange>) -> Vec<MatchRange> {
     merged
 }
 
+// ── FieldMatcher：统一的多字段匹配器 ──
+//
+// 替代各 SearchProvider 中重复的 "遍历候选字段 → 保留最佳分数" 模式。
+// 各 provider 只需声明 FieldWeights 和字段列表，匹配逻辑由 FieldMatcher 统一处理。
+
+/// 字段匹配的分数权重。
+///
+/// 各 MatchKind 对应的基础分数由 provider 自行配置，
+/// 最终分数 = base + adjustment（.max(1.0)）。
+#[derive(Clone, Debug)]
+pub struct FieldWeights {
+    pub exact: f32,
+    pub prefix: f32,
+    pub contains: f32,
+    pub fuzzy_cap: f32,
+}
+
+/// 字段对用户是否可见，决定匹配范围是否写入结果。
+#[derive(Clone, Copy)]
+pub enum VisibleField {
+    Title,
+    Subtitle,
+    Hidden,
+}
+
+/// 多字段匹配器：依次考虑各字段的 [`TextMatch`]，保留最佳结果。
+///
+/// # 使用方式
+///
+/// ```ignore
+/// let weights = FieldWeights { exact: 112.0, prefix: 100.0, contains: 72.0, fuzzy_cap: 68.0 };
+/// let mut matcher = FieldMatcher::new();
+/// matcher.consider(match_text(title, query), 0.0, VisibleField::Title, &weights);
+/// matcher.consider(match_text(subtitle, query), -8.0, VisibleField::Subtitle, &weights);
+/// let (score, title_ranges, subtitle_ranges) = matcher.finish();
+/// ```
+#[derive(Default)]
+pub struct FieldMatcher {
+    score: f32,
+    title_ranges: Vec<MatchRange>,
+    subtitle_ranges: Vec<MatchRange>,
+}
+
+impl FieldMatcher {
+    /// 创建一个初始分数为 0 的匹配器。
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 创建一个指定初始分数的匹配器，用于空查询场景。
+    pub fn with_score(score: f32) -> Self {
+        Self {
+            score,
+            ..Self::default()
+        }
+    }
+
+    /// 考虑一个字段的匹配结果。若优于当前最佳匹配则替换。
+    pub fn consider(
+        &mut self,
+        text_match: Option<TextMatch>,
+        adjustment: f32,
+        visible_field: VisibleField,
+        weights: &FieldWeights,
+    ) {
+        let Some(text_match) = text_match else {
+            return;
+        };
+        let base = match text_match.kind {
+            MatchKind::Exact => weights.exact,
+            MatchKind::Prefix => weights.prefix,
+            MatchKind::Contains => weights.contains,
+            MatchKind::Fuzzy => text_match.score.min(weights.fuzzy_cap),
+        };
+        let score = (base + adjustment).max(1.0);
+        if self.score >= score {
+            return;
+        }
+        self.score = score;
+        self.title_ranges = match visible_field {
+            VisibleField::Title => text_match.ranges.clone(),
+            _ => Vec::new(),
+        };
+        self.subtitle_ranges = match visible_field {
+            VisibleField::Subtitle => text_match.ranges,
+            _ => Vec::new(),
+        };
+    }
+
+    /// 取出最终结果：`(score, title_ranges, subtitle_ranges)`。
+    pub fn finish(self) -> (f32, Vec<MatchRange>, Vec<MatchRange>) {
+        (self.score, self.title_ranges, self.subtitle_ranges)
+    }
+
+    /// 是否有任何匹配（分数 > 0）。
+    pub fn has_match(&self) -> bool {
+        self.score > 0.0
+    }
+}
+
+#[cfg(test)]
+mod field_matcher_tests {
+    use super::*;
+
+    const TEST_WEIGHTS: FieldWeights = FieldWeights {
+        exact: 100.0,
+        prefix: 80.0,
+        contains: 60.0,
+        fuzzy_cap: 50.0,
+    };
+
+    #[test]
+    fn picks_best_score_across_fields() {
+        // Title: contains match → 60.0; Subtitle: exact match → 100.0
+        let mut matcher = FieldMatcher::new();
+        matcher.consider(
+            match_text("Hello World", "wor"),
+            0.0,
+            VisibleField::Title,
+            &TEST_WEIGHTS,
+        );
+        matcher.consider(
+            match_text("Text", "text"),
+            0.0,
+            VisibleField::Subtitle,
+            &TEST_WEIGHTS,
+        );
+        let (score, title, subtitle) = matcher.finish();
+        // exact match "text" (100.0) beats contains match "wor" (60.0)
+        assert!(score > 90.0);
+        assert!(title.is_empty());
+        assert!(!subtitle.is_empty());
+    }
+
+    #[test]
+    fn hidden_field_does_not_produce_ranges() {
+        let mut matcher = FieldMatcher::new();
+        matcher.consider(
+            match_text("keyword", "key"),
+            0.0,
+            VisibleField::Hidden,
+            &TEST_WEIGHTS,
+        );
+        let (score, title, subtitle) = matcher.finish();
+        assert!(score > 0.0);
+        assert!(title.is_empty());
+        assert!(subtitle.is_empty());
+    }
+
+    #[test]
+    fn adjustment_penalizes_score() {
+        let mut matcher = FieldMatcher::new();
+        matcher.consider(
+            match_text("Hello", "hello"),
+            -20.0,
+            VisibleField::Title,
+            &TEST_WEIGHTS,
+        );
+        let (score, _, _) = matcher.finish();
+        // exact=100.0 - 20.0 = 80.0
+        assert_eq!(score, 80.0);
+    }
+
+    #[test]
+    fn empty_matcher_has_no_match() {
+        let matcher = FieldMatcher::new();
+        assert!(!matcher.has_match());
+    }
+
+    #[test]
+    fn with_score_initializes() {
+        let matcher = FieldMatcher::with_score(95.0);
+        assert!(matcher.has_match());
+        let (score, _, _) = matcher.finish();
+        assert_eq!(score, 95.0);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

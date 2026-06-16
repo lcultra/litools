@@ -1,8 +1,8 @@
 use serde::Serialize;
 
 use litools_search::{
-    MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
-    SearchResultMatches, TextMatch, match_text,
+    FieldMatcher, FieldWeights, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
+    SearchResultMatches, VisibleField, match_text,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -74,6 +74,14 @@ pub struct CommandExecution {
 #[derive(Default)]
 pub struct BuiltinCommandProvider;
 
+/// 内置命令的字段匹配权重。
+const BUILTIN_COMMAND_WEIGHTS: FieldWeights = FieldWeights {
+    exact: 112.0,
+    prefix: 100.0,
+    contains: 72.0,
+    fuzzy_cap: 68.0,
+};
+
 impl SearchProvider for BuiltinCommandProvider {
     fn id(&self) -> &'static str {
         "commands"
@@ -83,7 +91,7 @@ impl SearchProvider for BuiltinCommandProvider {
         BUILTIN_COMMANDS
             .iter()
             .filter(|command| {
-                query.text.trim().is_empty() || command.search_match(&query.text).is_some()
+                query.text.trim().is_empty() || command.search_match(&query.text).has_match()
             })
             .map(|command| search_result_for_builtin_command(command, &query.text))
             .collect()
@@ -100,7 +108,7 @@ pub fn search_result_for_builtin_command(
     command: &BuiltinCommandDefinition,
     query: &str,
 ) -> SearchResult {
-    let command_match = command.search_match(query).unwrap_or_default();
+    let (score, title_ranges, subtitle_ranges) = command.search_match(query).finish();
 
     SearchResult {
         id: command.id.to_string(),
@@ -108,10 +116,10 @@ pub fn search_result_for_builtin_command(
         subtitle: Some(command.subtitle.to_string()),
         icon_uri: None,
         provider: "commands".to_string(),
-        score: command_match.score,
+        score,
         matches: SearchResultMatches {
-            title: command_match.title_ranges,
-            subtitle: command_match.subtitle_ranges,
+            title: title_ranges,
+            subtitle: subtitle_ranges,
         },
         actions: vec![SearchResultAction {
             id: "execute".to_string(),
@@ -120,90 +128,37 @@ pub fn search_result_for_builtin_command(
     }
 }
 
-#[derive(Default)]
-struct CommandSearchMatch {
-    score: f32,
-    title_ranges: Vec<MatchRange>,
-    subtitle_ranges: Vec<MatchRange>,
-}
-
 impl BuiltinCommandDefinition {
-    fn search_match(&self, query: &str) -> Option<CommandSearchMatch> {
+    fn search_match(&self, query: &str) -> FieldMatcher {
         if query.trim().is_empty() {
-            return Some(CommandSearchMatch {
-                score: 100.0,
-                ..CommandSearchMatch::default()
-            });
+            return FieldMatcher::with_score(100.0);
         }
 
-        let mut best: Option<CommandSearchMatch> = None;
-        consider_command_match(
-            &mut best,
+        let mut matcher = FieldMatcher::new();
+        matcher.consider(
             match_text(self.title, query),
             0.0,
-            VisibleCommandField::Title,
+            VisibleField::Title,
+            &BUILTIN_COMMAND_WEIGHTS,
         );
-        consider_command_match(
-            &mut best,
+        matcher.consider(
             match_text(self.subtitle, query),
             -8.0,
-            VisibleCommandField::Subtitle,
+            VisibleField::Subtitle,
+            &BUILTIN_COMMAND_WEIGHTS,
         );
 
         for keyword in self.keywords {
-            consider_command_match(
-                &mut best,
+            matcher.consider(
                 match_text(keyword, query),
                 keyword_score_adjustment(keyword, query),
-                VisibleCommandField::Hidden,
+                VisibleField::Hidden,
+                &BUILTIN_COMMAND_WEIGHTS,
             );
         }
 
-        best
+        matcher
     }
-}
-
-#[derive(Clone, Copy)]
-enum VisibleCommandField {
-    Hidden,
-    Subtitle,
-    Title,
-}
-
-fn consider_command_match(
-    best: &mut Option<CommandSearchMatch>,
-    text_match: Option<TextMatch>,
-    adjustment: f32,
-    visible_field: VisibleCommandField,
-) {
-    let Some(text_match) = text_match else {
-        return;
-    };
-    let score = command_match_score(&text_match, adjustment);
-    if best.as_ref().is_some_and(|current| current.score >= score) {
-        return;
-    }
-
-    *best = Some(CommandSearchMatch {
-        score,
-        title_ranges: matches!(visible_field, VisibleCommandField::Title)
-            .then_some(text_match.ranges.clone())
-            .unwrap_or_default(),
-        subtitle_ranges: matches!(visible_field, VisibleCommandField::Subtitle)
-            .then_some(text_match.ranges)
-            .unwrap_or_default(),
-    });
-}
-
-fn command_match_score(text_match: &TextMatch, adjustment: f32) -> f32 {
-    let base = match text_match.kind {
-        MatchKind::Exact => 112.0,
-        MatchKind::Prefix => 100.0,
-        MatchKind::Contains => 72.0,
-        MatchKind::Fuzzy => text_match.score.min(68.0),
-    };
-
-    (base + adjustment).max(1.0)
 }
 
 fn keyword_score_adjustment(keyword: &str, query: &str) -> f32 {
@@ -216,6 +171,8 @@ fn keyword_score_adjustment(keyword: &str, query: &str) -> f32 {
 
 #[cfg(test)]
 mod tests {
+    use litools_search::MatchRange;
+
     use super::*;
 
     #[test]

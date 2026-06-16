@@ -7,8 +7,8 @@ use litools_index::{
 };
 use litools_plugin::{PluginCommandMode, plugin_command_mode_from_str, plugin_result_id};
 use litools_search::{
-    MatchKind, MatchRange, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
-    SearchResultMatches, TextMatch, match_text,
+    FieldMatcher, FieldWeights, SearchProvider, SearchQuery, SearchResult, SearchResultAction,
+    SearchResultMatches, VisibleField, match_text,
 };
 
 pub struct PluginCommandProvider {
@@ -61,21 +61,30 @@ impl SearchProvider for PluginCommandProvider {
     }
 }
 
+/// 插件命令的字段匹配权重。
+const PLUGIN_COMMAND_WEIGHTS: FieldWeights = FieldWeights {
+    exact: 108.0,
+    prefix: 96.0,
+    contains: 70.0,
+    fuzzy_cap: 64.0,
+};
+
 pub fn search_result_for_plugin_command_record(
     command: PluginCommandRecord,
     query: &str,
 ) -> SearchResult {
-    let command_match = plugin_command_search_match(&command, query).unwrap_or_default();
+    let (score, title_ranges, subtitle_ranges) =
+        plugin_command_search_match(&command, query).finish();
     SearchResult {
         id: plugin_result_id(&command.plugin_id, &command.command_id),
         title: command.title,
         subtitle: command.subtitle.or(Some(command.plugin_name)),
         icon_uri: Some(plugin_icon_uri(&command.plugin_id, &command.plugin_icon)),
         provider: PLUGIN_PROVIDER_ID.to_string(),
-        score: command_match.score,
+        score,
         matches: SearchResultMatches {
-            title: command_match.title_ranges,
-            subtitle: command_match.subtitle_ranges,
+            title: title_ranges,
+            subtitle: subtitle_ranges,
         },
         actions: vec![SearchResultAction {
             id: ACTION_OPEN.to_string(),
@@ -92,7 +101,7 @@ fn search_result_for_plugin_command(
     command: PluginCommandRecord,
     query: &str,
 ) -> Option<SearchResult> {
-    if query.trim().is_empty() || plugin_command_search_match(&command, query).is_some() {
+    if query.trim().is_empty() || plugin_command_search_match(&command, query).has_match() {
         return Some(search_result_for_plugin_command_record(command, query));
     }
     None
@@ -102,110 +111,57 @@ fn command_mode(command: &PluginCommandRecord) -> Option<PluginCommandMode> {
     plugin_command_mode_from_str(&command.mode)
 }
 
-#[derive(Default)]
-struct PluginCommandSearchMatch {
-    score: f32,
-    title_ranges: Vec<MatchRange>,
-    subtitle_ranges: Vec<MatchRange>,
-}
-
 fn plugin_command_search_match(
     command: &PluginCommandRecord,
     query: &str,
-) -> Option<PluginCommandSearchMatch> {
+) -> FieldMatcher {
     if query.trim().is_empty() {
-        return Some(PluginCommandSearchMatch {
-            score: 95.0,
-            ..PluginCommandSearchMatch::default()
-        });
+        return FieldMatcher::with_score(95.0);
     }
 
-    let mut best = None;
-    consider_plugin_match(
-        &mut best,
+    let mut matcher = FieldMatcher::new();
+    matcher.consider(
         match_text(&command.title, query),
         0.0,
-        VisiblePluginCommandField::Title,
+        VisibleField::Title,
+        &PLUGIN_COMMAND_WEIGHTS,
     );
     if let Some(subtitle) = &command.subtitle {
-        consider_plugin_match(
-            &mut best,
+        matcher.consider(
             match_text(subtitle, query),
             -8.0,
-            VisiblePluginCommandField::Subtitle,
+            VisibleField::Subtitle,
+            &PLUGIN_COMMAND_WEIGHTS,
         );
     }
-    consider_plugin_match(
-        &mut best,
+    matcher.consider(
         match_text(&command.plugin_name, query),
         -12.0,
-        VisiblePluginCommandField::Subtitle,
+        VisibleField::Subtitle,
+        &PLUGIN_COMMAND_WEIGHTS,
     );
     for keyword in &command.keywords {
-        consider_plugin_match(
-            &mut best,
+        matcher.consider(
             match_text(keyword, query),
             -16.0,
-            VisiblePluginCommandField::Hidden,
+            VisibleField::Hidden,
+            &PLUGIN_COMMAND_WEIGHTS,
         );
     }
-    consider_plugin_match(
-        &mut best,
+    matcher.consider(
         match_text(&command.plugin_id, query),
         -20.0,
-        VisiblePluginCommandField::Hidden,
+        VisibleField::Hidden,
+        &PLUGIN_COMMAND_WEIGHTS,
     );
-    consider_plugin_match(
-        &mut best,
+    matcher.consider(
         match_text(&command.command_id, query),
         -20.0,
-        VisiblePluginCommandField::Hidden,
+        VisibleField::Hidden,
+        &PLUGIN_COMMAND_WEIGHTS,
     );
 
-    best
-}
-
-#[derive(Clone, Copy)]
-enum VisiblePluginCommandField {
-    Hidden,
-    Subtitle,
-    Title,
-}
-
-fn consider_plugin_match(
-    best: &mut Option<PluginCommandSearchMatch>,
-    text_match: Option<TextMatch>,
-    adjustment: f32,
-    visible_field: VisiblePluginCommandField,
-) {
-    let Some(text_match) = text_match else {
-        return;
-    };
-    let score = plugin_match_score(&text_match, adjustment);
-    if best.as_ref().is_some_and(|current| current.score >= score) {
-        return;
-    }
-
-    *best = Some(PluginCommandSearchMatch {
-        score,
-        title_ranges: matches!(visible_field, VisiblePluginCommandField::Title)
-            .then_some(text_match.ranges.clone())
-            .unwrap_or_default(),
-        subtitle_ranges: matches!(visible_field, VisiblePluginCommandField::Subtitle)
-            .then_some(text_match.ranges)
-            .unwrap_or_default(),
-    });
-}
-
-fn plugin_match_score(text_match: &TextMatch, adjustment: f32) -> f32 {
-    let base = match text_match.kind {
-        MatchKind::Exact => 108.0,
-        MatchKind::Prefix => 96.0,
-        MatchKind::Contains => 70.0,
-        MatchKind::Fuzzy => text_match.score.min(64.0),
-    };
-
-    (base + adjustment).max(1.0)
+    matcher
 }
 
 #[cfg(test)]
