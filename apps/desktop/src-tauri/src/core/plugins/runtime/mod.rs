@@ -1,5 +1,8 @@
 pub mod capability;
 pub mod commands;
+pub mod detection_bridge;
+pub mod detector_registry;
+pub mod js_detector_adapter;
 pub mod method_registry;
 pub mod model;
 pub mod permissions;
@@ -8,3 +11,4 @@ pub mod registry;
 pub mod search_bridge;
 pub mod search_provider;
 pub mod service;
+pub mod webview_search_runtime;

@@ -7221,6 +7221,12 @@
           "markdownDescription": "Enables reading diagnostics data"
         },
         {
+          "description": "Enables the plugin to register custom input detectors",
+          "type": "string",
+          "const": "litools-sdk:allow-input-detector",
+          "markdownDescription": "Enables the plugin to register custom input detectors"
+        },
+        {
           "description": "Enables listing installed plugins",
           "type": "string",
           "const": "litools-sdk:allow-plugins-list",

@@ -6,6 +6,7 @@ pub mod provider;
 pub mod query;
 pub mod ranking;
 pub mod request;
+pub mod runtime;
 
 pub use detector::{Detection, InputDetector};
 pub use engine::SearchEngine;
@@ -19,3 +20,4 @@ pub use matcher::{
 pub use provider::{SearchProvider, SearchResult, SearchResultAction};
 pub use query::SearchQuery;
 pub use request::SearchRequest;
+pub use runtime::{RuntimeError, SearchRuntime};

@@ -1,11 +1,11 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use indexmap::IndexMap;
 use litools_search::{InputContext, InputDetector, SearchFeature};
 use tokio_util::sync::CancellationToken;
 
 pub struct ContextAnalyzer {
-    detectors: Vec<Arc<dyn InputDetector>>,
+    detectors: RwLock<Vec<Arc<dyn InputDetector>>>,
 }
 
 impl ContextAnalyzer {
@@ -16,14 +16,23 @@ impl ContextAnalyzer {
     ) -> InputContext {
         let normalized = input.trim().to_string();
 
+        // 快照当前 detector 列表（持读锁，不跨 await）
+        let detectors = self.detectors.read().unwrap().clone();
+
         let features: Vec<SearchFeature> = futures::future::join_all(
-            self.detectors.iter().map(|d| {
+            detectors.iter().map(|d| {
                 let input = normalized.clone();
+                let detector_id = d.id().to_string();
+                let feature_kind = d.feature_kind().to_string();
+                let source = d
+                    .source()
+                    .map(str::to_string)
+                    .unwrap_or_else(|| format!("builtin.{}", detector_id));
                 async move {
                     let detection = d.detect(&input).await?;
                     Some(SearchFeature {
-                        kind: d.id().to_string(),
-                        source: format!("builtin.{}", d.id()),
+                        kind: feature_kind,
+                        source,
                         confidence: detection.confidence,
                         metadata: detection.metadata,
                     })
@@ -43,6 +52,24 @@ impl ContextAnalyzer {
             attachments: vec![],
             metadata: std::collections::HashMap::new(),
         }
+    }
+
+    // ── 运行时注册（Phase 4D）──
+
+    /// 运行时注册一个 detector（幂等替换同 id）。
+    pub fn register_detector(&self, detector: Arc<dyn InputDetector>) {
+        let mut detectors = self.detectors.write().unwrap();
+        // 幂等 replace：同 id 移除旧版本
+        detectors.retain(|d| d.id() != detector.id());
+        detectors.push(detector);
+    }
+
+    /// 运行时注销一个 detector。
+    pub fn unregister_detector(&self, detector_id: &str) {
+        self.detectors
+            .write()
+            .unwrap()
+            .retain(|d| d.id() != detector_id);
     }
 }
 
@@ -79,7 +106,7 @@ impl ContextAnalyzerBuilder {
 
     pub fn build(self) -> ContextAnalyzer {
         ContextAnalyzer {
-            detectors: self.detectors.into_values().collect(),
+            detectors: RwLock::new(self.detectors.into_values().collect()),
         }
     }
 }
@@ -98,6 +125,8 @@ mod tests {
 
     struct StubDetector {
         id: &'static str,
+        feature_kind: Option<&'static str>,
+        source: Option<&'static str>,
         confidence: f32,
     }
 
@@ -105,6 +134,14 @@ mod tests {
     impl InputDetector for StubDetector {
         fn id(&self) -> &str {
             self.id
+        }
+
+        fn feature_kind(&self) -> &str {
+            self.feature_kind.unwrap_or(self.id)
+        }
+
+        fn source(&self) -> Option<&str> {
+            self.source
         }
 
         async fn detect(&self, _input: &str) -> Option<Detection> {
@@ -120,10 +157,14 @@ mod tests {
         let analyzer = ContextAnalyzerBuilder::new()
             .register(Arc::new(StubDetector {
                 id: "test",
+                feature_kind: None,
+                source: None,
                 confidence: 0.5,
             }))
             .register(Arc::new(StubDetector {
                 id: "test",
+                feature_kind: None,
+                source: None,
                 confidence: 0.9,
             }))
             .build();
@@ -139,6 +180,8 @@ mod tests {
         let analyzer = ContextAnalyzerBuilder::new()
             .register(Arc::new(StubDetector {
                 id: "mock",
+                feature_kind: None,
+                source: None,
                 confidence: 0.8,
             }))
             .build();
@@ -148,6 +191,24 @@ mod tests {
         let f = ctx.first_feature("mock").unwrap();
         assert_eq!(f.kind, "mock");
         assert_eq!(f.source, "builtin.mock");
+    }
+
+    #[tokio::test]
+    async fn analyzer_uses_detector_feature_kind_and_source() {
+        let analyzer = ContextAnalyzerBuilder::new()
+            .register(Arc::new(StubDetector {
+                id: "dev.plugin.detector",
+                feature_kind: Some("json"),
+                source: Some("plugin.dev.plugin.detector"),
+                confidence: 0.8,
+            }))
+            .build();
+
+        let ctx = analyzer.analyze("anything", None).await;
+        assert!(ctx.has_feature("json"));
+        let f = ctx.first_feature("json").unwrap();
+        assert_eq!(f.kind, "json");
+        assert_eq!(f.source, "plugin.dev.plugin.detector");
     }
 
     #[tokio::test]

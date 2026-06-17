@@ -49,7 +49,7 @@ function handleSearchRequest(event: Event) {
   const detail = (event as CustomEvent)?.detail;
   if (!detail?.providerId || !detail?.requestId) return;
 
-  const handler = searchHandlers.get(detail.providerId);
+  const handler = searchHandlers.get(detail.localProviderId ?? detail.providerId);
   if (!handler) return;
 
   const controller = new AbortController();

@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-input-detector"
+description = "Enables the plugin to register custom input detectors"
+
+commands.allow = [
+    "sdk_input_register_detector",
+    "sdk_input_unregister_detector",
+    "sdk_detection_submit",
+]

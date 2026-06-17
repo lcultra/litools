@@ -33,6 +33,9 @@ pub fn init() -> TauriPlugin<tauri::Wry> {
             sdk_search_register_provider,
             sdk_search_unregister_provider,
             sdk_search_submit,
+            sdk_input_register_detector,
+            sdk_input_unregister_detector,
+            sdk_detection_submit,
         ])
         .build()
 }
@@ -85,6 +88,8 @@ sdk_cmd!(sdk_commands_replace, "commands.replace", commands: Value);
 sdk_cmd!(sdk_commands_update, "commands.update", id: String, cmd: Value);
 sdk_cmd!(sdk_search_register_provider, "search.registerProvider", id: String, timeout: Option<u64>);
 sdk_cmd!(sdk_search_unregister_provider, "search.unregisterProvider", id: String);
+sdk_cmd!(sdk_input_register_detector, "input.registerDetector", id: String, feature_kind: Option<String>, timeout: Option<u64>);
+sdk_cmd!(sdk_input_unregister_detector, "input.unregisterDetector", id: String);
 
 /// Internal Protocol: 插件 WebView 回传搜索结果
 #[tauri::command]
@@ -94,11 +99,9 @@ fn sdk_search_submit(
     webview: Webview,
     state: State<'_, AppState>,
 ) -> Result<Value, InvokeError> {
-    let runtime_id = webview
-        .label()
-        .strip_prefix("plugin-")
-        .unwrap_or(webview.label())
-        .to_string();
+    let Some(runtime_id) = runtime_id_for_webview(&webview, &state) else {
+        return Ok(Value::Null);
+    };
 
     // 解析 SearchRequestId: "provider_id.nonce"
     let parts: Vec<&str> = request_id.rsplitn(2, '.').collect();
@@ -106,12 +109,52 @@ fn sdk_search_submit(
         return Ok(Value::Null);
     }
     let (nonce_str, provider_id) = (parts[0], parts[1]);
-    let nonce = uuid::Uuid::parse_str(nonce_str).unwrap_or_default();
+    let Ok(nonce) = uuid::Uuid::parse_str(nonce_str) else {
+        return Ok(Value::Null);
+    };
 
-    let sid = crate::core::plugins::runtime::search_bridge::SearchRequestId::new(
-        provider_id, nonce,
-    );
+    let sid = crate::core::plugins::runtime::search_bridge::SearchRequestId::new(provider_id, nonce);
 
     state.search_bridge.complete(&sid, &runtime_id, results);
     Ok(Value::Null)
+}
+
+/// Internal Protocol: 插件 WebView 回传检测结果（Phase 4D）
+#[tauri::command]
+fn sdk_detection_submit(
+    request_id: String,
+    detection: Option<litools_search::Detection>,
+    webview: Webview,
+    state: State<'_, AppState>,
+) -> Result<Value, InvokeError> {
+    let Some(runtime_id) = runtime_id_for_webview(&webview, &state) else {
+        return Ok(Value::Null);
+    };
+
+    // 解析 DetectionRequestId: "detector_id.nonce"
+    let parts: Vec<&str> = request_id.rsplitn(2, '.').collect();
+    if parts.len() != 2 {
+        return Ok(Value::Null);
+    }
+    let (nonce_str, detector_id) = (parts[0], parts[1]);
+    let Ok(nonce) = uuid::Uuid::parse_str(nonce_str) else {
+        return Ok(Value::Null);
+    };
+
+    let did = crate::core::plugins::runtime::detection_bridge::DetectionRequestId {
+        detector_id: detector_id.to_string(),
+        nonce,
+    };
+
+    state.detection_bridge.complete(&did, &runtime_id, detection);
+    Ok(Value::Null)
+}
+
+fn runtime_id_for_webview(webview: &Webview, state: &AppState) -> Option<String> {
+    state
+        .plugin_runtimes
+        .lock()
+        .unwrap()
+        .runtime_for_surface_id(webview.label())
+        .map(|context| context.id)
 }

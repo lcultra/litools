@@ -161,6 +161,11 @@ export type PluginViewState = {
 
 // ── InputContext (Phase 4A) ──
 
+export type Detection = {
+  confidence: number;
+  metadata: Record<string, unknown>;
+};
+
 export type SearchFeature = {
   kind: string;
   source: string;

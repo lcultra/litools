@@ -34,6 +34,8 @@ pub enum Capability {
     Index,
     /// 搜索源注册（WebView 插件）
     SearchProvider,
+    /// 输入检测器注册（WebView 插件）
+    InputDetector,
     /// 搜索执行器注册（预留）
     #[allow(dead_code)]
     SearchExecutor,
@@ -88,6 +90,10 @@ impl Capability {
             },
             Capability::SearchProvider => CapabilityDescriptor {
                 permission: Some("litools-sdk:allow-search-provider"),
+                trusted_only: false,
+            },
+            Capability::InputDetector => CapabilityDescriptor {
+                permission: Some("litools-sdk:allow-input-detector"),
                 trusted_only: false,
             },
             Capability::SearchExecutor => CapabilityDescriptor {

@@ -119,6 +119,12 @@ fn main() {
                 bundled_plugins_dir,
             })?);
 
+            // Phase 4C: 注入 AppHandle 到搜索运行时
+            {
+                let state = app.state::<AppState>();
+                state.search_runtime.set_app_handle(app.handle().clone());
+            }
+
             // 订阅插件事件，使搜索缓存失效
             {
                 let app_handle = app.handle().clone();

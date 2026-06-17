@@ -240,32 +240,18 @@ pub fn route_plugin_view_call(
                 .unwrap_or(300);
             let full_provider_id = format!("{}.{}", context.plugin_id, provider_id);
 
-            // 幂等 replace：先清理旧 provider
-            state
-                .search_bridge
-                .unregister_provider(&full_provider_id);
-
-            let provider: std::sync::Arc<dyn litools_search::SearchProvider> = std::sync::Arc::new(
-                crate::core::plugins::runtime::search_provider::WebviewSearchProvider::new(
-                    full_provider_id.clone(),
-                    webview.label().to_string(),
-                    app_handle.clone(),
-                    state.search_bridge.clone(),
+            // Phase 4C: 通过 SearchRuntime 抽象注册（不再直接操作 bridge + provider）
+            let _provider = tokio::runtime::Handle::current().block_on(
+                litools_search::SearchRuntime::register_provider(
+                    &*state.search_runtime,
+                    &context.plugin_id,
+                    &context.id,
+                    &provider_id,
+                    &full_provider_id,
+                    webview.label(),
                     timeout_ms,
                 ),
-            );
-
-            // 统一通过 bridge 注册（自动写入 SearchEngine + 生命周期元数据）
-            state.search_bridge.register_provider(
-                crate::core::plugins::runtime::search_bridge::RegisteredSearchProvider {
-                    plugin_id: context.plugin_id.clone(),
-                    runtime_id: context.id.clone(),
-                    provider_id: full_provider_id.clone(),
-                    webview_label: webview.label().to_string(),
-                    registered_at: chrono::Utc::now().to_rfc3339(),
-                },
-                provider,
-            );
+            ).map_err(|e| PluginRuntimeError::internal(e.to_string()))?;
 
             Ok(json!({ "providerId": full_provider_id }))
         }
@@ -273,8 +259,48 @@ pub fn route_plugin_view_call(
             let provider_id = required_string_param(&params, "id")?;
             let full_provider_id = format!("{}.{}", context.plugin_id, provider_id);
 
-            // bridge 统一处理 — 同时清理 SearchEngine + 生命周期元数据
-            state.search_bridge.unregister_provider(&full_provider_id);
+            // Phase 4C: 通过 SearchRuntime 抽象注销
+            litools_search::SearchRuntime::unregister_provider(
+                &*state.search_runtime,
+                &full_provider_id,
+            );
+            Ok(Value::Null)
+        }
+        MethodId::InputRegisterDetector => {
+            let detector_id = required_string_param(&params, "id")?;
+            let feature_kind = params
+                .get("feature_kind")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&detector_id)
+                .to_string();
+            let timeout_ms = params
+                .get("timeout")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(100);
+
+            let full_detector_id = format!("{}.{}", context.plugin_id, detector_id);
+
+            state.detector_registry.register_webview_detector(
+                crate::core::plugins::runtime::detector_registry::RegisteredDetector {
+                    plugin_id: context.plugin_id.clone(),
+                    runtime_id: context.id.clone(),
+                    local_detector_id: detector_id,
+                    feature_kind,
+                    detector_id: full_detector_id.clone(),
+                    webview_label: webview.label().to_string(),
+                    registered_at: chrono::Utc::now().to_rfc3339(),
+                },
+                app_handle.clone(),
+                timeout_ms,
+            );
+
+            Ok(json!({ "detectorId": full_detector_id }))
+        }
+        MethodId::InputUnregisterDetector => {
+            let detector_id = required_string_param(&params, "id")?;
+            let full_detector_id = format!("{}.{}", context.plugin_id, detector_id);
+
+            state.detector_registry.unregister(&full_detector_id);
             Ok(Value::Null)
         }
         _ => Err(PluginRuntimeError::permission_denied(format!(

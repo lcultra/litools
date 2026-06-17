@@ -20,8 +20,11 @@ use crate::{
     background::manager::{BackgroundRuntimeManager, RuntimePolicy},
     core::events::PluginEventBus,
     core::executor::{BackgroundRuntimeExecutor, ExecutorRegistry, WebviewExecutor},
+    core::plugins::runtime::detection_bridge::WebviewDetectionBridge,
+    core::plugins::runtime::detector_registry::DetectorRegistry,
     core::plugins::runtime::registry::PluginRuntimeRegistry,
     core::plugins::runtime::search_bridge::WebviewSearchBridge,
+    core::plugins::runtime::webview_search_runtime::WebviewSearchRuntime,
     core::surface::registry::SurfaceRegistry,
     index_refresh::IndexStatus,
 };
@@ -87,6 +90,9 @@ pub struct AppState {
     #[allow(dead_code)]
     pub executor_registry: ExecutorRegistry,
     pub search_bridge: Arc<WebviewSearchBridge>,
+    pub search_runtime: Arc<WebviewSearchRuntime>,
+    pub detection_bridge: Arc<WebviewDetectionBridge>,
+    pub detector_registry: Arc<DetectorRegistry>,
     pub context_analyzer: Arc<ContextAnalyzer>,
     launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
@@ -111,7 +117,13 @@ impl AppState {
         let app = LitoolsApp::bootstrap(paths)?;
         let search_engine = app.context().search.clone();
         let search_bridge = Arc::new(WebviewSearchBridge::new(search_engine));
+        let search_runtime = Arc::new(WebviewSearchRuntime::new(search_bridge.clone()));
+        let detection_bridge = Arc::new(WebviewDetectionBridge::new());
         let context_analyzer = app.context().context_analyzer.clone();
+        let detector_registry = Arc::new(DetectorRegistry::new(
+            context_analyzer.clone(),
+            detection_bridge.clone(),
+        ));
         let runtimes = PluginRuntimeRegistry::new(search_bridge.clone());
 
         Ok(Self {
@@ -120,6 +132,9 @@ impl AppState {
             quitting: AtomicBool::new(false),
             shortcut_status: Mutex::new(ShortcutStatus::default()),
             search_bridge,
+            search_runtime,
+            detection_bridge,
+            detector_registry,
             context_analyzer,
             index_status: Mutex::new(IndexStatus::default()),
             app_watcher: AppWatcherState::default(),

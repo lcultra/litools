@@ -97,6 +97,17 @@ impl SearchEngine {
             .cloned()
             .collect::<Vec<_>>();
 
+        // 构建 provider → supports 映射，供 rank_results 做 Context 加权
+        let provider_affinities: std::collections::HashMap<String, Vec<String>> = providers
+            .iter()
+            .map(|p| {
+                (
+                    p.id().to_string(),
+                    p.supports().iter().map(|s| s.to_string()).collect(),
+                )
+            })
+            .collect();
+
         let cancel = CancellationToken::new();
         let mut set = tokio::task::JoinSet::new();
 
@@ -119,7 +130,15 @@ impl SearchEngine {
             }
         }
 
-        rank_results(results, request.query.limit)
+        // 收集 context 中的 feature kind 列表，传给 rank_results
+        let context_features: Vec<String> = request
+            .context
+            .features
+            .iter()
+            .map(|f| f.kind.clone())
+            .collect();
+
+        rank_results(results, request.query.limit, &context_features, &provider_affinities)
     }
 }
 

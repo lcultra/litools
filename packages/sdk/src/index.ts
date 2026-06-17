@@ -12,6 +12,7 @@ export * as settings from './settings';
 export * as diagnostics from './diagnostics';
 export * as host from './host';
 export * as search from './search';
+export * as input from './input';
 
 // ── 生命周期（preload 注入，不走 IPC） ──
 export { onEnter, onLeave } from './runtime';

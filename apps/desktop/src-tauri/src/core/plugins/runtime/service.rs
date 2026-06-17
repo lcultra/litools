@@ -607,6 +607,9 @@ pub fn cleanup_runtime_window(
         .map_err(|e| e.to_string())?
         .remove(&context.id);
     cleanup_runtime_commands(state, &context.id);
+    // Phase 4C/4E: 清理该 runtime 的搜索提供者和检测器
+    litools_search::SearchRuntime::unregister_runtime(&*state.search_runtime, &context.id);
+    state.detector_registry.unregister_runtime(&context.id);
     state
         .surfaces
         .lock()

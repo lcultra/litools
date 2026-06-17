@@ -11,6 +11,8 @@ use super::search_bridge::{SearchRequestId, WebviewSearchBridge};
 /// 适配 WebView 插件的搜索提供者 —— 通过 IPC 桥回调 JS 侧注册的搜索函数
 pub struct WebviewSearchProvider {
     provider_id: String,
+    local_provider_id: String,
+    runtime_id: String,
     webview_label: String,
     app_handle: AppHandle,
     bridge: Arc<WebviewSearchBridge>,
@@ -20,6 +22,8 @@ pub struct WebviewSearchProvider {
 impl WebviewSearchProvider {
     pub fn new(
         provider_id: String,
+        local_provider_id: String,
+        runtime_id: String,
         webview_label: String,
         app_handle: AppHandle,
         bridge: Arc<WebviewSearchBridge>,
@@ -27,6 +31,8 @@ impl WebviewSearchProvider {
     ) -> Self {
         Self {
             provider_id,
+            local_provider_id,
+            runtime_id,
             webview_label,
             app_handle,
             bridge,
@@ -48,18 +54,16 @@ impl SearchProvider for WebviewSearchProvider {
     async fn search(&self, request: &SearchRequest) -> Vec<SearchResult> {
         let trace_id = uuid::Uuid::new_v4();
         let request_id = SearchRequestId::new(&self.provider_id, trace_id);
-        let runtime_id = self
-            .webview_label
-            .strip_prefix("plugin-")
-            .unwrap_or(&self.webview_label)
-            .to_string();
 
-        let rx = self.bridge.register_pending(request_id.clone(), runtime_id);
+        let rx = self
+            .bridge
+            .register_pending(request_id.clone(), self.runtime_id.clone());
 
         // 定向 emit 到目标 webview，携带完整 context
         let payload = json!({
             "requestId": request_id.to_string(),
             "providerId": self.provider_id,
+            "localProviderId": self.local_provider_id,
             "query": request.query.text,
             "context": request.context,
         });

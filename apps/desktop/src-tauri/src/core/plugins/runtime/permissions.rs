@@ -237,6 +237,14 @@ mod tests {
             &context(vec!["litools-sdk:allow-storage"]),
             "storage.get"
         ));
+        assert!(!can_call_method(
+            &context(vec!["litools-sdk:allow-search-provider"]),
+            "input.registerDetector"
+        ));
+        assert!(can_call_method(
+            &context(vec!["litools-sdk:allow-input-detector"]),
+            "input.registerDetector"
+        ));
     }
 
     // -- check_toplevel_invoke tests (reserved for fallback) --

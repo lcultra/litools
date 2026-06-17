@@ -38,6 +38,9 @@ pub enum MethodId {
     // search (Phase 3)
     SearchRegisterProvider,
     SearchUnregisterProvider,
+    // input (Phase 4D)
+    InputRegisterDetector,
+    InputUnregisterDetector,
 }
 
 // ── TauriCommandId ──────────────────────────────────────────
@@ -305,6 +308,23 @@ pub static METHOD_REGISTRY: &[MethodDescriptor] = &[
         capability: Capability::SearchProvider,
         handler: MethodHandler::SdkDispatch,
         description: "注销自定义搜索源",
+    },
+    // ── input (Phase 4D) ──
+    MethodDescriptor {
+        id: MethodId::InputRegisterDetector,
+        name: "input.registerDetector",
+        namespace: "input",
+        capability: Capability::InputDetector,
+        handler: MethodHandler::SdkDispatch,
+        description: "注册自定义输入检测器",
+    },
+    MethodDescriptor {
+        id: MethodId::InputUnregisterDetector,
+        name: "input.unregisterDetector",
+        namespace: "input",
+        capability: Capability::InputDetector,
+        handler: MethodHandler::SdkDispatch,
+        description: "注销自定义输入检测器",
     },
 ];
 
