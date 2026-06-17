@@ -89,11 +89,8 @@ fn handle_detach_window_event(window: &Window, event: &WindowEvent, state: &AppS
                     );
                 }
                 // 通用：标记 Active
-                if let Some(metadata) = state
-                    .surfaces
-                    .lock()
-                    .ok()
-                    .and_then(|mut r| {
+                if let Some(metadata) =
+                    state.surfaces.lock().ok().and_then(|mut r| {
                         r.mark_lifecycle(window.label(), SurfaceLifecycle::Active)
                     })
                 {

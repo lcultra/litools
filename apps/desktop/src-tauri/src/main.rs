@@ -159,10 +159,7 @@ fn main() {
             // 应用启动时的主题设置
             {
                 let state = app.state::<AppState>();
-                let settings = state
-                    .app()
-                    .read().unwrap()
-                    .settings().clone();
+                let settings = state.app().read().unwrap().settings().clone();
                 core::settings::apply_theme_to_all_windows(app.handle(), &settings.theme);
             }
             // start_app_watcher 内部已设置 AppState 中的状态，

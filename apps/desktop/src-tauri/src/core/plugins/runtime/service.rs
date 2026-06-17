@@ -250,8 +250,7 @@ pub fn detach_plugin_runtime(
             (window, pooled_label, true)
         } else {
             let label = labels::detach_window_label();
-            let window =
-                factory::create_detach_host(app, label.clone(), &context.title)?;
+            let window = factory::create_detach_host(app, label.clone(), &context.title)?;
             (window, label, false)
         };
 
@@ -344,9 +343,7 @@ fn spawn_pooled_detached(app: &tauri::AppHandle, state: &AppState) {
     };
 
     log::debug!("[runtime] 预热池: 创建 {pooled_label}");
-    let Ok(window) =
-        factory::create_detach_host(app, pooled_label.clone(), "litools")
-    else {
+    let Ok(window) = factory::create_detach_host(app, pooled_label.clone(), "litools") else {
         return;
     };
     let _ = window.hide();

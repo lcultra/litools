@@ -3,12 +3,12 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub enum PluginEvent {
-    CommandsAdded(String, Vec<String>),       // plugin_id, command_ids
-    CommandsRemoved(String, Vec<String>),     // plugin_id, command_ids
-    CommandsUpdated(String, Vec<String>),     // plugin_id, command_ids
-    CommandsReplaced(String, usize),          // plugin_id, count
-    PluginReloadStarted(String),              // plugin_id
-    PluginReloadFinished(String),             // plugin_id
+    CommandsAdded(String, Vec<String>),   // plugin_id, command_ids
+    CommandsRemoved(String, Vec<String>), // plugin_id, command_ids
+    CommandsUpdated(String, Vec<String>), // plugin_id, command_ids
+    CommandsReplaced(String, usize),      // plugin_id, count
+    PluginReloadStarted(String),          // plugin_id
+    PluginReloadFinished(String),         // plugin_id
 }
 
 pub type EventHandler = Arc<dyn Fn(&PluginEvent) + Send + Sync>;

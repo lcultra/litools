@@ -1,8 +1,8 @@
-pub mod webview;
 pub mod background;
+pub mod webview;
 
-pub use webview::WebviewExecutor;
 pub use background::BackgroundRuntimeExecutor;
+pub use webview::WebviewExecutor;
 
 use std::collections::HashMap;
 
@@ -72,11 +72,7 @@ impl ExecutorRegistry {
     }
 
     #[allow(dead_code)]
-    pub fn execute(
-        &self,
-        command: &ResolvedCommand,
-        ctx: &ExecutionContext,
-    ) -> Result<(), String> {
+    pub fn execute(&self, command: &ResolvedCommand, ctx: &ExecutionContext) -> Result<(), String> {
         let executor_name = self.resolve_executor(command);
         let executor = self
             .executors

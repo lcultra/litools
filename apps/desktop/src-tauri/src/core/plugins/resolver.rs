@@ -30,9 +30,10 @@ fn default_executor(mode: &str) -> String {
 /// script 字段存在则使用；否则 fallback 到 dist/commands/{command_id}.js
 #[allow(dead_code)]
 pub fn resolve_command(command: &PluginCommandRecord) -> ResolvedCommand {
-    let script = command.script.clone().or_else(|| {
-        Some(format!("dist/commands/{}.js", command.command_id))
-    });
+    let script = command
+        .script
+        .clone()
+        .or_else(|| Some(format!("dist/commands/{}.js", command.command_id)));
 
     let script_uri = script.map(|s| {
         format!(

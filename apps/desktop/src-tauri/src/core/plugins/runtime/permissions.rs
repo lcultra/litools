@@ -144,8 +144,12 @@ pub fn setup_plugin_capability(
     let mut builder = CapabilityBuilder::new(cap_id).webview(webview_label);
 
     // 所有插件 webview 的基线权限，不依赖静态 capability 文件
-    builder = builder.permission("core:default").permission("litools-sdk:default");
-    log::debug!("[permissions] setup: webview={webview_label} trusted={trusted} baseline=core:default,litools-sdk:default");
+    builder = builder
+        .permission("core:default")
+        .permission("litools-sdk:default");
+    log::debug!(
+        "[permissions] setup: webview={webview_label} trusted={trusted} baseline=core:default,litools-sdk:default"
+    );
 
     for perm in declared_permissions {
         match categorize_permission(perm) {

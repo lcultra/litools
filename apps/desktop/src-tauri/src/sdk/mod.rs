@@ -113,7 +113,8 @@ fn sdk_search_submit(
         return Ok(Value::Null);
     };
 
-    let sid = crate::core::plugins::runtime::search_bridge::SearchRequestId::new(provider_id, nonce);
+    let sid =
+        crate::core::plugins::runtime::search_bridge::SearchRequestId::new(provider_id, nonce);
 
     state.search_bridge.complete(&sid, &runtime_id, results);
     Ok(Value::Null)
@@ -146,7 +147,9 @@ fn sdk_detection_submit(
         nonce,
     };
 
-    state.detection_bridge.complete(&did, &runtime_id, detection);
+    state
+        .detection_bridge
+        .complete(&did, &runtime_id, detection);
     Ok(Value::Null)
 }
 

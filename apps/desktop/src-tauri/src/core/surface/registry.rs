@@ -41,7 +41,9 @@ impl SurfaceRegistry {
         };
         log::debug!(
             "[surface] 注册 surface={id} provider={:?} route={} host_window={host_window_label} host_kind={:?}",
-            view.provider, view.route, host_kind
+            view.provider,
+            view.route,
+            host_kind
         );
         let now = Self::now();
         let metadata = SurfaceMetadata {
@@ -138,7 +140,9 @@ impl SurfaceRegistry {
         host_window_label: String,
         host_kind: WindowHostKind,
     ) -> Option<SurfaceMetadata> {
-        log::info!("[surface] move_to_host: webview={webview_label} → window={host_window_label} kind={host_kind:?}");
+        log::info!(
+            "[surface] move_to_host: webview={webview_label} → window={host_window_label} kind={host_kind:?}"
+        );
         // webview_label 即 surface_id，直接查找
         let metadata = self.surfaces_by_id.get_mut(webview_label)?;
         // 移除旧的 window_label → id 映射
@@ -277,16 +281,27 @@ mod tests {
         let view = test_view("/");
         let metadata =
             registry.register_surface(view, MAIN_WINDOW_LABEL.to_string(), WindowHostKind::Main);
-        assert!(metadata.id.starts_with("core-webview-"), "expected core- prefix, got: {}", metadata.id);
+        assert!(
+            metadata.id.starts_with("core-webview-"),
+            "expected core- prefix, got: {}",
+            metadata.id
+        );
     }
 
     #[test]
     fn plugin_surface_has_plugin_prefix() {
         let mut registry = SurfaceRegistry::default();
         let view = test_plugin_view("/plugin/test/cmd");
-        let metadata =
-            registry.register_surface(view, "detach-test-uuid".to_string(), WindowHostKind::Detached);
-        assert!(metadata.id.starts_with("plugin-webview-"), "expected plugin- prefix, got: {}", metadata.id);
+        let metadata = registry.register_surface(
+            view,
+            "detach-test-uuid".to_string(),
+            WindowHostKind::Detached,
+        );
+        assert!(
+            metadata.id.starts_with("plugin-webview-"),
+            "expected plugin- prefix, got: {}",
+            metadata.id
+        );
     }
 
     #[test]

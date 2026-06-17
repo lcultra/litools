@@ -2,7 +2,7 @@ use serde::Serialize;
 use tauri::{State, Webview};
 
 use crate::{
-    core::events::PluginEvent,
+    core::events::PluginEvent, core::plugins::runtime::model::PluginRuntimeContext,
     core::plugins::runtime::service::find_enabled_plugin_command,
     protocol::plugin::resolve_entry_url, state::AppState,
 };
@@ -62,7 +62,10 @@ pub fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, St
             version: plugin.manifest.version.clone(),
             description: plugin.manifest.description.clone(),
             author: plugin.manifest.author.clone(),
-            icon: format!("litools-plugin://{}/{}", plugin.manifest.id, plugin.manifest.icon),
+            icon: format!(
+                "litools-plugin://{}/{}",
+                plugin.manifest.id, plugin.manifest.icon
+            ),
             enabled: plugin.enabled,
             trusted: plugin.trusted,
             source: plugin.source.as_str().to_string(),
@@ -292,20 +295,9 @@ pub fn add_commands_inner(
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
     let app = state.app().read().unwrap();
-    let runtime_id = webview
-        .label()
-        .strip_prefix("plugin-")
-        .ok_or("not a plugin webview")?
-        .to_string();
-
-    // 从 runtime registry 取 plugin_id
-    let plugin_id = {
-        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
-        let rt = runtimes
-            .runtime(&runtime_id)
-            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
-        rt.plugin_id.clone()
-    };
+    let runtime = runtime_for_webview(state, webview)?;
+    let runtime_id = runtime.id;
+    let plugin_id = runtime.plugin_id;
 
     let command_ids = {
         let connection = app.context().database.connection();
@@ -369,19 +361,9 @@ pub fn remove_commands_inner(
     ids: Vec<String>,
 ) -> Result<(), String> {
     let app = state.app().read().unwrap();
-    let runtime_id = webview
-        .label()
-        .strip_prefix("plugin-")
-        .ok_or("not a plugin webview")?
-        .to_string();
-
-    let plugin_id = {
-        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
-        let rt = runtimes
-            .runtime(&runtime_id)
-            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
-        rt.plugin_id.clone()
-    };
+    let runtime = runtime_for_webview(state, webview)?;
+    let runtime_id = runtime.id;
+    let plugin_id = runtime.plugin_id;
 
     let command_ids: Vec<String> = ids
         .iter()
@@ -422,19 +404,9 @@ pub fn replace_commands_inner(
     commands: Vec<serde_json::Value>,
 ) -> Result<(), String> {
     let app = state.app().read().unwrap();
-    let runtime_id = webview
-        .label()
-        .strip_prefix("plugin-")
-        .ok_or("not a plugin webview")?
-        .to_string();
-
-    let plugin_id = {
-        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
-        let rt = runtimes
-            .runtime(&runtime_id)
-            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
-        rt.plugin_id.clone()
-    };
+    let runtime = runtime_for_webview(state, webview)?;
+    let runtime_id = runtime.id;
+    let plugin_id = runtime.plugin_id;
 
     let count = {
         let connection = app.context().database.connection();
@@ -506,19 +478,8 @@ pub fn update_command_inner(
     cmd: &serde_json::Value,
 ) -> Result<(), String> {
     let app = state.app().read().unwrap();
-    let runtime_id = webview
-        .label()
-        .strip_prefix("plugin-")
-        .ok_or("not a plugin webview")?
-        .to_string();
-
-    let plugin_id = {
-        let runtimes = state.plugin_runtimes.lock().map_err(|e| e.to_string())?;
-        let rt = runtimes
-            .runtime(&runtime_id)
-            .ok_or_else(|| format!("runtime not found: {runtime_id}"))?;
-        rt.plugin_id.clone()
-    };
+    let runtime = runtime_for_webview(state, webview)?;
+    let plugin_id = runtime.plugin_id;
 
     let command_id = litools_plugin::plugin_result_id(&plugin_id, id);
 
@@ -603,6 +564,18 @@ pub fn update_command_inner(
         .plugin_events
         .emit(PluginEvent::CommandsUpdated(plugin_id, vec![command_id]));
     Ok(())
+}
+
+fn runtime_for_webview(
+    state: &AppState,
+    webview: &Webview,
+) -> Result<PluginRuntimeContext, String> {
+    state
+        .plugin_runtimes
+        .lock()
+        .map_err(|e| e.to_string())?
+        .runtime_for_surface_id(webview.label())
+        .ok_or_else(|| format!("runtime not found for webview: {}", webview.label()))
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {

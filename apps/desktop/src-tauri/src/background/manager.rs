@@ -37,11 +37,7 @@ impl BackgroundRuntimeManager {
     }
 
     #[allow(dead_code)]
-    pub fn register_runtime(
-        &self,
-        plugin_id: &str,
-        runtime: Box<dyn PluginRuntime>,
-    ) {
+    pub fn register_runtime(&self, plugin_id: &str, runtime: Box<dyn PluginRuntime>) {
         let key = self.resolve_key(plugin_id);
         let mut runtimes = self.runtimes.lock().unwrap();
         runtimes.insert(
@@ -54,11 +50,7 @@ impl BackgroundRuntimeManager {
         );
     }
 
-    pub fn execute(
-        &self,
-        plugin_id: &str,
-        script_uri: &str,
-    ) -> Result<(), String> {
+    pub fn execute(&self, plugin_id: &str, script_uri: &str) -> Result<(), String> {
         let key = self.resolve_key(plugin_id);
         let mut runtimes = self.runtimes.lock().unwrap();
 

@@ -1,8 +1,7 @@
 use std::{
     path::{Path, PathBuf},
     sync::{
-        Arc,
-        Mutex, RwLock,
+        Arc, Mutex, RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, SystemTime},
@@ -157,17 +156,11 @@ impl AppState {
     }
 
     pub fn app_icon_png(&self, path: &std::path::Path) -> std::io::Result<Vec<u8>> {
-        self.app
-            .read().unwrap()
-            .system_adapter()
-            .app_icon_png(path)
+        self.app.read().unwrap().system_adapter().app_icon_png(path)
     }
 
     pub fn application_dirs(&self) -> Vec<std::path::PathBuf> {
-        self.app
-            .read().unwrap()
-            .system_adapter()
-            .application_dirs()
+        self.app.read().unwrap().system_adapter().application_dirs()
     }
 
     pub fn watch_app_dirs(
@@ -191,15 +184,11 @@ impl AppState {
     }
 
     pub fn close_to_tray(&self) -> bool {
-        self.app
-            .read().unwrap()
-            .settings().window.close_to_tray
+        self.app.read().unwrap().settings().window.close_to_tray
     }
 
     pub fn hide_on_blur(&self) -> bool {
-        self.app
-            .read().unwrap()
-            .settings().window.hide_on_blur
+        self.app.read().unwrap().settings().window.hide_on_blur
     }
 
     pub fn launcher_saved_position(&self) -> Option<LauncherSavedPosition> {
@@ -251,8 +240,12 @@ impl AppState {
 
     pub fn global_hotkey(&self) -> String {
         self.app
-            .read().unwrap()
-            .settings().palette.global_hotkey.clone()
+            .read()
+            .unwrap()
+            .settings()
+            .palette
+            .global_hotkey
+            .clone()
     }
 
     pub fn set_shortcut_status(&self, status: ShortcutStatus) {

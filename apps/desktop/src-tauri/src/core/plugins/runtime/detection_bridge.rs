@@ -47,13 +47,10 @@ impl WebviewDetectionBridge {
     ) -> (DetectionRequestId, oneshot::Receiver<Option<Detection>>) {
         let request_id = DetectionRequestId::new(detector_id);
         let (tx, rx) = oneshot::channel();
-        self.pending.lock().unwrap().insert(
-            request_id.clone(),
-            PendingDetection {
-                runtime_id,
-                tx,
-            },
-        );
+        self.pending
+            .lock()
+            .unwrap()
+            .insert(request_id.clone(), PendingDetection { runtime_id, tx });
         (request_id, rx)
     }
 

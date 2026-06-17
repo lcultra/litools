@@ -53,8 +53,10 @@ impl PluginRuntimeRegistry {
     ) -> Result<PluginRuntimeContext, String> {
         log::debug!(
             "[runtime] 注册 runtime={id} plugin={}:{} surface={} policy={:?}",
-            registration.plugin_id, registration.command_id,
-            registration.surface_id, registration.policy
+            registration.plugin_id,
+            registration.command_id,
+            registration.surface_id,
+            registration.policy
         );
         if self.runtimes_by_id.contains_key(&id) {
             return Err(format!("plugin runtime already exists: {id}"));
@@ -266,9 +268,9 @@ mod tests {
     }
 
     fn test_registry() -> PluginRuntimeRegistry {
-        PluginRuntimeRegistry::new(Arc::new(WebviewSearchBridge::new(
-            Arc::new(litools_search::SearchEngine::new()),
-        )))
+        PluginRuntimeRegistry::new(Arc::new(WebviewSearchBridge::new(Arc::new(
+            litools_search::SearchEngine::new(),
+        ))))
     }
 
     fn multi_registration() -> PluginRuntimeRegistration {
@@ -282,7 +284,10 @@ mod tests {
     fn registers_and_finds_runtime() {
         let mut registry = test_registry();
         let context = registry
-            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
+            .register_runtime(
+                registration(),
+                "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            )
             .expect("runtime registered");
 
         assert_eq!(context.lifecycle, PluginRuntimeLifecycle::Created);
@@ -301,7 +306,10 @@ mod tests {
     fn rejects_duplicate_singleton_runtime() {
         let mut registry = test_registry();
         registry
-            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
+            .register_runtime(
+                registration(),
+                "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            )
             .expect("runtime registered");
 
         let mut reg2 = registration();
@@ -317,7 +325,10 @@ mod tests {
     fn allows_multi_instance_runtimes() {
         let mut registry = test_registry();
         registry
-            .register_runtime(multi_registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
+            .register_runtime(
+                multi_registration(),
+                "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            )
             .expect("first runtime registered");
 
         let mut reg2 = multi_registration();
@@ -335,7 +346,10 @@ mod tests {
     fn transitions_lifecycle() {
         let mut registry = test_registry();
         registry
-            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
+            .register_runtime(
+                registration(),
+                "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            )
             .expect("runtime registered");
 
         let context = registry
@@ -357,11 +371,26 @@ mod tests {
     fn removes_runtime_indexes() {
         let mut registry = test_registry();
         registry
-            .register_runtime(registration(), "550e8400-e29b-41d4-a716-446655440001".to_string())
+            .register_runtime(
+                registration(),
+                "550e8400-e29b-41d4-a716-446655440001".to_string(),
+            )
             .expect("runtime registered");
 
-        assert!(registry.remove("550e8400-e29b-41d4-a716-446655440001").is_some());
-        assert!(registry.runtime("550e8400-e29b-41d4-a716-446655440001").is_none());
-        assert!(registry.runtime_for_surface_id("plugin-a1b2c3d4-e5f6-7890-abcd-ef1111111111").is_none());
+        assert!(
+            registry
+                .remove("550e8400-e29b-41d4-a716-446655440001")
+                .is_some()
+        );
+        assert!(
+            registry
+                .runtime("550e8400-e29b-41d4-a716-446655440001")
+                .is_none()
+        );
+        assert!(
+            registry
+                .runtime_for_surface_id("plugin-a1b2c3d4-e5f6-7890-abcd-ef1111111111")
+                .is_none()
+        );
     }
 }

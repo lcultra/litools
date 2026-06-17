@@ -9,11 +9,20 @@ use crate::state::AppState;
 const DEFAULT_LAUNCHER_RESULT_LIMIT: usize = 20;
 
 #[tauri::command]
-pub async fn search(query: String, state: State<'_, AppState>) -> Result<Vec<SearchResult>, String> {
+pub async fn search(
+    query: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<SearchResult>, String> {
     let (search, enabled_providers) = {
         let app = state.app().read().unwrap();
         let s = app.context().search.clone();
-        let p = app.context().settings.get().search.enabled_providers.clone();
+        let p = app
+            .context()
+            .settings
+            .get()
+            .search
+            .enabled_providers
+            .clone();
         (s, p)
     };
     let results = search
@@ -34,7 +43,12 @@ pub async fn launcher_panel(
         let app = state.app().read().unwrap();
         (
             app.context().search.clone(),
-            app.context().settings.get().search.enabled_providers.clone(),
+            app.context()
+                .settings
+                .get()
+                .search
+                .enabled_providers
+                .clone(),
             state.context_analyzer.clone(),
         )
     };

@@ -37,7 +37,11 @@ fn to_tauri_theme(theme: &str) -> Option<tauri::Theme> {
 pub fn apply_theme_to_all_windows(app_handle: &AppHandle, theme: &str) {
     let tauri_theme = to_tauri_theme(theme);
     let windows = app_handle.windows();
-    log::info!("windows 列表 ({} 个): {:?}", windows.len(), windows.keys().collect::<Vec<_>>());
+    log::info!(
+        "windows 列表 ({} 个): {:?}",
+        windows.len(),
+        windows.keys().collect::<Vec<_>>()
+    );
     for (label, window) in &windows {
         log::info!("  set_theme({:?}) on label={}", tauri_theme, label);
         let _ = window.set_theme(tauri_theme);

@@ -33,7 +33,11 @@ pub fn create_main_host(app: &tauri::AppHandle) -> Result<Window, String> {
     Ok(window)
 }
 
-pub fn create_detach_host(app: &tauri::AppHandle, label: String, title: &str) -> Result<Window, String> {
+pub fn create_detach_host(
+    app: &tauri::AppHandle,
+    label: String,
+    title: &str,
+) -> Result<Window, String> {
     if let Some(window) = app.get_window(&label) {
         log::debug!("[factory] 复用分离窗口: {label}");
         configure_space_behavior(&window);

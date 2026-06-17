@@ -26,7 +26,8 @@ pub fn route_plugin_view_call(
     // 通过 webview_label（即 surface_id）直接查找 runtime context
     let context = state
         .plugin_runtimes
-        .lock().unwrap()
+        .lock()
+        .unwrap()
         .runtime_for_surface_id(webview.label())
         .ok_or_else(|| {
             PluginRuntimeError::permission_denied(format!(
@@ -131,9 +132,7 @@ pub fn route_plugin_view_call(
             Ok(Value::Null)
         }
         MethodId::SettingsGet => {
-            let app = state
-                .app()
-                .read().unwrap();
+            let app = state.app().read().unwrap();
             let settings = app.settings().clone();
             Ok(json!(settings))
         }
@@ -142,9 +141,7 @@ pub fn route_plugin_view_call(
                 serde_json::from_value(params.get("settings").cloned().unwrap_or(Value::Null))
                     .map_err(|error| PluginRuntimeError::invalid_params(error.to_string()))?;
             let updated_settings = {
-                let mut app = state
-                    .app()
-                    .write().unwrap();
+                let mut app = state.app().write().unwrap();
                 app.update_settings(new_settings)
                     .map_err(|error| PluginRuntimeError::internal(error.to_string()))?
             };
@@ -157,9 +154,7 @@ pub fn route_plugin_view_call(
                 .map_err(|error| PluginRuntimeError::internal(error))?
         )),
         MethodId::HostPluginsList => {
-            let app = state
-                .app()
-                .read().unwrap();
+            let app = state.app().read().unwrap();
             let plugins: Vec<litools_plugin::manager::InstalledPlugin> = app
                 .context()
                 .plugins
@@ -241,8 +236,8 @@ pub fn route_plugin_view_call(
             let full_provider_id = format!("{}.{}", context.plugin_id, provider_id);
 
             // Phase 4C: 通过 SearchRuntime 抽象注册（不再直接操作 bridge + provider）
-            let _provider = tokio::runtime::Handle::current().block_on(
-                litools_search::SearchRuntime::register_provider(
+            let _provider = tokio::runtime::Handle::current()
+                .block_on(litools_search::SearchRuntime::register_provider(
                     &*state.search_runtime,
                     &context.plugin_id,
                     &context.id,
@@ -250,8 +245,8 @@ pub fn route_plugin_view_call(
                     &full_provider_id,
                     webview.label(),
                     timeout_ms,
-                ),
-            ).map_err(|e| PluginRuntimeError::internal(e.to_string()))?;
+                ))
+                .map_err(|e| PluginRuntimeError::internal(e.to_string()))?;
 
             Ok(json!({ "providerId": full_provider_id }))
         }
@@ -313,9 +308,7 @@ fn with_storage<T>(
     state: &AppState,
     operation: impl FnOnce(&PluginStorageRepository<'_>) -> rusqlite::Result<T>,
 ) -> Result<T, PluginRuntimeError> {
-    let app = state
-        .app()
-        .read().unwrap();
+    let app = state.app().read().unwrap();
     let connection = app.context().database.connection();
     operation(&PluginStorageRepository::new(&connection))
         .map_err(|error| PluginRuntimeError::internal(error.to_string()))

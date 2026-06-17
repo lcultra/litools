@@ -68,13 +68,10 @@ impl WebviewSearchBridge {
         runtime_id: String,
     ) -> oneshot::Receiver<Vec<SearchResult>> {
         let (tx, rx) = oneshot::channel();
-        self.pending.lock().unwrap().insert(
-            request_id,
-            PendingSearch {
-                runtime_id,
-                tx,
-            },
-        );
+        self.pending
+            .lock()
+            .unwrap()
+            .insert(request_id, PendingSearch { runtime_id, tx });
         rx
     }
 

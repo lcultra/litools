@@ -48,7 +48,8 @@ impl IconProtocol {
         let app_id = app_id_from_uri(uri).ok_or(StatusCode::BAD_REQUEST)?;
         let app = state
             .app()
-            .read().unwrap()
+            .read()
+            .unwrap()
             .find_app(&app_id)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .ok_or(StatusCode::NOT_FOUND)?;
