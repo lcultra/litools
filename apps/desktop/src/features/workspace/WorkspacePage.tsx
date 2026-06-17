@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from '@solidjs/router';
 import { createEffect, createResource, createSignal, onCleanup, Show } from 'solid-js';
-import { closePluginView, closePluginViewById, detachPluginView, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
+import { closePluginView, closePluginViewById, detachPluginView, detachPluginViewById, getPluginViewDescriptor, openPluginView } from '../../bridge/commands';
 import type { PluginViewState } from '../../bridge/types';
 import { PageState } from '../../components/PageState';
 import { WindowFrame } from '../../components/WindowFrame';
@@ -13,6 +13,8 @@ export function WorkspacePage() {
     const location = useLocation<{ runtimeId?: string }>();
     const navigate = useNavigate();
     const runtimeId = () => (location.state as Record<string, unknown> | null)?.runtimeId as string | undefined;
+    const [openedRuntimeId, setOpenedRuntimeId] = createSignal<string | null>(null);
+    const activeRuntimeId = () => runtimeId() ?? openedRuntimeId();
 
     const [descriptor] = createResource(
         () => ({ pluginId: params.pluginId, commandId: params.commandId }),
@@ -30,7 +32,7 @@ export function WorkspacePage() {
                 pluginName: desc.pluginName,
                 title: desc.title,
                 lifecycle: 'created',
-                runtimeId: runtimeId() ?? null,
+                runtimeId: activeRuntimeId(),
                 dev: desc.dev,
             });
         }
@@ -38,19 +40,41 @@ export function WorkspacePage() {
 
     // 创建/查找运行时。Singleton 时若已由 LauncherPage 创建则为无害的 EnsureVisible。
     let openedKey: string | null = null;
+    let detaching = false;
     createEffect(() => {
         const { pluginId, commandId } = params;
         if (!pluginId || !commandId) return;
+
+        const existingRuntimeId = runtimeId();
+        if (existingRuntimeId) {
+            setOpenedRuntimeId(existingRuntimeId);
+            return;
+        }
 
         const key = `${pluginId}:${commandId}`;
         if (openedKey === key) return;
         openedKey = key;
 
-        void openPluginView(pluginId, commandId);
+        void openPluginView(pluginId, commandId).then((info) => {
+            setOpenedRuntimeId(info.runtimeId);
+            setPluginView((current) =>
+                current
+                    ? {
+                          ...current,
+                          title: info.title,
+                          lifecycle: info.lifecycle,
+                          runtimeId: info.runtimeId,
+                      }
+                    : current,
+            );
+        });
     });
 
     onCleanup(() => {
-        const rid = runtimeId();
+        if (detaching) {
+            return;
+        }
+        const rid = activeRuntimeId();
         if (rid) {
             void closePluginViewById(rid);
         } else if (params.pluginId && params.commandId) {
@@ -59,7 +83,7 @@ export function WorkspacePage() {
     });
 
     function handleClose() {
-        const rid = runtimeId();
+        const rid = activeRuntimeId();
         if (rid) {
             void closePluginViewById(rid);
         } else {
@@ -73,7 +97,15 @@ export function WorkspacePage() {
     }
 
     function handleDetach() {
-        if (!isDetachedWindow() && params.pluginId && params.commandId) {
+        if (isDetachedWindow()) {
+            return;
+        }
+        const rid = activeRuntimeId();
+        if (rid) {
+            detaching = true;
+            void detachPluginViewById(rid);
+        } else if (params.pluginId && params.commandId) {
+            detaching = true;
             void detachPluginView(params.pluginId, params.commandId);
         }
     }
@@ -99,7 +131,7 @@ export function WorkspacePage() {
                         pluginId={params.pluginId}
                         commandId={params.commandId}
                         pluginView={pluginView()}
-                        runtimeId={runtimeId() ?? null}
+                        runtimeId={activeRuntimeId()}
                     />
                     <div class="flex min-h-0 flex-1">
                         <section class="min-w-0 flex-1" />

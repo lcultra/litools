@@ -3,7 +3,7 @@ import { Menu } from '@tauri-apps/api/menu';
 import { resolveResource } from '@tauri-apps/api/path';
 import { EllipsisVertical, X } from 'lucide-solid';
 import { createSignal, For, Show } from 'solid-js';
-import { detachPluginView, openPluginDevtools, startWindowDragging } from '../bridge/commands';
+import { detachPluginView, detachPluginViewById, openPluginDevtools, startWindowDragging } from '../bridge/commands';
 import type { PluginViewState } from '../bridge/types';
 
 const MENU_OFFSET_Y = 8;
@@ -56,7 +56,9 @@ export function WorkspaceHeader(props: WorkspaceHeaderProps) {
             icon: await detachIcon(),
             accelerator: 'CmdOrCtrl+D',
             action: () => {
-                if (props.pluginId && props.commandId) {
+                if (props.runtimeId) {
+                    void detachPluginViewById(props.runtimeId);
+                } else if (props.pluginId && props.commandId) {
                     void detachPluginView(props.pluginId, props.commandId);
                 }
             },

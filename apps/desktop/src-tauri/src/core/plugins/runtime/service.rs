@@ -170,6 +170,23 @@ pub fn hide_docked_plugin_runtime(
         .and_then(|r| r.runtime_for_plugin_command(plugin_id, command_id))
         .ok_or_else(|| format!("plugin runtime not found: {plugin_id}:{command_id}"))?;
 
+    hide_docked_runtime(app, state, context)
+}
+
+pub fn hide_docked_plugin_runtime_by_id(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    runtime_id: &str,
+) -> Result<PluginRuntimeContext, String> {
+    let context = runtime_context(state, runtime_id)?;
+    hide_docked_runtime(app, state, context)
+}
+
+fn hide_docked_runtime(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    context: PluginRuntimeContext,
+) -> Result<PluginRuntimeContext, String> {
     let host_kind = state
         .surfaces
         .lock()
@@ -214,6 +231,29 @@ pub fn detach_plugin_runtime(
         .and_then(|r| r.runtime_for_plugin_command(plugin_id, command_id))
         .ok_or_else(|| format!("plugin runtime not found: {plugin_id}:{command_id}"))?;
 
+    detach_runtime(app, state, context)
+}
+
+pub fn detach_plugin_runtime_by_id(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    runtime_id: &str,
+) -> Result<PluginRuntimeContext, String> {
+    let context = runtime_context(state, runtime_id)?;
+    log::info!(
+        "分离插件视图: {}:{} runtime={}",
+        context.plugin_id,
+        context.command_id,
+        context.id
+    );
+    detach_runtime(app, state, context)
+}
+
+fn detach_runtime(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    context: PluginRuntimeContext,
+) -> Result<PluginRuntimeContext, String> {
     let host_kind = state
         .surfaces
         .lock()
@@ -666,13 +706,17 @@ pub fn layout_runtime_window(
 }
 
 pub fn runtime_info(state: &AppState, runtime_id: &str) -> Result<PluginRuntimeInfo, String> {
-    let context = state
+    let context = runtime_context(state, runtime_id)?;
+    Ok(build_runtime_info(state, &context))
+}
+
+fn runtime_context(state: &AppState, runtime_id: &str) -> Result<PluginRuntimeContext, String> {
+    state
         .plugin_runtimes
         .lock()
         .map_err(|e| e.to_string())?
         .runtime(runtime_id)
-        .ok_or_else(|| format!("plugin runtime not found: {runtime_id}"))?;
-    Ok(build_runtime_info(state, &context))
+        .ok_or_else(|| format!("plugin runtime not found: {runtime_id}"))
 }
 
 fn ensure_docked_runtime_webview(

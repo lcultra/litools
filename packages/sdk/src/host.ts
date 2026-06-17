@@ -35,9 +35,17 @@ export const plugins = {
   hideView(pluginId: string, commandId: string): Promise<PluginViewInfo> {
     return invokeCore('hide_plugin_view', { pluginId, commandId });
   },
+  /** 按 runtimeId 隐藏插件视图 */
+  hideViewById(runtimeId: string): Promise<PluginViewInfo> {
+    return invokeCore('hide_plugin_view_by_id', { runtimeId });
+  },
   /** 分离插件视图到独立窗口 */
   detachView(pluginId: string, commandId: string): Promise<PluginViewInfo> {
     return invokeCore('detach_plugin_view', { pluginId, commandId });
+  },
+  /** 按 runtimeId 分离插件视图到独立窗口 */
+  detachViewById(runtimeId: string): Promise<PluginViewInfo> {
+    return invokeCore('detach_plugin_view_by_id', { runtimeId });
   },
   /** 关闭插件视图 */
   closeView(pluginId: string, commandId: string): Promise<void> {

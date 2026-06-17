@@ -35,6 +35,16 @@ pub fn hide_plugin_view(
 }
 
 #[tauri::command]
+pub fn hide_plugin_view_by_id(
+    runtime_id: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<PluginRuntimeInfo, String> {
+    service::hide_docked_plugin_runtime_by_id(&app_handle, &state, &runtime_id)
+        .map(|context| service::build_runtime_info(&state, &context))
+}
+
+#[tauri::command]
 pub async fn detach_plugin_view(
     plugin_id: String,
     command_id: String,
@@ -42,6 +52,16 @@ pub async fn detach_plugin_view(
     app_handle: AppHandle,
 ) -> Result<PluginRuntimeInfo, String> {
     service::detach_plugin_runtime(&app_handle, &state, &plugin_id, &command_id)
+        .map(|context| service::build_runtime_info(&state, &context))
+}
+
+#[tauri::command]
+pub async fn detach_plugin_view_by_id(
+    runtime_id: String,
+    state: State<'_, AppState>,
+    app_handle: AppHandle,
+) -> Result<PluginRuntimeInfo, String> {
+    service::detach_plugin_runtime_by_id(&app_handle, &state, &runtime_id)
         .map(|context| service::build_runtime_info(&state, &context))
 }
 
