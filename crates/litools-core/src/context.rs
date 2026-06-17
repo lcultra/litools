@@ -6,6 +6,7 @@ use litools_search::SearchEngine;
 use litools_settings::storage::SettingsStore;
 use litools_system::NativeSystemAdapter;
 
+use crate::context_analyzer::ContextAnalyzer;
 use crate::executor_registry::ExecutorRegistry;
 
 pub struct AppContext {
@@ -15,6 +16,7 @@ pub struct AppContext {
     pub settings: SettingsStore,
     pub system_adapter: NativeSystemAdapter,
     pub executor_registry: ExecutorRegistry,
+    pub context_analyzer: Arc<ContextAnalyzer>,
 }
 
 impl AppContext {
@@ -25,6 +27,7 @@ impl AppContext {
         settings: SettingsStore,
         system_adapter: NativeSystemAdapter,
         executor_registry: ExecutorRegistry,
+        context_analyzer: Arc<ContextAnalyzer>,
     ) -> Self {
         Self {
             database,
@@ -33,6 +36,7 @@ impl AppContext {
             settings,
             system_adapter,
             executor_registry,
+            context_analyzer,
         }
     }
 }

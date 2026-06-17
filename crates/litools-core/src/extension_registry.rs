@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use litools_search::SearchProvider;
+use litools_search::{InputDetector, SearchProvider};
 
 use crate::executor_registry::ResultExecutor;
 
@@ -11,6 +11,7 @@ use crate::executor_registry::ResultExecutor;
 pub struct ExtensionRegistry {
     search_providers: Vec<Arc<dyn SearchProvider>>,
     result_executors: Vec<(String, Arc<dyn ResultExecutor>)>,
+    input_detectors: Vec<Arc<dyn InputDetector>>,
 }
 
 impl ExtensionRegistry {
@@ -18,6 +19,7 @@ impl ExtensionRegistry {
         Self {
             search_providers: Vec::new(),
             result_executors: Vec::new(),
+            input_detectors: Vec::new(),
         }
     }
 
@@ -35,15 +37,21 @@ impl ExtensionRegistry {
         self.result_executors.push((provider_id.into(), executor));
     }
 
+    /// 注册一个输入特征检测器。
+    pub fn add_input_detector(&mut self, detector: Arc<dyn InputDetector>) {
+        self.input_detectors.push(detector);
+    }
+
     // ── 消费型访问器，供 bootstrap 使用 ──
 
-    /// 拆解注册表，返回注册的 search_providers 和 result_executors。
+    /// 拆解注册表，返回注册的 search_providers、result_executors 和 input_detectors。
     pub fn decompose(
         self,
     ) -> (
         Vec<Arc<dyn SearchProvider>>,
         Vec<(String, Arc<dyn ResultExecutor>)>,
+        Vec<Arc<dyn InputDetector>>,
     ) {
-        (self.search_providers, self.result_executors)
+        (self.search_providers, self.result_executors, self.input_detectors)
     }
 }

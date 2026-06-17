@@ -7,8 +7,9 @@ use litools_settings::storage::SettingsStore;
 use litools_telemetry::init_logging;
 
 use crate::{
-    context::AppContext, error::LitoolsResult, executor_registry::ExecutorRegistry,
-    extension_registry::ExtensionRegistry, internal_plugin::InternalPlugin,
+    context::AppContext, context_analyzer::ContextAnalyzerBuilder, error::LitoolsResult,
+    executor_registry::ExecutorRegistry, extension_registry::ExtensionRegistry,
+    input_plugin::InputPlugin, internal_plugin::InternalPlugin,
     launcher_plugin::LauncherPlugin, plugin_host::PluginHostPlugin,
     plugin_provider::PluginCommandProvider,
 };
@@ -70,16 +71,22 @@ impl LitoolsApp {
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
+        let mut analyzer_builder = ContextAnalyzerBuilder::new();
 
         let commands_plugin = Arc::new(crate::commands_plugin::CommandsPlugin::new());
-        register_internal_plugin(&*commands_plugin, &search, &mut executor_registry);
+        register_internal_plugin(&*commands_plugin, &search, &mut executor_registry, &mut analyzer_builder);
 
         let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        register_internal_plugin(&*launcher_plugin, &search, &mut executor_registry);
+        register_internal_plugin(&*launcher_plugin, &search, &mut executor_registry, &mut analyzer_builder);
 
         let plugin_host = Arc::new(PluginHostPlugin::new(plugins.clone()));
         let plugin_command_provider = plugin_host.command_provider();
-        register_internal_plugin(&*plugin_host, &search, &mut executor_registry);
+        register_internal_plugin(&*plugin_host, &search, &mut executor_registry, &mut analyzer_builder);
+
+        let input_plugin = Arc::new(InputPlugin::new());
+        register_internal_plugin(&*input_plugin, &search, &mut executor_registry, &mut analyzer_builder);
+
+        let context_analyzer = Arc::new(analyzer_builder.build());
 
         log::info!("应用启动完成");
 
@@ -91,6 +98,7 @@ impl LitoolsApp {
                 SettingsStore::new(settings),
                 litools_system::NativeSystemAdapter::default(),
                 executor_registry,
+                context_analyzer,
             ),
             paths,
             plugin_command_provider,
@@ -111,16 +119,22 @@ impl LitoolsApp {
 
         // ── 注册内置插件 ──
         let mut executor_registry = ExecutorRegistry::new();
+        let mut analyzer_builder = ContextAnalyzerBuilder::new();
 
         let commands_plugin = Arc::new(crate::commands_plugin::CommandsPlugin::new());
-        register_internal_plugin(&*commands_plugin, &search, &mut executor_registry);
+        register_internal_plugin(&*commands_plugin, &search, &mut executor_registry, &mut analyzer_builder);
 
         let launcher_plugin = Arc::new(LauncherPlugin::new(database.clone()));
-        register_internal_plugin(&*launcher_plugin, &search, &mut executor_registry);
+        register_internal_plugin(&*launcher_plugin, &search, &mut executor_registry, &mut analyzer_builder);
 
         let plugin_host = Arc::new(PluginHostPlugin::new(plugins.clone()));
         let plugin_command_provider = plugin_host.command_provider();
-        register_internal_plugin(&*plugin_host, &search, &mut executor_registry);
+        register_internal_plugin(&*plugin_host, &search, &mut executor_registry, &mut analyzer_builder);
+
+        let input_plugin = Arc::new(InputPlugin::new());
+        register_internal_plugin(&*input_plugin, &search, &mut executor_registry, &mut analyzer_builder);
+
+        let context_analyzer = Arc::new(analyzer_builder.build());
 
         Ok(Self {
             context: AppContext::new(
@@ -130,6 +144,7 @@ impl LitoolsApp {
                 SettingsStore::new(settings),
                 litools_system::NativeSystemAdapter::default(),
                 executor_registry,
+                context_analyzer,
             ),
             paths: AppBootstrapPaths::new(""),
             plugin_command_provider,
@@ -161,21 +176,25 @@ fn cleanup_session_commands(connection: &rusqlite::Connection) {
     );
 }
 
-/// 向 SearchEngine 和 ExecutorRegistry 注册一个内置插件的所有扩展。
+/// 向 SearchEngine、ExecutorRegistry 和 ContextAnalyzerBuilder 注册一个内置插件的所有扩展。
 fn register_internal_plugin(
     plugin: &dyn InternalPlugin,
     search: &SearchEngine,
     executor_registry: &mut ExecutorRegistry,
+    analyzer_builder: &mut ContextAnalyzerBuilder,
 ) {
     let plugin_id = plugin.metadata().id;
     let mut extensions = ExtensionRegistry::new();
     plugin.register_extensions(&mut extensions);
-    let (search_providers, result_executors) = extensions.decompose();
+    let (search_providers, result_executors, input_detectors) = extensions.decompose();
     for provider in search_providers {
         search.register_plugin_provider(&plugin_id, provider);
     }
     for (provider_id, executor) in result_executors {
         executor_registry.register(&provider_id, executor);
+    }
+    for detector in input_detectors {
+        *analyzer_builder = std::mem::take(analyzer_builder).register(detector);
     }
 }
 

@@ -8,7 +8,10 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use litools_core::{AppBootstrapPaths, LitoolsApp, LitoolsResult, ReloadIndexSummary};
+use litools_core::{
+    AppBootstrapPaths, LitoolsApp, LitoolsResult, ReloadIndexSummary,
+    context_analyzer::ContextAnalyzer,
+};
 use litools_system::SystemAdapter;
 use serde::Serialize;
 
@@ -84,6 +87,7 @@ pub struct AppState {
     #[allow(dead_code)]
     pub executor_registry: ExecutorRegistry,
     pub search_bridge: Arc<WebviewSearchBridge>,
+    pub context_analyzer: Arc<ContextAnalyzer>,
     launcher_positioning: Mutex<LauncherPositioningState>,
     /// Pre-created detached window ready for instant plugin detach.
     pooled_detached: Mutex<Option<String>>,
@@ -107,6 +111,7 @@ impl AppState {
         let app = LitoolsApp::bootstrap(paths)?;
         let search_engine = app.context().search.clone();
         let search_bridge = Arc::new(WebviewSearchBridge::new(search_engine));
+        let context_analyzer = app.context().context_analyzer.clone();
         let runtimes = PluginRuntimeRegistry::new(search_bridge.clone());
 
         Ok(Self {
@@ -115,6 +120,7 @@ impl AppState {
             quitting: AtomicBool::new(false),
             shortcut_status: Mutex::new(ShortcutStatus::default()),
             search_bridge,
+            context_analyzer,
             index_status: Mutex::new(IndexStatus::default()),
             app_watcher: AppWatcherState::default(),
             surfaces: Mutex::new(SurfaceRegistry::default()),

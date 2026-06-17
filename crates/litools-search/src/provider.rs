@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
-use crate::{matcher::SearchResultMatches, query::SearchQuery};
+use crate::{matcher::SearchResultMatches, request::SearchRequest};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,24 +24,6 @@ pub struct SearchResultAction {
     pub label: String,
 }
 
-/// 搜索上下文 —— 所有 Provider 通用的搜索元信息
-#[derive(Clone)]
-pub struct SearchContext {
-    pub cancel: CancellationToken,
-    pub timeout: Duration,
-    pub trace_id: Uuid,
-}
-
-impl SearchContext {
-    pub fn new(timeout: Duration) -> Self {
-        Self {
-            cancel: CancellationToken::new(),
-            timeout,
-            trace_id: Uuid::new_v4(),
-        }
-    }
-}
-
 #[async_trait]
 pub trait SearchProvider: Send + Sync {
     fn id(&self) -> &str;
@@ -53,5 +33,5 @@ pub trait SearchProvider: Send + Sync {
         Duration::from_millis(300)
     }
 
-    async fn search(&self, query: &SearchQuery, ctx: SearchContext) -> Vec<SearchResult>;
+    async fn search(&self, request: &SearchRequest) -> Vec<SearchResult>;
 }

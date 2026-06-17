@@ -3,11 +3,11 @@ use std::sync::{Arc, RwLock};
 
 use tokio_util::sync::CancellationToken;
 
-#[allow(unused_imports)]
-use crate::SearchResultAction;
+use crate::input::InputContext;
+use crate::request::SearchRequest;
 use crate::{
     SearchResult,
-    provider::{SearchContext, SearchProvider},
+    provider::SearchProvider,
     query::SearchQuery,
     ranking::rank_results,
 };
@@ -70,9 +70,22 @@ impl SearchEngine {
         query: SearchQuery,
         enabled_provider_ids: impl IntoIterator<Item = &'a str>,
     ) -> Vec<SearchResult> {
+        let request = SearchRequest {
+            query,
+            context: InputContext::empty(),
+            metadata: HashMap::new(),
+        };
+        self.search_with_request(&request, enabled_provider_ids)
+            .await
+    }
+
+    pub async fn search_with_request<'a>(
+        &self,
+        request: &SearchRequest,
+        enabled_provider_ids: impl IntoIterator<Item = &'a str>,
+    ) -> Vec<SearchResult> {
         let enabled_provider_ids = enabled_provider_ids.into_iter().collect::<Vec<_>>();
 
-        // 快照当前 provider 列表（持读锁，不跨 await）
         let providers = self
             .providers
             .read()
@@ -89,13 +102,11 @@ impl SearchEngine {
 
         for provider in providers {
             let cancel = cancel.clone();
-            let timeout = provider.timeout();
-            let query = query.clone();
+            let request = request.clone();
 
             set.spawn(async move {
-                let ctx = SearchContext::new(timeout);
                 tokio::select! {
-                    results = provider.search(&query, ctx) => results,
+                    results = provider.search(&request) => results,
                     _ = cancel.cancelled() => vec![],
                 }
             });
@@ -108,7 +119,7 @@ impl SearchEngine {
             }
         }
 
-        rank_results(results, query.limit)
+        rank_results(results, request.query.limit)
     }
 }
 
@@ -116,6 +127,8 @@ impl SearchEngine {
 mod tests {
     use super::*;
     use async_trait::async_trait;
+    use crate::request::SearchRequest;
+    use crate::SearchResultAction;
 
     struct StubProvider {
         id: &'static str,
@@ -128,7 +141,7 @@ mod tests {
             self.id
         }
 
-        async fn search(&self, _query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
+        async fn search(&self, _request: &SearchRequest) -> Vec<SearchResult> {
             self.results.clone()
         }
     }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use litools_search::{SearchContext, SearchProvider, SearchQuery, SearchResult};
+use litools_search::{SearchProvider, SearchRequest, SearchResult};
 use serde_json::json;
 use tauri::{AppHandle, Emitter};
 
@@ -45,8 +45,9 @@ impl SearchProvider for WebviewSearchProvider {
         Duration::from_millis(self.timeout_ms)
     }
 
-    async fn search(&self, query: &SearchQuery, ctx: SearchContext) -> Vec<SearchResult> {
-        let request_id = SearchRequestId::new(&self.provider_id, ctx.trace_id);
+    async fn search(&self, request: &SearchRequest) -> Vec<SearchResult> {
+        let trace_id = uuid::Uuid::new_v4();
+        let request_id = SearchRequestId::new(&self.provider_id, trace_id);
         let runtime_id = self
             .webview_label
             .strip_prefix("plugin-")
@@ -55,11 +56,12 @@ impl SearchProvider for WebviewSearchProvider {
 
         let rx = self.bridge.register_pending(request_id.clone(), runtime_id);
 
-        // 定向 emit 到目标 webview
+        // 定向 emit 到目标 webview，携带完整 context
         let payload = json!({
             "requestId": request_id.to_string(),
             "providerId": self.provider_id,
-            "query": query.text,
+            "query": request.query.text,
+            "context": request.context,
         });
         let _ = self
             .app_handle
@@ -71,10 +73,6 @@ impl SearchProvider for WebviewSearchProvider {
                 result.unwrap_or_default()
             }
             _ = tokio::time::sleep(timeout) => {
-                self.bridge.cancel(&request_id);
-                vec![]
-            }
-            _ = ctx.cancel.cancelled() => {
                 self.bridge.cancel(&request_id);
                 vec![]
             }

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::Serialize;
 
 use litools_search::{
-    FieldMatcher, FieldWeights, SearchContext, SearchProvider, SearchQuery, SearchResult,
+    FieldMatcher, FieldWeights, SearchProvider, SearchRequest, SearchResult,
     SearchResultAction, SearchResultMatches, VisibleField, match_text,
 };
 
@@ -123,7 +123,8 @@ impl SearchProvider for BuiltinCommandProvider {
         std::time::Duration::from_millis(5)
     }
 
-    async fn search(&self, query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
+    async fn search(&self, request: &SearchRequest) -> Vec<SearchResult> {
+        let query = &request.query;
         BUILTIN_COMMANDS
             .iter()
             .filter(|command| {

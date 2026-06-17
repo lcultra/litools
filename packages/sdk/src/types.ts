@@ -159,6 +159,50 @@ export type PluginViewState = {
   runtimeId: string | null; dev: boolean;
 };
 
+// ── InputContext (Phase 4A) ──
+
+export type SearchFeature = {
+  kind: string;
+  source: string;
+  confidence: number;
+  metadata: Record<string, unknown>;
+};
+
+export type SearchAttachment = {
+  kind: 'clipboard' | 'dragDrop' | 'filePath';
+  data: number[];
+  mimeType?: string;
+  filename?: string;
+};
+
+export type InputContext = {
+  version: number;
+  raw: string;
+  normalized: string;
+  features: SearchFeature[];
+  attachments: SearchAttachment[];
+  metadata: Record<string, unknown>;
+};
+
+export type SearchRequest = {
+  query: { text: string; limit?: number | null };
+  context: InputContext;
+  metadata: Record<string, unknown>;
+};
+
+export const FEATURE_KINDS = {
+  JSON: 'json',
+  URL: 'url',
+  BASE64: 'base64',
+  IMAGE: 'image',
+  FILE: 'file',
+  CURL: 'curl',
+  JWT: 'jwt',
+  UUID: 'uuid',
+  COLOR: 'color',
+  MARKDOWN: 'markdown',
+} as const;
+
 // ---- search / launcher types (host bridge also uses these) ----
 
 export type SearchResultAction = { id: string; label: string };

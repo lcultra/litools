@@ -5,7 +5,7 @@ use litools_index::{
     repository::{AppRecord, AppRepository},
 };
 use litools_search::{
-    MatchKind, MatchRange, SearchContext, SearchProvider, SearchQuery, SearchResult,
+    MatchKind, MatchRange, SearchProvider, SearchRequest, SearchResult,
     SearchResultAction, SearchResultMatches, TextMatch, match_text,
 };
 
@@ -29,10 +29,11 @@ impl SearchProvider for AppSearchProvider {
         std::time::Duration::from_millis(100)
     }
 
-    async fn search(&self, query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
+    async fn search(&self, request: &SearchRequest) -> Vec<SearchResult> {
         let connection = self.database.connection();
         let repository = AppRepository::new(&connection);
 
+        let query = &request.query;
         let apps = if query.text.trim().is_empty() {
             repository.search_apps(&query.text, query.limit)
         } else {

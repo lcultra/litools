@@ -1,5 +1,5 @@
 import { invokeSdk } from './runtime';
-import type { SearchResult } from './types';
+import type { SearchRequest, SearchResult } from './types';
 
 // ---- search API (Phase 3) ----
 
@@ -7,7 +7,7 @@ interface ProviderConfig {
   id: string;
   timeout?: number;
   debounce?: number;
-  search: (query: string, signal: AbortSignal) => Promise<SearchResult[]>;
+  search: (request: SearchRequest, signal: AbortSignal) => Promise<SearchResult[]>;
 }
 
 /** 注册自定义搜索源，返回 cleanup 函数 */
@@ -53,9 +53,21 @@ function handleSearchRequest(event: Event) {
   if (!handler) return;
 
   const controller = new AbortController();
+  const request: SearchRequest = {
+    query: { text: detail.query || '', limit: null },
+    context: detail.context || {
+      version: 1,
+      raw: '',
+      normalized: '',
+      features: [],
+      attachments: [],
+      metadata: {},
+    },
+    metadata: {},
+  };
 
   handler
-    .search(detail.query, controller.signal)
+    .search(request, controller.signal)
     .then((results) => {
       if (controller.signal.aborted) return;
       submitResults(detail.requestId, results);

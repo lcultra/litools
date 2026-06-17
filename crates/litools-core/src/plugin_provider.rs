@@ -5,7 +5,7 @@ use litools_index::repository::PluginCommandRecord;
 use litools_plugin::{PluginCommandSearchItem, PluginManager, plugin_result_id};
 use async_trait::async_trait;
 use litools_search::{
-    FieldMatcher, FieldWeights, SearchContext, SearchProvider, SearchQuery, SearchResult,
+    FieldMatcher, FieldWeights, SearchProvider, SearchRequest, SearchResult,
     SearchResultAction, SearchResultMatches, VisibleField, match_text,
 };
 
@@ -45,7 +45,8 @@ impl SearchProvider for PluginCommandProvider {
         std::time::Duration::from_millis(20)
     }
 
-    async fn search(&self, query: &SearchQuery, _ctx: SearchContext) -> Vec<SearchResult> {
+    async fn search(&self, request: &SearchRequest) -> Vec<SearchResult> {
+        let query = &request.query;
         if let Some(pm) = self.plugin_manager.lock().ok().and_then(|o| o.clone()) {
             return pm
                 .enabled_view_commands()
